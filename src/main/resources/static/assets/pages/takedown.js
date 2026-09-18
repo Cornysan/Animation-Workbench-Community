@@ -1,6 +1,5 @@
 (async () => {
-  const { api, ensureCsrf, notice, renderShell } = AW;
-  renderShell();
+  const { api, ensureCsrf, notice } = AW;
 
   const form = document.getElementById("takedown-form");
   const state = document.getElementById("state");

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/shell :: head('Community rules')}"></head>
+<body th:attr="data-signed-in=${user != null}">
+<header th:replace="~{fragments/shell :: header}"></header>
+<main>
+  <div th:replace="~{fragments/shell :: paused}"></div>
+  <div class="prose">
+  <h1>Community rules</h1>
+  <div class="todo">Draft - review the wording before launch (Plan L1).</div>
+  <ol>
+    <li><strong>Only share what you made.</strong> Clips from Asset Store packs, Mixamo, other games or other community members are not yours to share, even after editing them. The Workbench blocks the ones it can recognize.</li>
+    <li><strong>Public means public.</strong> Under CC BY 4.0 people may use and change your clip, also commercially. Pick private if you do not want that.</li>
+    <li><strong>Describe honestly.</strong> Title, tags and preview should match the motion.</li>
+    <li><strong>Report real problems only.</strong> Reports hide clips immediately; reports found to be unfounded count against your account.</li>
+    <li><strong>Repeat violations end in suspension.</strong> A removed clip counts as a strike; three strikes suspend the account.</li>
+  </ol>
+  </div>
+  </main>
+<footer th:replace="~{fragments/shell :: footer}"></footer>
+<script src="/assets/app.js"></script>
+</body>
+</html>

@@ -1,6 +1,5 @@
 (async () => {
-  const { api, ensureCsrf, me, el, notice, formatDate, renderShell } = AW;
-  renderShell("me");
+  const { api, ensureCsrf, me, el, notice, formatDate } = AW;
 
   const state = document.getElementById("state");
   const user = await me().catch(() => null);

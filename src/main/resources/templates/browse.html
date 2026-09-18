@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/shell :: head('Browse clips')}"></head>
+<body th:attr="data-signed-in=${user != null}">
+<header th:replace="~{fragments/shell :: header}"></header>
+<main>
+  <div th:replace="~{fragments/shell :: paused}"></div>
+  <h1>Community clips</h1>
+  <p class="lead">Humanoid animations made in the Animation Workbench, shared under CC BY 4.0.</p>
+  <form class="filters" id="filters">
+    <div class="segmented" id="sort" role="group" aria-label="Sort"></div>
+    <input type="search" name="q" placeholder="Search titles, descriptions, tags" aria-label="Search">
+    <button class="primary" type="submit">Search</button>
+  </form>
+  <div id="results" class="grid"></div>
+  <div id="state"></div>
+  <div class="pager" id="pager"></div>
+  </main>
+<footer th:replace="~{fragments/shell :: footer}"></footer>
+<script src="/assets/app.js"></script>
+<script src="/assets/viewer.js"></script>
+<script src="/assets/pages/browse.js"></script>
+</body>
+</html>

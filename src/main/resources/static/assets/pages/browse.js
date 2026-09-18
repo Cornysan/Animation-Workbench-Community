@@ -1,6 +1,5 @@
 (async () => {
-  const { api, el, notice, formatDuration, renderShell } = AW;
-  renderShell("browse");
+  const { api, el, notice, formatDuration } = AW;
 
   const form = document.getElementById("filters");
   const sortBox = document.getElementById("sort");

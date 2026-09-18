@@ -1,6 +1,5 @@
 (async () => {
-  const { api, ensureCsrf, me, el, notice, param, renderShell } = AW;
-  renderShell();
+  const { api, ensureCsrf, me, el, notice, param } = AW;
 
   const code = (param("code") || "").toUpperCase();
   const state = document.getElementById("state");
@@ -14,8 +13,8 @@
 
   const user = await me().catch(() => null);
   if (!user) {
-    // Nach dem Discord-Login landet man auf "/" - renderShell leitet von dort
-    // mit dem gemerkten Code hierher zurück.
+    // Nach dem Discord-Login landet man auf "/" - resumePendingLink in app.js
+    // leitet von dort mit dem gemerkten Code hierher zurück.
     sessionStorage.setItem("aw-link-code", code);
     notice(state, "Sign in first - then confirm the code.");
     actions.append(el("a", { class: "button primary", href: "/oauth2/authorization/discord" }, "Sign in with Discord"));

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/shell :: head('Moderation')}"></head>
+<body th:attr="data-signed-in=${user != null}">
+<header th:replace="~{fragments/shell :: header}"></header>
+<main>
+  <div th:replace="~{fragments/shell :: paused}"></div>
+  <h1>Moderation</h1>
+  <p class="lead">Reported clips are already hidden. Decide in your own time.</p>
+  <div id="state"></div>
+  <div class="panel">
+    <h2>Switches</h2>
+    <label class="check"><input type="checkbox" id="community-enabled"><span>Community enabled (kill switch)</span></label>
+    <label class="check"><input type="checkbox" id="uploads-enabled"><span>Uploads enabled</span></label>
+  </div>
+  <h2>Open cases</h2>
+  <div id="cases"></div>
+  </main>
+<footer th:replace="~{fragments/shell :: footer}"></footer>
+<script src="/assets/app.js"></script>
+<script src="/assets/pages/admin.js"></script>
+</body>
+</html>

@@ -1,6 +1,5 @@
 (async () => {
-  const { api, ensureCsrf, me, el, notice, formatDuration, formatDate, param, renderShell } = AW;
-  renderShell("browse");
+  const { api, ensureCsrf, me, el, notice, formatDuration, formatDate, param } = AW;
 
   const slug = param("p");
   const state = document.getElementById("state");

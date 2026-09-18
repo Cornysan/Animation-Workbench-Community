@@ -121,6 +121,54 @@ class PortalFlowTest {
         mvc.get("/assets/viewer.js").andExpect { status { isOk() } }
     }
 
+    /**
+     * Jede Adresse, die im Fuss, in der Navigation oder in einer Takedown-Mail
+     * steht, muss eine Seite liefern. Die Seiten lagen als Dateien unter
+     * `static/`; seit sie aus Vorlagen kommen, haelt nur noch der
+     * PageController die Zuordnung - ein vergessenes Ziel faellt sonst erst im
+     * Betrieb als 404 auf.
+     */
+    @Test
+    fun `every page url renders`() {
+        val pages = listOf(
+            "/", "/index.html", "/clip.html", "/me.html", "/licenses.html", "/admin.html",
+            "/dev.html", "/link.html", "/rules.html", "/terms.html", "/privacy.html",
+            "/impressum.html", "/takedown.html",
+        )
+
+        for (page in pages) {
+            mvc.get(page).andExpect {
+                status { isOk() }
+                content { contentTypeCompatibleWith(MediaType.TEXT_HTML) }
+            }
+        }
+    }
+
+    /**
+     * Der Rahmen steht im AUSGELIEFERTEN HTML, nicht erst nach zwei
+     * API-Aufrufen im Browser. Genau das war der Umbau, und genau das faellt
+     * beim naechsten Handgriff still wieder um, wenn es niemand prueft.
+     */
+    @Test
+    fun `the page frame is in the html, and moderation only for moderators`() {
+        val anonymous = mvc.get("/").andReturn().response.contentAsString
+
+        assertTrue(anonymous.contains("Community clips"), "Seiteninhalt fehlt")
+        assertTrue(anonymous.contains("/licenses.html"), "Navigation fehlt im HTML")
+        assertTrue(anonymous.contains("Report a rights violation"), "Fuss fehlt im HTML")
+
+        //  Weggelassen, nicht versteckt: mit einer Klasse „hidden" im Dokument
+        //  waere das Aufblitzen fuer alle anderen nur eine Frage des Zeitpunkts.
+        assertFalse(anonymous.contains("/admin.html"), "Moderation darf anonym nicht im HTML stehen")
+
+        val admin = login("admin")
+        val asAdmin = mvc.get("/") { header("Authorization", "Bearer $admin") }
+            .andReturn().response.contentAsString
+
+        assertTrue(asAdmin.contains("/admin.html"), "Moderation fehlt fuer den Moderator")
+        assertTrue(asAdmin.contains("Moderator"), "Rolle fehlt im Kontoblock")
+    }
+
     @Test
     fun `upload needs sign-in, the exact declaration and a valid file`() {
         //  Ohne CSRF-Token scheitert ein Browser-POST schon am CSRF-Schutz (403);

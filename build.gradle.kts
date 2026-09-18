@@ -28,6 +28,13 @@ repositories {
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
+
+    // Der Seitenrahmen (Marke, Navigation, Konto, Fuss) kommt aus EINER Vorlage
+    // und steht fertig im ausgelieferten HTML. Vorher baute ihn JavaScript bei
+    // jedem Seitenaufruf neu, und der Kontoblock wartete dabei auf zwei
+    // API-Aufrufe - jede Navigation sah deshalb aus wie ein Neuaufbau.
+    implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
+
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-flyway")
     implementation("org.springframework.boot:spring-boot-starter-security")

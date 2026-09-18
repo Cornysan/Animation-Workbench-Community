@@ -1,6 +1,5 @@
 (async () => {
-  const { api, el, notice, renderShell } = AW;
-  renderShell("licenses");
+  const { api, el, notice } = AW;
 
   const box = document.getElementById("licenses");
   try {

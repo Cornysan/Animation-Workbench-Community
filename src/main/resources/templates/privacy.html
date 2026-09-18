@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/shell :: head('Privacy')}"></head>
+<body th:attr="data-signed-in=${user != null}">
+<header th:replace="~{fragments/shell :: header}"></header>
+<main>
+  <div th:replace="~{fragments/shell :: paused}"></div>
+  <div class="prose">
+  <h1>Privacy</h1>
+  <div class="todo">Draft outline - to be written with legal review before launch (Plan L1). Not legal advice.</div>
+  <h2>What the portal stores - as built</h2>
+  <ul>
+    <li>Account: Discord user ID and display name (Discord scope <code>identify</code>, no email).</li>
+    <li>Uploads: the .awclip file, title, description, tags, license, and an upload declaration with its exact wording, time and IP address.</li>
+    <li>Reports and takedown requests: contents and time; for takedowns also name, email and IP address.</li>
+    <li>An audit log of uploads and moderation actions.</li>
+    <li>IP addresses are replaced by a keyed pseudonym after 30 days.</li>
+    <li>Workbench sign-ins: a token of which only a hash is stored.</li>
+    <li>No tracking, no analytics, no third-party scripts.</li>
+  </ul>
+  <div class="todo">Verantwortlicher, Rechtsgrundlagen, Empfaenger und Auftragsverarbeiter (Hoster, Discord, Mail-Anbieter), Speicherdauer je Kategorie, Betroffenenrechte, Beschwerderecht</div>
+  </div>
+  </main>
+<footer th:replace="~{fragments/shell :: footer}"></footer>
+<script src="/assets/app.js"></script>
+</body>
+</html>

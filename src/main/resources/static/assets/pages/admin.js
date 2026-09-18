@@ -1,6 +1,5 @@
 (async () => {
-  const { api, ensureCsrf, me, el, notice, formatDate, renderShell } = AW;
-  renderShell("admin");
+  const { api, ensureCsrf, me, el, notice, formatDate } = AW;
 
   const state = document.getElementById("state");
   const casesBox = document.getElementById("cases");

@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/shell :: head('Impressum')}"></head>
+<body th:attr="data-signed-in=${user != null}">
+<header th:replace="~{fragments/shell :: header}"></header>
+<main>
+  <div th:replace="~{fragments/shell :: paused}"></div>
+  <div class="prose">
+  <h1>Impressum</h1>
+  <div class="todo">Draft outline - fill in before launch (Plan L1). Not legal advice.</div>
+  <h2>Angaben</h2>
+  <div class="todo">Name, ladungsfaehige Anschrift, Rechtsform (Einzelunternehmen)</div>
+  <h2>Kontakt</h2>
+  <div class="todo">E-Mail, ggf. Telefon - eine Adresse, die tatsaechlich gelesen wird</div>
+  <h2>Umsatzsteuer-ID</h2>
+  <div class="todo">falls vorhanden</div>
+  <h2>Kontaktstelle nach DSA</h2>
+  <p>Rights violations: <a href="/takedown.html">takedown form</a> (no account needed).</p>
+  <div class="todo">Kontaktstelle fuer Behoerden und Nutzer benennen</div>
+  </div>
+  </main>
+<footer th:replace="~{fragments/shell :: footer}"></footer>
+<script src="/assets/app.js"></script>
+</body>
+</html>

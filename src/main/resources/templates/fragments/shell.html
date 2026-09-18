@@ -1,0 +1,141 @@
+<!doctype html>
+<!--
+  Der Rahmen aller Seiten: Kopf mit Marke, Navigation und Konto, dazu der Fuss.
+
+  Er lag vorher in app.js und wurde bei JEDEM Seitenaufruf neu gebaut - das
+  Dokument kam mit leerem <header> an, JavaScript malte die Navigation nach, und
+  der Kontoblock stand auf "..." bis /api/v1/me und /api/v1/status zurueck waren.
+  Man sah der Seite beim Zusammensetzen zu, und das las sich als vollstaendiges
+  Neuladen, obwohl die Knoepfe innerhalb einer Seite laengst ohne Neuladen
+  arbeiten.
+
+  Jetzt steht alles im ausgelieferten HTML, den angemeldeten Nutzer
+  eingeschlossen: der Server weiss ohnehin, wer da ist, und muss nicht erst
+  gefragt werden. Fuer den Rahmen bleibt kein einziger API-Aufruf uebrig.
+-->
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head th:fragment="head(title)">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title th:text="|${title} - Animation Workbench Community|">Animation Workbench Community</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/assets/app.css">
+</head>
+
+<body>
+
+<!--
+  Die Strichsymbole der Navigation - 20x20, erben die Textfarbe. Sie standen als
+  Pfadlisten in JavaScript; hier stehen dieselben Pfade als Markup.
+-->
+<header class="site-header" th:fragment="header">
+  <a class="brand" href="/" title="Animation Workbench Community">
+    <img class="brand-lockup" src="/assets/brand/aw-lockup-weiss.svg"
+         alt="Animation Workbench" width="178" height="34">
+    <img class="brand-mark" src="/assets/brand/aw-mark-dark.svg"
+         alt="Animation Workbench" width="30" height="30">
+    <small>Community</small>
+  </a>
+
+  <nav class="site-nav">
+    <a href="/" title="Browse" class="nav-item"
+       th:classappend="${active == 'browse'} ? ' active'">
+      <svg viewBox="0 0 24 24" class="nav-icon" aria-hidden="true" fill="none" stroke="currentColor"
+           stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
+        <path d="M4 4h6v6H4z"></path><path d="M14 4h6v6h-6z"></path>
+        <path d="M4 14h6v6H4z"></path><path d="M14 14h6v6h-6z"></path>
+      </svg>
+      <span>Browse</span>
+    </a>
+
+    <a href="/me.html" title="My clips" class="nav-item"
+       th:classappend="${active == 'me'} ? ' active'">
+      <svg viewBox="0 0 24 24" class="nav-icon" aria-hidden="true" fill="none" stroke="currentColor"
+           stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
+        <path d="M4 5h11l2 2h3v12H4z"></path>
+      </svg>
+      <span>My clips</span>
+    </a>
+
+    <a href="/licenses.html" title="Licenses" class="nav-item"
+       th:classappend="${active == 'licenses'} ? ' active'">
+      <svg viewBox="0 0 24 24" class="nav-icon" aria-hidden="true" fill="none" stroke="currentColor"
+           stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
+        <path d="M6 3h9l4 4v14H6z"></path><path d="M15 3v5h4"></path>
+      </svg>
+      <span>Licenses</span>
+    </a>
+
+    <!--
+      Der Moderations-Eintrag wird weggelassen statt versteckt. Vorher stand er
+      mit der Klasse "hidden" im Dokument und JavaScript nahm sie weg, sobald
+      /api/v1/me die Rolle nannte - ein Aufblitzen fuer alle anderen war damit
+      eine Frage des Zeitpunkts.
+    -->
+    <a href="/admin.html" title="Moderation" class="nav-item admin-link"
+       th:if="${user != null and user.admin}"
+       th:classappend="${active == 'admin'} ? ' active'">
+      <svg viewBox="0 0 24 24" class="nav-icon" aria-hidden="true" fill="none" stroke="currentColor"
+           stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
+        <path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z"></path>
+      </svg>
+      <span>Moderation</span>
+    </a>
+  </nav>
+
+  <div class="sidebar-foot">
+    <div class="sidebar-hint">
+      <strong>Share your own</strong>
+      <span>In the Animation Workbench: right-click a clip, Export Clip, Share as .awclip.</span>
+    </div>
+
+    <div class="account" th:if="${user != null}">
+      <div class="avatar" th:text="${user.initial}">?</div>
+      <div class="account-name">
+        <span th:text="${user.displayName}">Name</span>
+        <a class="badge" href="/me.html" title="Notifications"
+           th:if="${user.unread > 0}" th:text="${user.unreadLabel}">1 message</a>
+        <span class="faint small" th:unless="${user.unread > 0}" th:text="${user.roleLabel}">Signed in</span>
+      </div>
+      <button class="ghost icon-button" id="sign-out" type="button" title="Sign out">&#9211;</button>
+    </div>
+
+    <!--
+      Ohne konfigurierte Discord-App landet der Knopf auf Discords Fehlerseite
+      ("Ungueltiger Formulartext" - client_id=unset). Dann lieber sagen, woran es
+      liegt, und lokal auf die Entwickleranmeldung zeigen.
+    -->
+    <div class="account" th:if="${user == null}">
+      <a class="button primary" href="/oauth2/authorization/discord"
+         th:if="${discordSignIn}">Sign in with Discord</a>
+
+      <div class="sidebar-hint" th:unless="${discordSignIn}">
+        <strong>Sign-in is not set up</strong>
+        <span>This portal has no Discord app configured yet.</span>
+      </div>
+      <a class="button" href="/dev.html" th:if="${!discordSignIn and devLogin}">Developer sign-in</a>
+    </div>
+  </div>
+</header>
+
+<!--
+  Der Kill-Switch-Hinweis stand bisher per JavaScript oben in <main>; er bleibt
+  dort, kommt aber aus derselben Antwort wie der Rest der Seite.
+-->
+<th:block th:fragment="paused">
+  <div class="notice warn" th:if="${!communityEnabled}">
+    The community is paused right now. Rights holders can still use the takedown form.
+  </div>
+</th:block>
+
+<footer class="site-footer" th:fragment="footer">
+  <a href="/rules.html">Community rules</a>
+  <a href="/takedown.html">Report a rights violation</a>
+  <a href="/terms.html">Terms</a>
+  <a href="/privacy.html">Privacy</a>
+  <a href="/impressum.html">Impressum</a>
+</footer>
+
+</body>
+</html>

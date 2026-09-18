@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/shell :: head('My clips')}"></head>
+<body th:attr="data-signed-in=${user != null}">
+<header th:replace="~{fragments/shell :: header}"></header>
+<main>
+  <div th:replace="~{fragments/shell :: paused}"></div>
+  <h1>My clips</h1>
+  <p class="lead">Share clips from the Animation Workbench: right-click a clip, Export Clip, Share as .awclip.</p>
+  <div id="state"></div>
+  <h2>Notifications</h2>
+  <div id="notifications"></div>
+  <h2>Clips</h2>
+  <table class="list" id="clips"><thead><tr><th>Title</th><th>Status</th><th>Version</th><th>Downloads</th><th></th></tr></thead><tbody></tbody></table>
+  <h2>Workbench sign-ins</h2>
+  <p class="muted small">Signed in on a computer you no longer use? End every Workbench sign-in of this account.</p>
+  <button id="revoke" class="danger">Sign out all Workbench installations</button>
+  </main>
+<footer th:replace="~{fragments/shell :: footer}"></footer>
+<script src="/assets/app.js"></script>
+<script src="/assets/pages/me.js"></script>
+</body>
+</html>

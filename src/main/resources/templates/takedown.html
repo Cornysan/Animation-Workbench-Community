@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/shell :: head('Report a rights violation')}"></head>
+<body th:attr="data-signed-in=${user != null}">
+<header th:replace="~{fragments/shell :: header}"></header>
+<main>
+  <div th:replace="~{fragments/shell :: paused}"></div>
+  <div class="prose">
+    <h1>Report a rights violation</h1>
+    <p class="lead">For rights holders. No account needed. Every clip you list is hidden immediately while we review your request.</p>
+    <form class="panel" id="takedown-form">
+      <label class="field"><span>Your name</span><input name="contactName" required maxlength="120"></label>
+      <label class="field"><span>Email for our reply</span><input name="contactEmail" type="email" required maxlength="254"></label>
+      <label class="field"><span>Rights holder (you or the company you act for)</span><input name="rightsHolder" required maxlength="200"></label>
+      <label class="field"><span>Which work is being infringed? (product name, link to the original)</span><textarea name="claimedWork" required maxlength="2000"></textarea></label>
+      <label class="field"><span>Links to the clips on this site (one per line, up to 20)</span><textarea name="packages" required></textarea></label>
+      <label class="check"><input type="checkbox" name="goodFaith" required><span>I believe in good faith that the use of the listed clips is not authorized by the rights holder or the law.</span></label>
+      <label class="check"><input type="checkbox" name="accurate" required><span>The information in this request is accurate, and I am the rights holder or authorized to act for them.</span></label>
+      <button class="primary" type="submit">Send request</button>
+      <div id="state"></div>
+    </form>
+  </div>
+  </main>
+<footer th:replace="~{fragments/shell :: footer}"></footer>
+<script src="/assets/app.js"></script>
+<script src="/assets/pages/takedown.js"></script>
+</body>
+</html>

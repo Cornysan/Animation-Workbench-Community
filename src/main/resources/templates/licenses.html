@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/shell :: head('Licenses')}"></head>
+<body th:attr="data-signed-in=${user != null}">
+<header th:replace="~{fragments/shell :: header}"></header>
+<main>
+  <div th:replace="~{fragments/shell :: paused}"></div>
+  <div class="prose">
+    <h1>Licenses</h1>
+    <p class="lead">Two choices when you share a clip, and that is the whole list. The Workbench keeps the choice with the clip in your project.</p>
+    <div id="licenses"></div>
+  </div>
+  </main>
+<footer th:replace="~{fragments/shell :: footer}"></footer>
+<script src="/assets/app.js"></script>
+<script src="/assets/pages/licenses.js"></script>
+</body>
+</html>
