@@ -1,0 +1,28 @@
+{
+ "format": "awclip",
+ "version": 1,
+ "manifest": {
+  "title": "Nod",
+  "license": "ARR",
+  "rig": "humanoid",
+  "frameRate": 30,
+  "duration": 1
+ },
+ "origin": "own",
+ "curves": [
+  {
+   "attribute": "Head Nod Down-Up",
+   "keys": [
+    [
+     0,
+     0,
+     0,
+     0,
+     2,
+     0.3,
+     1
+    ]
+   ]
+  }
+ ]
+}

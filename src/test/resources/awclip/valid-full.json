@@ -1,0 +1,164 @@
+{
+ "format": "awclip",
+ "version": 1,
+ "manifest": {
+  "title": "Sneak Walk é",
+  "description": "Line one\nLine two \"quoted\"",
+  "tags": [
+   "walk",
+   "stealth",
+   "loop-1"
+  ],
+  "license": "CC-BY-4.0",
+  "rig": "humanoid",
+  "frameRate": 30,
+  "duration": 1.2333333,
+  "tool": "Animation Workbench 2.4.5"
+ },
+ "settings": {
+  "loopTime": true,
+  "cycleOffset": 0.25,
+  "mirror": false,
+  "level": -0.1
+ },
+ "origin": "unknown",
+ "curves": [
+  {
+   "attribute": "RootT.y",
+   "keys": [
+    [
+     0,
+     1.02,
+     0,
+     0
+    ],
+    [
+     0.6,
+     0.98,
+     "inf",
+     "-inf"
+    ],
+    [
+     1.2333333,
+     1.02,
+     0,
+     0
+    ]
+   ]
+  },
+  {
+   "attribute": "LeftHand.Thumb.1 Stretched",
+   "keys": [
+    [
+     0,
+     -0.3,
+     0.1,
+     0.1,
+     0.33333334,
+     0.5,
+     3
+    ]
+   ]
+  },
+  {
+   "attribute": "Left Upper Leg Front-Back",
+   "keys": [
+    [
+     0,
+     0.1,
+     1e-05,
+     -2500.0
+    ],
+    [
+     0.5,
+     0.123456789,
+     0,
+     0
+    ]
+   ]
+  },
+  {
+   "attribute": "RightHandTDOF.z",
+   "keys": [
+    [
+     0,
+     0,
+     0,
+     0
+    ]
+   ]
+  }
+ ],
+ "preview": {
+  "frameRate": 15,
+  "bones": [
+   "Hips",
+   "Spine",
+   "Head"
+  ],
+  "parents": [
+   -1,
+   0,
+   1
+  ],
+  "rest": [
+   [
+    0,
+    1,
+    0
+   ],
+   [
+    0,
+    0.1,
+    0
+   ],
+   [
+    0,
+    0.5,
+    0
+   ]
+  ],
+  "hips": [
+   [
+    0,
+    1,
+    0
+   ],
+   [
+    0.1,
+    1,
+    0
+   ]
+  ],
+  "rotations": [
+   [
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    1
+   ],
+   [
+    0,
+    0.1,
+    0,
+    0.995,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    1
+   ]
+  ]
+ }
+}

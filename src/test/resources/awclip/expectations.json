@@ -1,0 +1,124 @@
+{
+ "fixtures": [
+  {
+   "file": "valid-minimal.json",
+   "error": null,
+   "hash": "837ec050f17c5ef7a3106f14ff5d1998bf24bea36d0de66270e293ea34d135bd"
+  },
+  {
+   "file": "valid-full.json",
+   "error": null,
+   "hash": "dbb3ded0f9939be4f59ae51f89eb0a88588ee6f2ebf2627ac461389b675f19fb"
+  },
+  {
+   "file": "invalid-unknown-field.json",
+   "error": "unknown-field",
+   "hash": null
+  },
+  {
+   "file": "invalid-unknown-attribute.json",
+   "error": "unknown-attribute",
+   "hash": null
+  },
+  {
+   "file": "invalid-license.json",
+   "error": "invalid-license",
+   "hash": null
+  },
+  {
+   "file": "invalid-key-order.json",
+   "error": "key-order",
+   "hash": null
+  },
+  {
+   "file": "invalid-key-time-range.json",
+   "error": "key-time-range",
+   "hash": null
+  },
+  {
+   "file": "invalid-unsupported-version.json",
+   "error": "unsupported-version",
+   "hash": null
+  },
+  {
+   "file": "invalid-origin.json",
+   "error": "invalid-origin",
+   "hash": null
+  },
+  {
+   "file": "invalid-rig.json",
+   "error": "invalid-rig",
+   "hash": null
+  },
+  {
+   "file": "invalid-tags.json",
+   "error": "invalid-tags",
+   "hash": null
+  },
+  {
+   "file": "invalid-title.json",
+   "error": "invalid-title",
+   "hash": null
+  },
+  {
+   "file": "invalid-missing-field.json",
+   "error": "missing-field",
+   "hash": null
+  },
+  {
+   "file": "invalid-key.json",
+   "error": "invalid-key",
+   "hash": null
+  },
+  {
+   "file": "invalid-duration.json",
+   "error": "invalid-duration",
+   "hash": null
+  },
+  {
+   "file": "invalid-frame-rate.json",
+   "error": "invalid-frame-rate",
+   "hash": null
+  },
+  {
+   "file": "invalid-duplicate-attribute.json",
+   "error": "duplicate-attribute",
+   "hash": null
+  },
+  {
+   "file": "invalid-preview.json",
+   "error": "invalid-preview",
+   "hash": null
+  },
+  {
+   "file": "invalid-setting.json",
+   "error": "invalid-setting",
+   "hash": null
+  },
+  {
+   "file": "invalid-wrong-type.json",
+   "error": "wrong-type",
+   "hash": null
+  },
+  {
+   "file": "invalid-curve-count.json",
+   "error": "invalid-curve-count",
+   "hash": null
+  },
+  {
+   "file": "invalid-json-duplicate-key.json",
+   "error": "json-duplicate-key",
+   "hash": null
+  },
+  {
+   "file": "invalid-json-syntax.json",
+   "error": "json-syntax",
+   "hash": null
+  },
+  {
+   "file": "invalid-json-depth.json",
+   "error": "json-depth",
+   "hash": null
+  }
+ ]
+}

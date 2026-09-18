@@ -1,0 +1,31 @@
+{
+ "format": "awclip",
+ "version": 1,
+ "manifest": {
+  "title": "Nod",
+  "license": "ARR",
+  "rig": "humanoid",
+  "frameRate": 30,
+  "duration": 1
+ },
+ "origin": "own",
+ "curves": [
+  {
+   "attribute": "m_LocalPosition.x",
+   "keys": [
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     1,
+     0.5,
+     0,
+     0
+    ]
+   ]
+  }
+ ]
+}

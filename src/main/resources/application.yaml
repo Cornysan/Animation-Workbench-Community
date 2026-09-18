@@ -1,0 +1,133 @@
+# ---------------------------------------------------------------------------
+# Animation Workbench Community Portal
+#
+# Profile:
+#   (keins)      Produktion - alles Geheime kommt aus der Umgebung
+#   dev          lokal: H2-Datei, Entwickler-Login ohne Discord, Alarme ins Log
+#   test         Tests: H2 im Speicher
+# ---------------------------------------------------------------------------
+spring:
+  application:
+    name: aw-community-portal
+  servlet:
+    multipart:
+      # .awclip-Grenze ist 8 MB (AwclipSchema.MAX_COMPRESSED_BYTES), plus Luft
+      # für die übrigen Formularteile. nginx braucht denselben Wert.
+      max-file-size: 9MB
+      max-request-size: 10MB
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
+  flyway:
+    enabled: true
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/motionlabs}
+    username: ${DATABASE_USER:motionlabs}
+    password: ${DATABASE_PASSWORD:}
+  security:
+    oauth2:
+      client:
+        registration:
+          discord:
+            client-id: ${DISCORD_CLIENT_ID:unset}
+            client-secret: ${DISCORD_CLIENT_SECRET:unset}
+            authorization-grant-type: authorization_code
+            client-authentication-method: client_secret_post
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            # Nur die Discord-ID und der Anzeigename - keine E-Mail.
+            scope: identify
+        provider:
+          discord:
+            authorization-uri: https://discord.com/oauth2/authorize
+            token-uri: https://discord.com/api/oauth2/token
+            user-info-uri: https://discord.com/api/users/@me
+            user-name-attribute: id
+  mail:
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USER:}
+    password: ${MAIL_PASSWORD:}
+
+server:
+  forward-headers-strategy: framework
+  servlet:
+    session:
+      cookie:
+        same-site: lax
+        secure: true
+        http-only: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+springdoc:
+  api-docs:
+    enabled: ${API_DOCS_ENABLED:false}
+  swagger-ui:
+    enabled: ${API_DOCS_ENABLED:false}
+
+portal:
+  public-base-url: ${PORTAL_BASE_URL:https://community.playmations.com}
+  storage:
+    directory: ${PORTAL_STORAGE_DIR:/var/lib/motionlabs/blobs}
+  # HMAC-Schlüssel für Download-Links und IP-Pseudonyme. Zwei getrennte, damit
+  # ein geleakter Link-Schlüssel die Pseudonyme nicht umkehrbar macht.
+  download-secret: ${PORTAL_DOWNLOAD_SECRET:}
+  pseudonym-secret: ${PORTAL_PSEUDONYM_SECRET:}
+  admin-discord-ids: ${PORTAL_ADMIN_DISCORD_IDS:}
+  alerts:
+    discord-webhook-url: ${PORTAL_ALERT_WEBHOOK:}
+    mail-to: ${PORTAL_ALERT_MAIL_TO:}
+    mail-from: ${PORTAL_ALERT_MAIL_FROM:}
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+  datasource:
+    url: jdbc:h2:file:./data/portal;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    username: sa
+    password: ""
+server:
+  servlet:
+    session:
+      cookie:
+        secure: false
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+portal:
+  public-base-url: http://localhost:8080
+  storage:
+    directory: ./data/blobs
+  download-secret: dev-download-secret-not-for-production
+  pseudonym-secret: dev-pseudonym-secret-not-for-production
+  dev-login: true
+---
+spring:
+  config:
+    activate:
+      on-profile: test
+  datasource:
+    url: jdbc:h2:mem:portal;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ""
+server:
+  servlet:
+    session:
+      cookie:
+        secure: false
+portal:
+  public-base-url: http://localhost
+  storage:
+    directory: ./build/test-blobs
+  download-secret: test-download-secret
+  pseudonym-secret: test-pseudonym-secret
+  dev-login: true
+  admin-discord-ids: dev:admin

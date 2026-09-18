@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" fill="none" role="img" aria-label="Animation Workbench">
+<g stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+<path d="M11 54 L28 10 L45 54" opacity="0.42"/>
+<path d="M19 54 L36 10 L53 54"/>
+</g>
+<path d="M36 33 L44.4 40 L36 47 L27.6 40 Z" fill="#8E77FF"/>
+</svg>

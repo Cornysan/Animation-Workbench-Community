@@ -1,0 +1,12 @@
+{
+ "format": "awclip",
+ "version": 1,
+ "manifest": {
+  "title": "Nod",
+  "license": "ARR",
+  "rig": "humanoid",
+  "frameRate": 30,
+  "duration": 1
+ },
+ "origin": "own"
+}

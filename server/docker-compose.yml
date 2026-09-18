@@ -1,0 +1,174 @@
+###############################################################################
+# MotionLabs Backend - Docker Compose (Production)
+#
+# Architecture:
+#
+#   Internet
+#     |
+#   NGINX (ports 80 / 443)  -> only public service
+#     |
+#   Spring Boot Backend (port 8080, internal only)
+#     |
+#   PostgreSQL
+#
+# Principles:
+#
+# - Backend exposes NO public ports.
+#   Access is ONLY via nginx (reverse proxy).
+#
+# - All runtime data lives in:
+#     /var/lib/motionlabs
+#
+# - Docker Compose and nginx config live in:
+#     /srv/motionlabs
+#
+# - The server contains NO git repository.
+#   Images are pulled only from CI.
+#
+# - Image tags can be overridden at deploy time:
+#     TAG=sha-abc123 docker compose up -d
+#
+###############################################################################
+
+services:
+
+  ###########################################################################
+  # PostgreSQL - persistent database
+  ###########################################################################
+  postgres:
+    image: postgres:18-alpine
+    container_name: motionlabs-db
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: motionlabs
+      POSTGRES_USER: motionlabs
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    networks:
+      - motionlabs-network
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U motionlabs"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ###########################################################################
+  # Spring Boot Backend - internal service
+  ###########################################################################
+  backend:
+    image: ghcr.io/playmations/motionlabs-backend:${TAG:-latest}
+    container_name: motionlabs-backend
+    restart: unless-stopped
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/motionlabs
+      SPRING_DATASOURCE_USERNAME: motionlabs
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health
+
+      # Community-Portal - alle Werte in /srv/motionlabs/.env
+      PORTAL_BASE_URL: ${PORTAL_BASE_URL}
+      PORTAL_STORAGE_DIR: /var/lib/motionlabs/blobs
+      PORTAL_DOWNLOAD_SECRET: ${PORTAL_DOWNLOAD_SECRET}
+      PORTAL_PSEUDONYM_SECRET: ${PORTAL_PSEUDONYM_SECRET}
+      PORTAL_ADMIN_DISCORD_IDS: ${PORTAL_ADMIN_DISCORD_IDS}
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID}
+      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET}
+      PORTAL_ALERT_WEBHOOK: ${PORTAL_ALERT_WEBHOOK}
+      PORTAL_ALERT_MAIL_TO: ${PORTAL_ALERT_MAIL_TO:-}
+      PORTAL_ALERT_MAIL_FROM: ${PORTAL_ALERT_MAIL_FROM:-}
+      MAIL_HOST: ${MAIL_HOST:-}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USER: ${MAIL_USER:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+
+    # NO public ports here
+    # Access only via nginx
+
+    networks:
+      - motionlabs-network
+
+    # Kein Docker-Socket mehr: der alte FBX-Worker startete Container und
+    # brauchte ihn - das hiess Root auf dem Host fuer jede Luecke im Backend.
+    volumes:
+      - blob_data:/var/lib/motionlabs/blobs
+
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  ###########################################################################
+  # Nginx - reverse proxy and TLS termination
+  ###########################################################################
+  nginx:
+    image: nginx:alpine
+    container_name: motionlabs-nginx
+    restart: unless-stopped
+
+    ports:
+      - "80:80"
+      - "443:443"
+
+    volumes:
+      - /srv/motionlabs/bootstrap/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /var/lib/motionlabs/nginx/conf.d:/etc/nginx/conf.d:ro
+      - /var/lib/motionlabs/certbot/conf:/etc/letsencrypt:ro
+      - /var/lib/motionlabs/certbot/www:/var/www/certbot
+
+    networks:
+      - motionlabs-network
+
+    depends_on:
+      - backend
+
+  ###########################################################################
+  # Certbot - automatic TLS renewal
+  ###########################################################################
+  certbot:
+    image: certbot/certbot
+    container_name: motionlabs-certbot
+
+    volumes:
+      - /var/lib/motionlabs/certbot/conf:/etc/letsencrypt
+      - /var/lib/motionlabs/certbot/www:/var/www/certbot
+
+    entrypoint: >
+      /bin/sh -c
+      "trap exit TERM;
+       while true;
+       do certbot renew;
+       sleep 24h;
+       done"
+
+    networks:
+      - motionlabs-network
+
+###############################################################################
+# Internal Docker network
+###############################################################################
+networks:
+  motionlabs-network:
+    driver: bridge
+
+###############################################################################
+# Persistent volumes
+###############################################################################
+volumes:
+  postgres_data:
+    driver: local
+  # Hochgeladene .awclip-Dateien und Vorschauen. In die Sicherung aufnehmen -
+  # die Datenbank allein reicht nicht.
+  blob_data:
+    driver: local
