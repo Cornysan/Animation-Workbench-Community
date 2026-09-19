@@ -16,8 +16,24 @@
     // Nach dem Discord-Login landet man auf "/" - resumePendingLink in app.js
     // leitet von dort mit dem gemerkten Code hierher zurück.
     sessionStorage.setItem("aw-link-code", code);
-    notice(state, "Sign in first - then confirm the code.");
-    actions.append(el("a", { class: "button primary", href: "/oauth2/authorization/discord" }, "Sign in with Discord"));
+
+    //  Nur den Weg anbieten, den dieser Server wirklich hat. Der Seitenrahmen
+    //  prueft das laengst; hier stand der Discord-Knopf fest verdrahtet, und
+    //  auf einem Server ohne Discord-Zugangsdaten fuehrte er nach
+    //  ?client_id=unset - Discord antwortet darauf mit "Invalid Form Body",
+    //  und der Nutzer steht vor einer Fehlerseite ohne Ausweg.
+    const discord = document.body.dataset.discordSignIn === "true";
+    const dev = document.body.dataset.devLogin === "true";
+
+    if (discord) {
+      notice(state, "Sign in first - then confirm the code.");
+      actions.append(el("a", { class: "button primary", href: "/oauth2/authorization/discord" }, "Sign in with Discord"));
+    } else if (dev) {
+      notice(state, "Sign in first - then confirm the code. This portal runs the developer sign-in.");
+      actions.append(el("a", { class: "button primary", href: "/dev.html" }, "Developer sign-in"));
+    } else {
+      notice(state, "This portal has no sign-in configured, so the Workbench cannot be connected.", "error");
+    }
     return;
   }
 
