@@ -1,3 +1,10 @@
 /gradlew text eol=lf
 *.bat text eol=crlf
 *.jar binary
+
+# Alles unter server/ geht per scp auf einen Linux-Rechner. Ein backup.sh mit
+# CRLF beantwortet dort jeder Aufruf mit "bad interpreter: /usr/bin/env bash^M",
+# und das sieht nach einem kaputten Skript aus statt nach einem Zeilenende.
+*.sh text eol=lf
+/server/** text eol=lf
+/Dockerfile text eol=lf
