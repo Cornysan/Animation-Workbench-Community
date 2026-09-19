@@ -7,18 +7,115 @@
   <div th:replace="~{fragments/shell :: paused}"></div>
   <div class="prose">
   <h1>Privacy</h1>
-  <div class="todo">Draft outline - to be written with legal review before launch (Plan L1). Not legal advice.</div>
-  <h2>What the portal stores - as built</h2>
+  <p class="lead">What this portal stores, why, who else sees it, and how long it stays. Written against what the software actually does, not against what a portal like this usually does.</p>
+
+  <div class="todo">Draft, not legal advice. To be reviewed before the public launch (Plan L1/P5). The bracketed items below need filling in.</div>
+
+  <h2>Who is responsible</h2>
+  <div class="todo">Same details as the <a href="/impressum.html">Impressum</a>: name, postal address, email.</div>
+  <p>[ TODO: Vorname Nachname ], [ TODO: Stra&szlig;e ], [ TODO: PLZ Ort ], Germany &middot; [ TODO: kontakt@playmations.com ]</p>
+  <p>There is no data protection officer. A one-person operation of this size is not required to appoint one.</p>
+
+  <h2>You can read without an account</h2>
+  <p>Browsing the catalogue, watching a preview and downloading a public clip need no account and no sign-in.
+     For those requests the server stores nothing about you beyond the ordinary operating logs described below.</p>
+
+  <h2>What is stored</h2>
+  <table class="list">
+    <thead><tr><th>Data</th><th>Why</th><th>Legal basis</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Account: your Discord user ID and display name</td>
+        <td>So an upload has an owner and you can come back to it</td>
+        <td>Art. 6(1)(b) GDPR &ndash; performing the agreement you enter by signing in</td>
+      </tr>
+      <tr>
+        <td>Uploads: the <code>.awclip</code> file, title, description, tags, the sharing choice</td>
+        <td>The point of the service</td>
+        <td>Art. 6(1)(b) GDPR</td>
+      </tr>
+      <tr>
+        <td>Upload declaration: the exact wording you confirmed, the time, and your IP address</td>
+        <td>Evidence of who claimed the rights to a clip, if someone later disputes it</td>
+        <td>Art. 6(1)(f) GDPR &ndash; defending against rights claims</td>
+      </tr>
+      <tr>
+        <td>Reports: what was reported, by whom, when</td>
+        <td>Moderation, and recognising repeated false reports</td>
+        <td>Art. 6(1)(c) and (f) GDPR &ndash; obligations under the Digital Services Act</td>
+      </tr>
+      <tr>
+        <td>Takedown requests: name, email, the claim, time, IP address</td>
+        <td>Answering the notice and documenting the decision</td>
+        <td>Art. 6(1)(c) GDPR</td>
+      </tr>
+      <tr>
+        <td>Audit log of uploads, removals and moderation decisions</td>
+        <td>Being able to reconstruct what happened</td>
+        <td>Art. 6(1)(f) GDPR</td>
+      </tr>
+      <tr>
+        <td>Workbench sign-in: a token, of which only a SHA-256 hash is kept</td>
+        <td>Letting the Animation Workbench act for you without holding a password</td>
+        <td>Art. 6(1)(b) GDPR</td>
+      </tr>
+      <tr>
+        <td>Server logs: IP address, time, requested address, status</td>
+        <td>Operation, and recognising attacks</td>
+        <td>Art. 6(1)(f) GDPR</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>Discord is asked only for the <code>identify</code> scope. That is your user ID and display name &ndash;
+     <strong>not your email address</strong>, not your servers, not your messages.</p>
+
+  <h2>No tracking</h2>
+  <p>No analytics, no advertising, no tracking pixels, no external fonts or scripts. Everything the
+     page loads comes from this server.</p>
+  <p>Two cookies are set, both strictly necessary, both without an alternative:
+     <code>JSESSIONID</code> keeps you signed in for the session, and <code>XSRF-TOKEN</code> stops a
+     foreign page from acting in your name. Neither is used to recognise you anywhere else, which is
+     why this site has no cookie banner. When you link the Workbench to your account, your browser
+     briefly remembers the device code under <code>aw-link-code</code> in its own session storage;
+     it never reaches the server and disappears when you close the tab.</p>
+
+  <h2>Who else sees it</h2>
   <ul>
-    <li>Account: Discord user ID and display name (Discord scope <code>identify</code>, no email).</li>
-    <li>Uploads: the .awclip file, title, description, tags, license, and an upload declaration with its exact wording, time and IP address.</li>
-    <li>Reports and takedown requests: contents and time; for takedowns also name, email and IP address.</li>
-    <li>An audit log of uploads and moderation actions.</li>
-    <li>IP addresses are replaced by a keyed pseudonym after 30 days.</li>
-    <li>Workbench sign-ins: a token of which only a hash is stored.</li>
-    <li>No tracking, no analytics, no third-party scripts.</li>
+    <li><strong>Contabo GmbH</strong>, Munich, Germany &ndash; the server this runs on. Data stays in
+      Germany.
+      <div class="todo">Data processing agreement (Art. 28 GDPR) with Contabo:
+      conclude and file before launch.</div></li>
+    <li><strong>Discord</strong> &ndash; only if you choose to sign in. You are sent to Discord, and
+      Discord learns that you signed in here. Their privacy policy applies to that step.</li>
+    <li><strong>[ TODO: Mail provider ]</strong> &ndash; delivers notification mail about reports.
+      <div class="todo">Name the provider once the mail channel is set up, or
+      delete this line if notifications stay on Discord only.</div></li>
   </ul>
-  <div class="todo">Verantwortlicher, Rechtsgrundlagen, Empfaenger und Auftragsverarbeiter (Hoster, Discord, Mail-Anbieter), Speicherdauer je Kategorie, Betroffenenrechte, Beschwerderecht</div>
+  <p>Nothing is sold, and nothing is passed on for advertising.</p>
+
+  <h2>How long</h2>
+  <ul>
+    <li><strong>IP addresses in declarations, reports and takedowns:</strong> replaced by a keyed
+      pseudonym after 30 days. The record stays, the address does not. Running this is a scheduled
+      job on the server, not a promise for later.</li>
+    <li><strong>Your account and uploads:</strong> until you delete them or the account.</li>
+    <li><strong>Removed clips:</strong> the file goes, the record of the decision stays &ndash; it is
+      what stops the same clip being uploaded again.</li>
+    <li><strong>Audit log and moderation decisions:</strong> kept as long as they can still matter
+      for a dispute.</li>
+    <li><strong>Server logs:</strong> a few days, rotating.</li>
+  </ul>
+
+  <h2>Your rights</h2>
+  <p>You may ask for access (Art. 15), correction (Art. 16), deletion (Art. 17), restriction
+     (Art. 18), portability (Art. 20), and you may object to processing based on legitimate interests
+     (Art. 21). One email to the address above is enough; no form.</p>
+  <p>You may also complain to a supervisory authority.</p>
+  <div class="todo">Name the competent authority &ndash; the one for the state you live in, e.g. Bayerisches Landesamt f&uuml;r Datenschutzaufsicht for Bavaria.</div>
+
+  <h2>Changes</h2>
+  <p>If this page changes in a way that affects you, the change is announced on the portal before it
+     takes effect.</p>
   </div>
   </main>
 <footer th:replace="~{fragments/shell :: footer}"></footer>
