@@ -42,7 +42,12 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD fehlt in .env}
 
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      # Ab postgres:18 gehoert der Mount an /var/lib/postgresql, NICHT an
+      # .../data: das Image legt die Daten in ein Unterverzeichnis je
+      # Hauptversion, damit `pg_upgrade --link` nicht ueber eine Mount-Grenze
+      # stolpert. Liegt der Mount am alten Platz, startet der Container gar
+      # nicht erst und erklaert das in zwanzig Zeilen Fliesstext.
+      - postgres_data:/var/lib/postgresql
 
     networks:
       - aw-community

@@ -64,6 +64,14 @@ management:
     web:
       exposure:
         include: health
+  health:
+    mail:
+      # Der Mail-Starter bringt einen Health-Check mit, der sich bei jedem
+      # Aufruf zum SMTP-Server verbindet. Ist keiner eingetragen, zielt er auf
+      # localhost:587, bekommt "Connection refused" und macht /actuator/health
+      # zu 503 - der Container gilt als krank, obwohl er einwandfrei bedient.
+      # Mail ist hier der ZWEITE Alarmkanal, keine Voraussetzung zum Ausliefern.
+      enabled: false
 
 springdoc:
   api-docs:
