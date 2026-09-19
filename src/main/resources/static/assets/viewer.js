@@ -10,6 +10,9 @@
 // sich gar nicht (Plan O7).
 
 class SkeletonViewer {
+  /** Dieselben Prefixe wie AWCommunitySkeleton.DetailPrefixes in der Workbench. */
+  static DETAIL = /^(Left|Right)(Thumb|Index|Middle|Ring|Little)/;
+
   constructor(canvas, preview, options = {}) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d");
@@ -26,6 +29,13 @@ class SkeletonViewer {
     this.pitch = options.pitch ?? 0.25;
     this.zoom = 1;
     this.lastTimestamp = null;
+
+    //  Fingerknochen sind 30 der 55 und ergeben in voller Staerke ein Gekrissel
+    //  um jede Hand, das die Silhouette auffrisst - die Figur liest sich dann
+    //  wie ein Insekt statt wie ein Mensch. Die Workbench trifft diese
+    //  Unterscheidung laengst (AWCommunitySkeleton.DetailPrefixes: „Knochen,
+    //  die auf Kartengroesse nur Matsch ergeben"); hier fehlte sie.
+    this.detail = this.preview.bones.map((b) => SkeletonViewer.DETAIL.test(b));
 
     this.worldFrames = this.preview.hips.map((_, f) => this.solveFrame(f));
     this.computeBounds();
@@ -187,16 +197,22 @@ class SkeletonViewer {
       const name = this.preview.bones[i];
       //  Seitenfarben aus der Marke: Akzentviolett links, Warmton rechts.
       ctx.strokeStyle = name.startsWith("Left") ? "#8e77ff" : name.startsWith("Right") ? "#fb923c" : "#d9d5e4";
-      ctx.lineWidth = lineWidth;
+      //  Feine Knochen duenner und blasser - sie sollen die Silhouette
+      //  ergaenzen, nicht mit ihr konkurrieren. Werte wie in der Workbench.
+      const fine = this.detail[i];
+      ctx.lineWidth = fine ? lineWidth * 0.55 : lineWidth;
+      ctx.globalAlpha = fine ? 0.45 : 1;
       ctx.beginPath();
       ctx.moveTo(a[0], a[1]);
       ctx.lineTo(b[0], b[1]);
       ctx.stroke();
+      ctx.globalAlpha = 1;
     }
 
     ctx.fillStyle = "#eeecf3";
     for (const i of order) {
       const p = projected[i];
+      if (this.detail[i]) continue;  // 30 weisse Punkte an den Fingern sind nur Rauschen
       const name = this.preview.bones[i];
       const radius = name === "Head" ? lineWidth * 3.2 : lineWidth * 0.9;
       ctx.beginPath();
