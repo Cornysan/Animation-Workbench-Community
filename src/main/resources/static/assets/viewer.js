@@ -120,7 +120,11 @@ class SkeletonViewer {
     this.canvas.addEventListener("pointermove", (e) => {
       if (!dragging) return;
       this.yaw = dragging.yaw + (e.clientX - dragging.x) * 0.01;
-      this.pitch = Math.max(-1.2, Math.min(1.2, dragging.pitch + (e.clientY - dragging.y) * 0.01));
+      //  Senkrechte umgekehrt zur Maus - wie in der Workbench: nach unten
+      //  ziehen senkt die Kamera und zeigt die Figur von unten. So machen es
+      //  Unitys Scene View, Blender und Maya; die Gegenkonvention ("die Figur
+      //  anfassen und kippen") fuehlt sich hier falsch an.
+      this.pitch = Math.max(-1.2, Math.min(1.2, dragging.pitch - (e.clientY - dragging.y) * 0.01));
     });
     this.canvas.addEventListener("pointerup", () => (dragging = null));
     this.canvas.addEventListener("wheel", (e) => {
