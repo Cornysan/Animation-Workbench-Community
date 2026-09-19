@@ -66,8 +66,9 @@ object Crypto {
 }
 
 /**
- * Client-IP hinter nginx. `server.forward-headers-strategy: framework` setzt
+ * Client-IP hinter Caddy. `server.forward-headers-strategy: framework` setzt
  * `remoteAddr` bereits aus X-Forwarded-For - nur vertrauenswürdig, weil das
- * Backend keine öffentlichen Ports hat (docker-compose).
+ * Backend an 127.0.0.1 gebunden ist und niemand sonst den Header setzen kann
+ * (server/docker-compose.yml).
  */
 fun HttpServletRequest.clientIp(): String = remoteAddr ?: "unknown"

@@ -38,8 +38,8 @@ RUN addgroup -S spring && adduser -S spring -G spring
 COPY --from=build /app/build/libs/*.jar app.jar
 
 # Change ownership. Hochgeladene Clips liegen im Volume unter
-# /var/lib/motionlabs/blobs (siehe server/docker-compose.yml).
-RUN chown spring:spring app.jar     && mkdir -p /var/lib/motionlabs/blobs     && chown -R spring:spring /var/lib/motionlabs
+# /var/lib/aw-community/blobs (siehe server/docker-compose.yml).
+RUN chown spring:spring app.jar     && mkdir -p /var/lib/aw-community/blobs && chown -R spring:spring /var/lib/aw-community
 
 # Switch to non-root user
 USER spring:spring

@@ -44,3 +44,4 @@ out/
 
 ### Portal ###
 /data/
+/server/.env

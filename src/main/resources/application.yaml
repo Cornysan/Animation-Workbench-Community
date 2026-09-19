@@ -12,7 +12,8 @@ spring:
   servlet:
     multipart:
       # .awclip-Grenze ist 8 MB (AwclipSchema.MAX_COMPRESSED_BYTES), plus Luft
-      # für die übrigen Formularteile. nginx braucht denselben Wert.
+      # für die übrigen Formularteile. Caddy braucht denselben Wert
+      # (request_body max_size, siehe server/caddy/).
       max-file-size: 9MB
       max-request-size: 10MB
   jpa:
@@ -22,8 +23,8 @@ spring:
   flyway:
     enabled: true
   datasource:
-    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/motionlabs}
-    username: ${DATABASE_USER:motionlabs}
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/awcommunity}
+    username: ${DATABASE_USER:awcommunity}
     password: ${DATABASE_PASSWORD:}
   security:
     oauth2:
@@ -73,7 +74,7 @@ springdoc:
 portal:
   public-base-url: ${PORTAL_BASE_URL:https://community.playmations.com}
   storage:
-    directory: ${PORTAL_STORAGE_DIR:/var/lib/motionlabs/blobs}
+    directory: ${PORTAL_STORAGE_DIR:/var/lib/aw-community/blobs}
   # HMAC-Schlüssel für Download-Links und IP-Pseudonyme. Zwei getrennte, damit
   # ein geleakter Link-Schlüssel die Pseudonyme nicht umkehrbar macht.
   download-secret: ${PORTAL_DOWNLOAD_SECRET:}

@@ -56,20 +56,27 @@ Swagger UI: http://localhost:8080/swagger-ui.html (nur im `dev`-Profil).
 | `system` | Kill Switch, Audit-Log, Alarme (Discord-Webhook + Mail), IP-Pseudonymisierung |
 | `storage` | Dateiablage außerhalb der Datenbank, nie öffentlich |
 
-## Konfiguration (Produktion)
+## Betrieb
 
-Alles Geheime kommt aus der Umgebung (`server/docker-compose.yml` liest `.env`).
+Live-Adresse: **https://community.playmations.com**, auf demselben Server wie
+die Doku-Site (SSH-Alias `linux`), hinter dem Caddy, der dort schon laeuft.
+Der ganze Weg - DNS, Discord-Anwendung, `.env`, erstes Ausrollen, Sicherung,
+Rueckfall, Not-Aus - steht in [`server/DEPLOY.md`](server/DEPLOY.md).
+
+Alles Geheime kommt aus der Umgebung; `server/docker-compose.yml` liest
+`/srv/aw-community/.env`, Vorlage ist `server/.env.example`.
 
 | Variable | Zweck |
 |---|---|
-| `SPRING_DATASOURCE_URL`, `_USERNAME`, `_PASSWORD` | PostgreSQL |
-| `PORTAL_BASE_URL` | öffentliche Adresse, z. B. `https://community.playmations.com` |
-| `PORTAL_DOWNLOAD_SECRET` | HMAC-Schlüssel für Download-Links (zufällig, ≥ 32 Zeichen) |
-| `PORTAL_PSEUDONYM_SECRET` | HMAC-Schlüssel für IP-Pseudonyme (ein anderer!) |
-| `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET` | Discord-Anwendung, Redirect `…/login/oauth2/code/discord`, Scope `identify` |
+| `DB_PASSWORD` | PostgreSQL im Docker-Netz |
+| `PORTAL_BASE_URL` | oeffentliche Adresse, `https://community.playmations.com` |
+| `PORTAL_DOWNLOAD_SECRET` | HMAC fuer Download-Links (zufaellig, >= 32 Zeichen) |
+| `PORTAL_PSEUDONYM_SECRET` | HMAC fuer IP-Pseudonyme (ein anderer!) |
+| `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET` | Discord-Anwendung, Redirect `.../login/oauth2/code/discord`, Scope `identify` |
 | `PORTAL_ADMIN_DISCORD_IDS` | komma-getrennte Discord-IDs der Moderation |
-| `PORTAL_ALERT_WEBHOOK` | Discord-Webhook für Meldungen und Takedowns |
-| `PORTAL_ALERT_MAIL_TO`, `PORTAL_ALERT_MAIL_FROM`, `MAIL_*` | zweiter Alarmkanal per SMTP |
+| `PORTAL_ALERT_WEBHOOK` | Discord-Webhook fuer Meldungen und Takedowns |
+| `PORTAL_ALERT_MAIL_TO`, `_FROM`, `MAIL_*` | zweiter Alarmkanal per SMTP |
+| `TAG` | Image-Marke, leer = `main` |
 
 Nie in Produktion: `portal.dev-login=true` bzw. `PORTAL_DEV_LOGIN`.
 
