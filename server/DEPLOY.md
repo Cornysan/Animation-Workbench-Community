@@ -96,8 +96,13 @@ Zuletzt die taegliche Sicherung eintragen:
 
 ```bash
 crontab -e
-0 4 * * * /srv/aw-community/backup.sh >> /var/log/aw-community-backup.log 2>&1
+# 4:20 statt 4:00: um Punkt laeuft die stuendliche Vault-Sicherung.
+20 4 * * * /srv/aw-community/backup.sh >> /var/log/aw-community-backup.log 2>&1
 ```
+
+Eingetragen am 2026-09-19 und unter cron-Bedingungen geprueft (`env -i
+PATH=/usr/bin:/bin`) - das Skript ruft `docker`, und cron bringt nicht das
+PATH mit, das eine Anmeldeschale hat.
 
 ## Aktualisieren
 
