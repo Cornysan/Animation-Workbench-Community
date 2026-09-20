@@ -240,8 +240,9 @@ object AwclipReader {
 
     private fun readCurves(node: StrictJson.Value, manifest: AwclipManifest): List<AwclipCurve> {
         val arr = expectArray(node, "curves")
-        if (arr.items.isEmpty() || arr.items.size > AwclipSchema.MAX_CURVES)
-            throw Reject("invalid-curve-count", "curves", "Between 1 and ${AwclipSchema.MAX_CURVES} curves required")
+        val maxCurves = AwclipSchema.maxCurves(manifest.rig)
+        if (arr.items.isEmpty() || arr.items.size > maxCurves)
+            throw Reject("invalid-curve-count", "curves", "Between 1 and $maxCurves curves required")
 
         val seen = HashSet<String>()
         val maxTime = manifest.duration.toDouble() + AwclipSchema.KEY_TIME_TOLERANCE

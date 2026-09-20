@@ -123,7 +123,16 @@ Art:
 |---|---|---|
 | Kurvennamen | feste Liste (`HUMANOID_ATTRIBUTES`) | Regel: 1-255 Zeichen, keine Steuerzeichen, kein Leerraum am Rand |
 | Knochen der Vorschau | feste Liste (`PREVIEW_BONES`, 55) | dieselbe Regel, max. 64 Zeichen, bis zu 128 Knochen |
+| Kurven je Clip | 300 | 2 000 |
 | Vorschau läuft auf | dem Mannequin, umgerechnet | dem Skelett, das der Clip selbst mitbringt |
+
+**Die Kurvengrenze ist gemessen, nicht geschätzt.** 83 Clips mit
+Transformkurven im Dev-Projekt der Workbench tragen im Median 47 Kurven - aber
+ein Drache mit 125 Knochen trägt 1 136, und 30 % aller gemessenen Clips liegen
+über den 300 des Humanoiden. Mit 300 wäre ausgerechnet der Fall ausgeschlossen,
+für den es generische Clips gibt: eine Kreatur, die kein Mensch ist. Die
+Speichergrenze ist die Kurvenzahl nicht - dafür stehen `MAX_KEYS_TOTAL` und
+`MAX_UNCOMPRESSED_BYTES`.
 
 **Warum das ohne Figurenbibliothek auskommt.** Ein generischer Clip lässt sich
 nicht auf eine fremde Figur umrechnen - zwischen einem Türscharnier und einem
@@ -139,12 +148,19 @@ API-Antworten. Der Viewer entscheidet daran, ob die Figur überhaupt auftritt:
 Leinwand. Ohne diese Angabe bliebe nur, es am Scheitern der Umrechnung zu
 merken - das fängt zwar, sieht aber aus wie ein Fehler.
 
-> **Der Client muss mit.** `.awclip` ist ein geteiltes Format: `AWClipSchema.cs`
-> und `AWClipReader.cs` in der Workbench brauchen dieselbe Lockerung, sonst
-> lehnt das Werkzeug ab, was der Server annimmt. Dasselbe gilt für die
-> Testdateien - `invalid-rig.json` trägt jetzt `quadruped` statt `generic`
-> (`generic` ist ja gültig geworden), und `valid-generic.json`,
-> `invalid-generic-attribute.json` und `invalid-generic-bone.json` sind neu.
+> **Der Client ist mitgezogen** (Workbench `d3ce60e` und der Commit danach).
+> `.awclip` ist ein geteiltes Format: `AWClipSchema.cs` und `AWClipReader.cs`
+> tragen dieselbe Lockerung, sonst würde das Werkzeug ablehnen, was der Server
+> annimmt. Die Testdateien liegen auf beiden Seiten gleich und kommen aus
+> `make_fixtures.py` im Workbench-Repo - `invalid-rig.json` trägt jetzt
+> `quadruped` statt `generic` (`generic` ist ja gültig geworden), und
+> `valid-generic.json`, `invalid-generic-attribute.json` und
+> `invalid-generic-bone.json` sind neu.
+>
+> Wie der Kurvenname gebaut ist, entscheidet allein der Client: `<Pfad>.`
+> plus eine Transform-Eigenschaft (`Hinge/Panel.m_LocalRotation.y`). Der Server
+> prüft ihn nur auf Länge und Zeichen - er muss ihn nicht verstehen, und der
+> Viewer braucht ihn nicht, weil er das Skelett aus dem Vorschau-Block zeichnet.
 >
 > Der Inhalts-Hash umfasst weiterhin nur Kurvennamen und Schlüssel, nicht das
 > Rig. Ein generischer Clip, dessen Kurven zufällig genau wie humanoide Muskeln

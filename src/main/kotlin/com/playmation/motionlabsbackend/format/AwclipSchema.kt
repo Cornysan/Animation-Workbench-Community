@@ -21,7 +21,21 @@ object AwclipSchema {
     const val MAX_FRAME_RATE = 240.0
     const val MAX_DURATION = 600.0
 
+    /** Humanoid: mehr als 300 kann ein Clip nicht haben, die Namensmenge ist kleiner. */
     const val MAX_CURVES = 300
+
+    /**
+     * Generisch liegt die Grenze höher, und zwar gemessen: 83 Clips mit
+     * Transformkurven im Dev-Projekt tragen im Median 47 Kurven - aber ein
+     * Drache mit 125 Knochen trägt 1 136, und 30 % aller gemessenen Clips
+     * liegen über den 300 des Humanoiden. Mit 300 wäre ausgerechnet der Fall
+     * ausgeschlossen, für den es generische Clips gibt: eine Kreatur, die kein
+     * Mensch ist.
+     *
+     * Die Speichergrenze ist das nicht - dafür stehen [MAX_KEYS_TOTAL] und
+     * [MAX_UNCOMPRESSED_BYTES].
+     */
+    const val MAX_GENERIC_CURVES = 2000
     const val MAX_KEYS_PER_CURVE = 100_000
     const val MAX_KEYS_TOTAL = 2_000_000
     const val MAX_ABS_VALUE = 1e6
@@ -112,6 +126,10 @@ object AwclipSchema {
     /** Wie viele Knochen die Vorschau tragen darf. */
     fun maxPreviewBones(rig: String): Int =
         if (rig == RIG_GENERIC) MAX_PREVIEW_BONES else PREVIEW_BONES.size
+
+    /** Wie viele Kurven ein Clip tragen darf - siehe [MAX_GENERIC_CURVES]. */
+    fun maxCurves(rig: String): Int =
+        if (rig == RIG_GENERIC) MAX_GENERIC_CURVES else MAX_CURVES
 
     /** Gemessen an 28 humanoiden Clips (134 Namen) plus die TDOF-Familie - siehe AWClipSchema.cs. */
     val HUMANOID_ATTRIBUTES: Set<String> = buildSet {
