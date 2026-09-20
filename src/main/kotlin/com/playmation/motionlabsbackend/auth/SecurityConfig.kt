@@ -83,6 +83,10 @@ class SecurityConfig {
                 authorize(HttpMethod.GET, "/api/v1/packages", permitAll)
                 authorize(HttpMethod.GET, "/api/v1/packages/*", permitAll)
                 authorize(HttpMethod.GET, "/api/v1/packages/*/preview", permitAll)
+                //  Das Bild, das eine Link-Vorschau zeigt. Es holt kein
+                //  angemeldeter Besucher, sondern ein Bot von Discord - mit
+                //  einem Konto waere es nie zu sehen.
+                authorize(HttpMethod.GET, "/clip-card/**", permitAll)
                 //  Mitlesen darf jeder, schreiben nur angemeldet - dieselbe
                 //  Trennung wie bei den Herzen. Der Katalog ist eine Auslage,
                 //  keine geschlossene Gesellschaft.

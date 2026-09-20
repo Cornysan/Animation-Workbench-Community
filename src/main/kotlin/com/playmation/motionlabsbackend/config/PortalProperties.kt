@@ -12,6 +12,20 @@ data class PortalProperties(
     val adminDiscordIds: String = "",
     /** Entwickler-Login ohne Discord. Nur in den Profilen dev und test. */
     val devLogin: Boolean = false,
+    /**
+     * Darf eine Suchmaschine dieses Portal aufnehmen?
+     *
+     * Steht auf AUS, weil die Beta geschlossen ist und nirgends angekuendigt
+     * (E7): erreichbar sein und gefunden werden sind zwei verschiedene Dinge,
+     * und ein Impressum mit `[ TODO: ... ]` gehoert in keinen Suchindex. Eine
+     * Vorschau in einem Chat bleibt davon unberuehrt - die entsteht aus
+     * `og:`-Feldern, die kein Crawler braucht.
+     *
+     * Beim oeffentlichen Start umlegen. Es steuert das `robots`-Meta JEDER
+     * Seite und `/robots.txt` zugleich, damit die beiden nicht auseinander
+     * laufen koennen.
+     */
+    val searchIndexing: Boolean = false,
     val alerts: Alerts = Alerts(),
     val limits: Limits = Limits(),
     val comments: Comments = Comments(),

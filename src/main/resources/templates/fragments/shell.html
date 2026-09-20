@@ -23,12 +23,41 @@
 -->
 <html xmlns:th="http://www.thymeleaf.org">
 
+<!--
+  DIE LINK-VORSCHAU. Bis hierher gab es kein einziges `og:`-Feld: wer eine
+  Adresse dieses Portals in Discord einwarf, bekam die nackte Adresse zu sehen.
+  Fuer ein Portal, dessen Verbreitung ueber einen Chat laeuft, ist das die
+  teuerste stille Luecke - der Link kommt an und sagt nicht, wohin er fuehrt.
+
+  Die Werte stehen in `meta` (PageController.PageMeta): jede Seite hat eine
+  Vorgabe, die Clip-Seite setzt ihre eigene. `og:image` zeigt auf ein Bild, das
+  der Server aus dem Vorschau-Block der Animation zeichnet - jeder Clip bekommt
+  also seine eigene Bewegung ins Bild.
+-->
 <head th:fragment="head(title)">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title th:text="|${title} - Animation Workbench Community|">Animation Workbench Community</title>
   <link rel="icon" href="/favicon.ico">
   <link rel="stylesheet" href="/assets/app.css">
+
+  <meta name="description" th:attr="content=${meta.description}">
+  <meta name="robots" content="noindex, nofollow" th:if="${meta.noindex}">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Animation Workbench Community">
+  <meta property="og:title" th:attr="content=${meta.title}">
+  <meta property="og:description" th:attr="content=${meta.description}">
+  <meta property="og:url" th:attr="content=${meta.url}" th:if="${meta.url}">
+  <meta property="og:image" th:attr="content=${meta.image}" th:if="${meta.image}">
+  <meta property="og:image:width" content="1200" th:if="${meta.image}">
+  <meta property="og:image:height" content="630" th:if="${meta.image}">
+
+  <!-- Ohne Bild bleibt eine grosse Karte eine leere Flaeche. -->
+  <meta name="twitter:card" th:attr="content=${meta.image} ? 'summary_large_image' : 'summary'">
+  <meta name="twitter:title" th:attr="content=${meta.title}">
+  <meta name="twitter:description" th:attr="content=${meta.description}">
+  <meta name="twitter:image" th:attr="content=${meta.image}" th:if="${meta.image}">
 </head>
 
 <body>

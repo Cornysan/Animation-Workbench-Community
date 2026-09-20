@@ -277,6 +277,42 @@ class PortalFlowTest {
     }
 
     /**
+     * Ein Link in Discord muss zeigen, wohin er fuehrt.
+     *
+     * Der zweite Teil ist der wichtigere: ein privater Clip ist "nicht gelistet
+     * und nicht auffindbar". Er darf seine Bewegung nicht in eine Vorschaukarte
+     * legen, die dann in jedem Kanal auftaucht, in den der Link geraet - und
+     * seine Beschreibung nicht in ein `og:`-Feld, das jeder Bot mitliest.
+     */
+    @Test
+    fun `a shared link previews itself, unless the clip is private`() {
+        val owner = login("card-${unique()}")
+        val public = uploadOk(owner, awclip(0.99, "Card walk"))
+        val private = uploadOk(owner, awclip(0.995, "Card secret", license = AwclipSchema.LICENSE_PRIVATE))
+
+        val page = mvc.get("/clip.html?p=$public").andExpect { status { isOk() } }
+            .andReturn().response.contentAsString
+        assertTrue("""property="og:title" content="Card walk by""" in page, "the title belongs in the preview")
+        assertTrue("""/clip-card/$public.png"""" in page, "and so does the image")
+
+        //  Das Bild entsteht aus dem Vorschau-Block, ohne Browser und ohne
+        //  Schrift - PNG-Dateien fangen mit diesen acht Bytes an.
+        val png = mvc.get("/clip-card/$public.png").andExpect {
+            status { isOk() }
+            header { string("Content-Type", MediaType.IMAGE_PNG_VALUE) }
+        }.andReturn().response.contentAsByteArray
+        assertContentEquals(
+            byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A), png.take(8).toByteArray(),
+            "a PNG, not an error page",
+        )
+
+        val privatePage = mvc.get("/clip.html?p=$private").andExpect { status { isOk() } }
+            .andReturn().response.contentAsString
+        assertFalse("Card secret" in privatePage, "a private clip keeps its title out of the preview")
+        assertFalse("clip-card/$private" in privatePage, "and has no card at all")
+        mvc.get("/clip-card/$private.png").andExpect { status { isNotFound() } }
+    }
+    /**
      * Der Ueberblick zaehlt, was im Katalog STEHT - nicht, was in der Datenbank
      * liegt. Ein privater Clip ist da, aber ungelistet; er darf weder den
      * Umfang aufblaehen noch sein Schlagwort in die Leiste bringen, sonst fuehrt

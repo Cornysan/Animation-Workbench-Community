@@ -2,7 +2,9 @@ package com.playmation.motionlabsbackend.web
 
 import com.playmation.motionlabsbackend.account.AccountService
 import com.playmation.motionlabsbackend.auth.portalPrincipal
+import com.playmation.motionlabsbackend.catalog.CatalogService
 import com.playmation.motionlabsbackend.config.PortalProperties
+import com.playmation.motionlabsbackend.format.AwclipSchema
 import com.playmation.motionlabsbackend.moderation.NotificationRepository
 import com.playmation.motionlabsbackend.system.SystemSettingsService
 import org.springframework.beans.factory.annotation.Value
@@ -11,6 +13,8 @@ import org.springframework.stereotype.Controller
 import org.springframework.ui.Model
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.ModelAttribute
+import org.springframework.web.bind.annotation.RequestParam
+import org.springframework.web.bind.annotation.ResponseBody
 
 /**
  * Die Seiten des Portals. Sie lagen als fertige .html-Dateien unter `static/`
@@ -32,6 +36,8 @@ class PageController(
     private val accounts: AccountService,
     private val notifications: NotificationRepository,
     private val settings: SystemSettingsService,
+    /** Nur zum Fuellen der Link-Vorschau - den Inhalt holt die Seite selbst. */
+    private val catalog: CatalogService,
     private val portal: PortalProperties,
     private val build: BuildStamp,
     /** Ohne echte Discord-App steht hier die Vorgabe aus der application.yaml. */
@@ -83,6 +89,54 @@ class PageController(
     @ModelAttribute("communityEnabled")
     fun communityEnabled() = settings.communityEnabled()
 
+    /**
+     * Was eine Vorschau zeigt, wenn jemand eine Adresse dieses Portals in
+     * Discord, Slack oder anderswo einwirft.
+     *
+     * Bis hierher zeigte sie nichts: es gab kein einziges `og:`-Feld, also
+     * stand in der Nachricht die nackte Adresse. Fuer ein Portal, dessen
+     * Verbreitung ueber einen Chat laeuft, ist das die teuerste aller stillen
+     * Luecken - der Link kommt an und sagt nicht, wohin er fuehrt.
+     *
+     * Jede Seite bekommt hier eine Vorgabe; wer etwas Besseres weiss, setzt sie
+     * darueber (siehe [clip]).
+     */
+    data class PageMeta(
+        val title: String,
+        val description: String,
+        /** Absolute Adresse - eine relative liest kein Vorschau-Bot. */
+        val image: String? = null,
+        val url: String? = null,
+        /**
+         * Die Beta ist geschlossen und nirgends angekuendigt. Bis sie es nicht
+         * mehr ist, hat keine Seite etwas in einem Suchindex zu suchen - eine
+         * Vorschau in einem Chat ist etwas anderes als ein Treffer bei Google.
+         */
+        val noindex: Boolean,
+    )
+
+    @ModelAttribute("meta")
+    fun defaultMeta() = PageMeta(
+        "Animation Workbench Community",
+        "Humanoid animation clips made in the Animation Workbench, shared as plain motion data - " +
+            "no FBX, no rig, no model. Free to use under CC BY 4.0.",
+        url = portal.publicBaseUrl,
+        noindex = !portal.searchIndexing,
+    )
+
+    /**
+     * Die erste Station eines Crawlers. Sie sagt dasselbe wie das `robots`-Meta
+     * jeder Seite und kommt aus derselben Einstellung - zwei Quellen fuer diese
+     * Auskunft waeren zwei Gelegenheiten, dass sie auseinander laufen.
+     */
+    @GetMapping("/robots.txt", produces = ["text/plain"])
+    @ResponseBody
+    fun robots(): String =
+        if (portal.searchIndexing)
+            "User-agent: *\nDisallow: /admin.html\nDisallow: /dev.html\nDisallow: /link.html\n"
+        else
+            "User-agent: *\nDisallow: /\n"
+
     //  Ein Ziel je Seite statt einer Tabelle: die Zuordnung Adresse -> Vorlage
     //  -> aktiver Navigationseintrag steht dann an einer Stelle und liest sich
     //  von oben nach unten.
@@ -98,9 +152,35 @@ class PageController(
     @GetMapping("/browse.html")
     fun browse(model: Model) = view(model, "browse", active = "browse")
 
-    /** Der Clip liegt unter „Browse" - man kommt aus dem Katalog hierher. */
+    /**
+     * Der Clip liegt unter „Browse" - man kommt aus dem Katalog hierher.
+     *
+     * Die Seite selbst holt ihren Inhalt weiter per JavaScript; der Server
+     * liest den Clip hier nur, um die Vorschau des Links zu fuellen. Faellt das
+     * aus - falscher Slug, versteckter Clip -, bleibt die Vorgabe stehen und
+     * die Seite sagt es dem Besucher wie bisher selbst.
+     */
     @GetMapping("/clip.html")
-    fun clip(model: Model) = view(model, "clip", active = "browse")
+    fun clip(@RequestParam(name = "p", required = false) slug: String?, model: Model): String {
+        val clip = slug?.let { runCatching { catalog.detail(it, null) }.getOrNull() }
+
+        //  Ein privater Clip bekommt keine eigene Vorschau. Wer „nicht gelistet
+        //  und nicht auffindbar" waehlt, hat keine Karte bestellt, die seine
+        //  Bewegung in jedem Kanal zeigt, in den der Link geraet.
+        if (clip != null && clip.license == AwclipSchema.LICENSE_PUBLIC) {
+            val url = portal.publicBaseUrl.trimEnd('/') + "/clip.html?p=" + clip.slug
+            model.addAttribute("meta", PageMeta(
+                title = clip.title + " by " + clip.author,
+                description = clip.description.takeIf { it.isNotBlank() }
+                    ?: "A humanoid animation clip, free to use under CC BY 4.0.",
+                image = if (clip.hasPreview) portal.publicBaseUrl.trimEnd('/') + "/clip-card/" + clip.slug + ".png" else null,
+                url = url,
+                noindex = !portal.searchIndexing,
+            ))
+        }
+
+        return view(model, "clip", active = "browse")
+    }
 
     @GetMapping("/me.html")
     fun me(model: Model) = view(model, "me", active = "me")

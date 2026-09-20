@@ -1,0 +1,382 @@
+package com.playmation.motionlabsbackend.web
+
+import com.playmation.motionlabsbackend.catalog.CatalogService
+import com.playmation.motionlabsbackend.common.PortalException
+import com.playmation.motionlabsbackend.format.AwclipSchema
+import org.springframework.http.CacheControl
+import org.springframework.http.MediaType
+import org.springframework.http.ResponseEntity
+import org.springframework.stereotype.Component
+import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.RestController
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.json.JsonMapper
+import java.awt.BasicStroke
+import java.awt.Color
+import java.awt.GradientPaint
+import java.awt.RadialGradientPaint
+import java.awt.RenderingHints
+import java.awt.geom.Ellipse2D
+import java.awt.geom.GeneralPath
+import java.awt.geom.Line2D
+import java.awt.image.BufferedImage
+import java.io.ByteArrayOutputStream
+import java.util.Collections
+import java.util.concurrent.TimeUnit
+import javax.imageio.ImageIO
+import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.hypot
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.sin
+
+/**
+ * Das Bild, das erscheint, wenn jemand einen Clip in Discord verlinkt.
+ *
+ * WARUM ES DAS GEBEN MUSS. Die Adressen der Clips stehen laut Entwurf "in
+ * Discord-Vorschauen" - dort stand bis hierher die nackte Adresse. Ein Portal,
+ * dessen Verbreitung ueber einen Chat laeuft, verschenkt damit seinen
+ * wichtigsten Auftritt: der Link zeigt nicht, was er zeigt.
+ *
+ * WARUM OHNE EIN EINZIGES WORT. Das Laufzeitbild ist `eclipse-temurin:17-jre-
+ * alpine` - ohne Fontconfig und ohne eine einzige Schrift. Text mit
+ * `java.awt.Font` waere dort im besten Fall ein Kaestchengitter. Er fehlt aber
+ * auch inhaltlich nicht: Discord und Twitter setzen Titel und Beschreibung als
+ * TEXT neben das Bild, aus `og:title` und `og:description`. Was im Bild stuende,
+ * stuende zweimal da.
+ *
+ * Bleibt die Marke, und die ist eine Form, kein Wort: das Lambda mit der
+ * Keyframe-Raute, hier als Pfad gezeichnet.
+ *
+ * DIE RECHNUNG IST DIE AUS `viewer.js`, Zeile fuer Zeile - dieselbe
+ * Vorwaertskinematik, dieselbe Projektion, dieselben Seitenfarben. Sie steht
+ * hier ein zweites Mal, weil das eine JavaScript im Browser ist und das andere
+ * Java auf dem Server; wer eine aendert, muss an die andere denken. Der
+ * Gegenwert ist, dass ein Clip in jedem Chat der Welt seine eigene Bewegung
+ * zeigt, ohne dass irgendwo ein Browser laufen muss.
+ */
+@Component
+class ClipCardRenderer {
+
+    private val json = JsonMapper.builder().build()
+
+    /**
+     * Fertige Bilder. Discord holt dieselbe Adresse fuer jeden Post erneut, und
+     * eine Vorwaertskinematik ueber alle Frames ist zu viel Arbeit fuer ein
+     * Bild, das sich nur mit einer neuen Version aendert.
+     *
+     * DER SCHLUESSEL TRAEGT DIE VERSION, damit es keine Entwertung braucht.
+     * Der Renderer wuesste sonst nur ueber den [CatalogService] von einer neuen
+     * Version - und der muesste dann seinerseits den Renderer kennen, um ihm
+     * Bescheid zu sagen. Ein Schluessel aus Slug und Versionsnummer loest das,
+     * ohne dass die beiden voneinander wissen muessen: eine neue Version ist
+     * schlicht ein anderer Schluessel, und der alte faellt irgendwann hinten
+     * aus der Liste.
+     */
+    private val cache: MutableMap<String, ByteArray> = Collections.synchronizedMap(
+        object : LinkedHashMap<String, ByteArray>(64, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, ByteArray>) = size > MAX_CACHED
+        }
+    )
+
+    fun card(slug: String, version: Int, preview: () -> ByteArray): ByteArray =
+        cache.getOrPut("$slug:v$version") { render(preview()) }
+
+    // ════════════════════════════════════════════════════════════════════
+    // ZEICHNEN
+    // ════════════════════════════════════════════════════════════════════
+
+    private fun render(previewBytes: ByteArray): ByteArray {
+        val preview = json.readTree(previewBytes)
+
+        val bones = preview["bones"].map { it.asString() }
+        val parents = preview["parents"].map { it.asInt() }
+        val rest = preview["rest"].map { v -> floatArrayOf(v[0].asDouble().toFloat(), v[1].asDouble().toFloat(), v[2].asDouble().toFloat()) }
+        val hips = preview["hips"].map { v -> floatArrayOf(v[0].asDouble().toFloat(), v[1].asDouble().toFloat(), v[2].asDouble().toFloat()) }
+        val rotations = preview["rotations"]
+
+        if (bones.isEmpty() || hips.isEmpty()) throw PortalException.notFound("This clip has no preview.")
+
+        val frames = hips.indices.map { solveFrame(it, parents, rest, hips, rotations) }
+        val points = frames[expressiveFrame(frames)]
+
+        val image = BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_RGB)
+        val g = image.createGraphics()
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+        g.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE)
+
+        //  Derselbe Verlauf wie die Buehne im Browser: oben Mitte heller.
+        g.paint = GradientPaint(WIDTH / 2f, 0f, Color(0x1e, 0x1c, 0x28), WIDTH / 2f, HEIGHT.toFloat(), Color(0x0c, 0x0b, 0x10))
+        g.fillRect(0, 0, WIDTH, HEIGHT)
+
+        //  Ein weicher Schein hinter der Figur statt eines Bodenrasters. Das
+        //  Raster des Viewers braucht Flaeche, um als Boden gelesen zu werden;
+        //  in einer Vorschau von Daumennagelgroesse wird daraus ein Gitter aus
+        //  Striemen. Der Schein verankert die Figur, ohne etwas zu behaupten.
+        g.paint = RadialGradientPaint(
+            java.awt.geom.Point2D.Float(WIDTH / 2f, HEIGHT / 2f), HEIGHT * 0.62f,
+            floatArrayOf(0f, 1f),
+            arrayOf(Color(0x8e, 0x77, 0xff, 34), Color(0x8e, 0x77, 0xff, 0)),
+        )
+        g.fillRect(0, 0, WIDTH, HEIGHT)
+
+        drawFigure(g, points, bones, parents)
+        drawMark(g)
+
+        g.dispose()
+
+        val out = ByteArrayOutputStream()
+        ImageIO.write(image, "png", out)
+        return out.toByteArray()
+    }
+
+    /**
+     * Der Frame, der am meisten zu erzaehlen hat: der mit der groessten Summe
+     * der Abstaende zur Huefte.
+     *
+     * Frame 0 waere die bequeme Wahl und fast immer die schlechteste - viele
+     * Clips fangen in der Ruhelage an, und ein Laufzyklus saehe dann aus wie
+     * jemand, der steht. Gemessen wird die AUSGESTRECKTHEIT, weil genau sie
+     * eine Bewegung von einer Pose unterscheidet.
+     */
+    private fun expressiveFrame(frames: List<Array<FloatArray>>): Int {
+        var best = 0
+        var bestScore = -1.0
+        for ((index, frame) in frames.withIndex()) {
+            val root = frame[0]
+            var score = 0.0
+            for (p in frame) score += hypot((p[0] - root[0]).toDouble(), (p[2] - root[2]).toDouble()) + abs(p[1] - root[1])
+            if (score > bestScore) {
+                bestScore = score
+                best = index
+            }
+        }
+        return best
+    }
+
+    private fun drawFigure(g: java.awt.Graphics2D, points: Array<FloatArray>, bones: List<String>, parents: List<Int>) {
+        //  Blickwinkel wie auf den Katalogkarten - leicht von der Seite und von
+        //  oben, damit ein Schritt als Schritt lesbar ist und nicht als Strich.
+        val yaw = -0.7
+        val pitch = 0.18
+
+        var minY = Float.MAX_VALUE
+        var maxY = -Float.MAX_VALUE
+        for (p in points) {
+            minY = min(minY, p[1])
+            maxY = max(maxY, p[1])
+        }
+        val height = max(0.5f, maxY - minY)
+        val root = points[0]
+        val target = floatArrayOf(root[0], minY + height * 0.5f, root[2])
+
+        val cy = cos(yaw); val sy = sin(yaw)
+        val cp = cos(pitch); val sp = sin(pitch)
+
+        /** Ein Punkt im Raum der Kamera, noch ohne Massstab und ohne Mitte. */
+        fun flatten(p: FloatArray): DoubleArray {
+            val x = (p[0] - target[0]).toDouble()
+            val y = (p[1] - target[1]).toDouble()
+            val z = (p[2] - target[2]).toDouble()
+            val x1 = cy * x + sy * z
+            val z1 = -sy * x + cy * z
+            val y2 = cp * y - sp * z1
+            val z2 = sp * y + cp * z1
+            val perspective = 3.5 / (3.5 + z2 / height)
+            return doubleArrayOf(x1 * perspective, -y2 * perspective, z2)
+        }
+
+        //  ERST MESSEN, DANN EINPASSEN. Die Kamera auf die Huefte zu richten
+        //  und mit der Koerperhoehe zu skalieren - so macht es der Viewer im
+        //  Browser - ist dort richtig, weil die Figur laeuft und im Bild bleiben
+        //  soll. Hier steht ein einzelner Augenblick, und zwar der am weitesten
+        //  ausgestreckte: ein ausgestreckter Arm schob die Figur dann sichtbar
+        //  aus der Mitte, und die Hoehe allein liess sie zu klein.
+        //
+        //  Also: alle Punkte flach rechnen, ihre Ausdehnung messen, und daraus
+        //  Massstab und Mitte bestimmen. Was gezeichnet wird, sitzt damit immer
+        //  mittig und immer gleich gross im Bild - unabhaengig von der Pose.
+        val flat = Array(points.size) { flatten(points[it]) }
+
+        var minX = Double.MAX_VALUE; var maxX = -Double.MAX_VALUE
+        var minFlatY = Double.MAX_VALUE; var maxFlatY = -Double.MAX_VALUE
+        for (p in flat) {
+            minX = min(minX, p[0]); maxX = max(maxX, p[0])
+            minFlatY = min(minFlatY, p[1]); maxFlatY = max(maxFlatY, p[1])
+        }
+        val spanX = max(0.2, maxX - minX)
+        val spanY = max(0.2, maxFlatY - minFlatY)
+
+        //  Der Rahmen, den die Figur fuellen darf. Nicht das ganze Bild: eine
+        //  Vorschau wird klein angezeigt, und eine Figur am Rand wirkt darin
+        //  gedraengt.
+        val scale = min(HEIGHT * 0.72 / spanY, WIDTH * 0.46 / spanX)
+        val centerX = (minX + maxX) / 2 * scale
+        val centerY = (minFlatY + maxFlatY) / 2 * scale
+
+        val projected = Array(flat.size) { i ->
+            doubleArrayOf(
+                WIDTH / 2.0 + flat[i][0] * scale - centerX,
+                HEIGHT / 2.0 + flat[i][1] * scale - centerY,
+                flat[i][2],
+            )
+        }
+
+        //  Hinten zuerst, damit vorne oben liegt.
+        val order = projected.indices.sortedByDescending { projected[it][2] }
+
+        val lineWidth = WIDTH / 150f
+
+        for (i in order) {
+            val parent = parents[i]
+            if (parent < 0) continue
+            val name = bones[i]
+            val fine = DETAIL.containsMatchIn(name)
+
+            //  Seitenfarben aus der Marke: Akzentviolett links, Warmton rechts.
+            val base = when {
+                name.startsWith("Left") -> Color(0x8e, 0x77, 0xff)
+                name.startsWith("Right") -> Color(0xfb, 0x92, 0x3c)
+                else -> Color(0xd9, 0xd5, 0xe4)
+            }
+            //  Feine Knochen duenner und blasser - sie sollen die Silhouette
+            //  ergaenzen, nicht mit ihr konkurrieren.
+            g.color = if (fine) Color(base.red, base.green, base.blue, 115) else base
+            g.stroke = BasicStroke(if (fine) lineWidth * 0.55f else lineWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
+            g.draw(Line2D.Double(projected[parent][0], projected[parent][1], projected[i][0], projected[i][1]))
+        }
+
+        g.color = Color(0xee, 0xec, 0xf3)
+        for (i in order) {
+            if (DETAIL.containsMatchIn(bones[i])) continue
+            val radius = if (bones[i] == "Head") lineWidth * 3.2 else lineWidth * 0.9
+            g.fill(Ellipse2D.Double(projected[i][0] - radius, projected[i][1] - radius, radius * 2, radius * 2))
+        }
+    }
+
+    /**
+     * Die Marke, unten links: das Lambda mit der Keyframe-Raute (Variante E).
+     *
+     * Als Pfad, nicht als Wort - siehe oben. Die Raute greift in die Schenkel,
+     * wie sie es im Lockup tut; sie darf nicht daneben schweben.
+     */
+    private fun drawMark(g: java.awt.Graphics2D) {
+        val size = 54.0
+        val x = 64.0
+        val y = HEIGHT - 64.0
+
+        val stroke = BasicStroke((size / 7).toFloat(), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
+        g.stroke = stroke
+        g.color = Color(0xd9, 0xd5, 0xe4, 190)
+
+        val lambda = GeneralPath()
+        lambda.moveTo(x, y)
+        lambda.lineTo(x + size * 0.5, y - size)
+        lambda.lineTo(x + size, y)
+        g.draw(lambda)
+
+        //  Die Raute sitzt auf halber Hoehe, wo die Schenkel sind.
+        val r = size * 0.19
+        val cx = x + size * 0.5
+        val cyMark = y - size * 0.46
+        val diamond = GeneralPath()
+        diamond.moveTo(cx, cyMark - r)
+        diamond.lineTo(cx + r, cyMark)
+        diamond.lineTo(cx, cyMark + r)
+        diamond.lineTo(cx - r, cyMark)
+        diamond.closePath()
+        g.color = Color(0x8e, 0x77, 0xff)
+        g.fill(diamond)
+    }
+
+    // ── Vorwaertskinematik, wie in viewer.js ─────────────────────────────
+
+    private fun solveFrame(
+        frame: Int, parents: List<Int>, rest: List<FloatArray>,
+        hips: List<FloatArray>, rotations: JsonNode,
+    ): Array<FloatArray> {
+        val row = rotations[frame]
+        val count = parents.size
+        val worldRot = Array(count) { FloatArray(4) }
+        val worldPos = Array(count) { FloatArray(3) }
+
+        for (i in 0 until count) {
+            val local = floatArrayOf(
+                row[i * 4].asDouble().toFloat(), row[i * 4 + 1].asDouble().toFloat(),
+                row[i * 4 + 2].asDouble().toFloat(), row[i * 4 + 3].asDouble().toFloat(),
+            )
+            val parent = parents[i]
+            if (parent < 0) {
+                worldRot[i] = local
+                worldPos[i] = hips[frame].copyOf()
+            } else {
+                worldRot[i] = qmul(worldRot[parent], local)
+                val offset = qrot(worldRot[parent], rest[i])
+                worldPos[i] = floatArrayOf(
+                    worldPos[parent][0] + offset[0],
+                    worldPos[parent][1] + offset[1],
+                    worldPos[parent][2] + offset[2],
+                )
+            }
+        }
+        return worldPos
+    }
+
+    private fun qmul(a: FloatArray, b: FloatArray) = floatArrayOf(
+        a[3] * b[0] + a[0] * b[3] + a[1] * b[2] - a[2] * b[1],
+        a[3] * b[1] - a[0] * b[2] + a[1] * b[3] + a[2] * b[0],
+        a[3] * b[2] + a[0] * b[1] - a[1] * b[0] + a[2] * b[3],
+        a[3] * b[3] - a[0] * b[0] - a[1] * b[1] - a[2] * b[2],
+    )
+
+    private fun qrot(q: FloatArray, v: FloatArray): FloatArray {
+        val x = q[0]; val y = q[1]; val z = q[2]; val w = q[3]
+        val tx = 2 * (y * v[2] - z * v[1])
+        val ty = 2 * (z * v[0] - x * v[2])
+        val tz = 2 * (x * v[1] - y * v[0])
+        return floatArrayOf(
+            v[0] + w * tx + (y * tz - z * ty),
+            v[1] + w * ty + (z * tx - x * tz),
+            v[2] + w * tz + (x * ty - y * tx),
+        )
+    }
+
+    companion object {
+        /** Das Mass, das Discord, Twitter und Slack gleichermassen erwarten. */
+        const val WIDTH = 1200
+        const val HEIGHT = 630
+
+        /** Dieselben Prefixe wie `SkeletonViewer.DETAIL` und die Workbench. */
+        private val DETAIL = Regex("^(Left|Right)(Thumb|Index|Middle|Ring|Little)")
+
+        private const val MAX_CACHED = 200
+    }
+}
+
+/**
+ * Das Kartenbild als Datei.
+ *
+ * Der Name traegt `.png`, weil manche Dienste an der Endung entscheiden, ob
+ * sie ein Bild ueberhaupt holen.
+ */
+@RestController
+class ClipCardController(
+    private val cards: ClipCardRenderer,
+    private val catalog: CatalogService,
+) {
+
+    @GetMapping("/clip-card/{slug}.png", produces = [MediaType.IMAGE_PNG_VALUE])
+    fun card(@PathVariable slug: String): ResponseEntity<ByteArray> {
+        //  Ein privater Clip bekommt keine Vorschau. Wer "nicht gelistet und
+        //  nicht auffindbar" waehlt, hat damit keine Karte bestellt, die seine
+        //  Bewegung in jedem Kanal zeigt, in den der Link geraet.
+        val clip = catalog.detail(slug, null)
+        if (clip.license != AwclipSchema.LICENSE_PUBLIC) throw PortalException.notFound("No preview card for this clip.")
+
+        return ResponseEntity.ok()
+            .cacheControl(CacheControl.maxAge(7, TimeUnit.DAYS).cachePublic())
+            .body(cards.card(slug, clip.version) { catalog.previewJson(slug, null) })
+    }
+}
