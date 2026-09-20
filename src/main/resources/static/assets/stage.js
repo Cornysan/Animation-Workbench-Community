@@ -21,12 +21,30 @@
  * Rotationen einfach uebernimmt, bekommt bei gleicher Konvention ein exaktes
  * Bild und bei anderer eine verdrehte Figur.
  *
- * Also wird pro Knochen eine feste Korrektur bestimmt: die Richtung zum
- * Kindknochen ist in BEIDEN Rigs im lokalen Raum des Knochens bekannt (Quelle:
- * `rest`, Ziel: die Bindepose des Modells), und die kuerzeste Drehung zwischen
- * beiden ist die Korrektur. Bei gleicher Konvention ist sie die Einheit, das
- * Bild also exakt; bei anderer bleibt eine feste Rolle um die Knochenachse
- * uebrig, die an einem runden Gliedmass niemand sieht.
+ * Also wird pro Knochen eine feste Korrektur bestimmt. Dafuer braucht es ZWEI
+ * Richtungen, die in beiden Skeletten bekannt sind:
+ *
+ *   1. die Richtung zum Kindknochen - im lokalen Raum des Knochens (Quelle:
+ *      `rest`, Ziel: die Bindepose des Modells). Sie sagt, wo der Knochen
+ *      hinzeigt.
+ *   2. die Seitwaertsachse durch ein symmetrisches Kinderpaar, etwa die
+ *      Beckenbreite von Bein zu Bein. Sie sagt, wie er UM sich selbst gedreht
+ *      ist.
+ *
+ * Aus beiden entsteht je ein Dreibein, und die Drehung zwischen den Dreibeinen
+ * ist die Korrektur. Bei gleicher Konvention ist sie die Einheit.
+ *
+ * WARUM ZWEI UND NICHT EINE. Bis zum 2026-09-21 stand hier nur die erste
+ * Richtung und `setFromUnitVectors` dazu. Das bildet eine Richtung auf eine
+ * andere ab und laesst die Drehung UM diese Richtung offen - es waehlt die
+ * kuerzeste, und das ist eine willkuerliche Wahl. Der Kommentar hier
+ * behauptete, das falle nur als "feste Rolle um die Knochenachse" an, "die an
+ * einem runden Gliedmass niemand sieht". Fuer Oberschenkel und Oberarm stimmt
+ * das. Fuer Becken und Brustkorb nicht, denn ein Rumpf ist breit: gemessen
+ * standen Beckenachse und Schulterachse um 87 bzw. 92 Grad verdreht, und die
+ * Figur trug den Oberkoerper quer zu den Beinen. Mit der zweiten Richtung sind
+ * es 0,0 Grad - bei einem Clip vom Mannequin selbst wie bei einem von fremdem
+ * Rig.
  */
 
 import {
@@ -103,6 +121,28 @@ const AIM_CHILD = {
   Neck: ['Head'],
   LeftHand: ['LeftMiddleProximal', 'LeftIndexProximal', 'LeftRingProximal'],
   RightHand: ['RightMiddleProximal', 'RightIndexProximal', 'RightRingProximal'],
+};
+
+/**
+ * Das symmetrische Kinderpaar, das die Seitwaertsachse eines Knochens angibt -
+ * von rechts nach links.
+ *
+ * Es beantwortet die Frage, die die Richtung zum Kind offen laesst: wie ist
+ * der Knochen UM seine eigene Achse gedreht. Ein Paar eignet sich dafuer, weil
+ * es quer zum Knochen liegt und in beiden Skeletten dieselbe Strecke meint -
+ * die Beckenbreite ist die Beckenbreite.
+ *
+ * Nur diese fuenf Knochen haben ueberhaupt mehrere Kinder. Das reicht: es sind
+ * genau die breiten Stellen, an denen eine falsche Rolle zu sehen ist. Alles
+ * andere ist rund und erbt (siehe `inheritedSide`).
+ */
+const SIDE_PAIR = {
+  Hips: ['LeftUpperLeg', 'RightUpperLeg'],
+  Chest: ['LeftShoulder', 'RightShoulder'],
+  UpperChest: ['LeftShoulder', 'RightShoulder'],
+  Head: ['LeftEye', 'RightEye'],
+  LeftHand: ['LeftIndexProximal', 'LeftLittleProximal'],
+  RightHand: ['RightIndexProximal', 'RightLittleProximal'],
 };
 
 /** Feine Knochen - dieselbe Unterscheidung wie im Strichmaennchen. */
@@ -401,14 +441,97 @@ export class MannequinStage {
       return kids.length === 1 ? this.preview.bones[kids[0]] : null;
     };
 
+
     // Bindepose des Modells: Weltmatrix je Knochen ist die Inverse der
     // inversen Bindematrix.
     const bindWorld = skeleton.boneInverses.map((m) => m.clone().invert());
     const bindPos = bindWorld.map((m) => new Vector3().setFromMatrixPosition(m));
     const bindRot = bindWorld.map((m) => new Quaternion().setFromRotationMatrix(m));
 
+    /**
+     * Die Richtung zum Kind, einmal in der Quelle und einmal im Modell, beide
+     * im lokalen Raum des Knochens `ti`.
+     */
+    const dirTo = (ti, childName) => {
+      const ci = srcIndex.get(childName);
+      const tci = byKey.get(boneKey(BONE_MAP[childName] || ''));
+      if (ci === undefined || tci === undefined) return null;
+      //  Quelle: `rest` ist der Versatz des Kindes IM lokalen Raum des
+      //  Elternknochens - genau die Richtung, die wir brauchen.
+      const src = toVec(this.preview.rest[ci]);
+      const dst = bindPos[tci].clone().sub(bindPos[ti]).applyQuaternion(bindRot[ti].clone().invert());
+      if (src.lengthSq() < 1e-12 || dst.lengthSq() < 1e-12) return null;
+      return { src: src.normalize(), dst: dst.normalize() };
+    };
+
+    /**
+     * Die Seitwaertsachse: von rechts nach links durch ein symmetrisches
+     * Kinderpaar. Sie steht quer zum Knochen und ist in beiden Skeletten
+     * dieselbe Strecke - damit ist sie die Referenz, die der Aim-Richtung
+     * allein fehlt.
+     */
+    const sideOf = (ti, srcName) => {
+      const pair = SIDE_PAIR[srcName];
+      if (!pair) return null;
+      const [leftName, rightName] = pair;
+      const li = srcIndex.get(leftName), ri = srcIndex.get(rightName);
+      const tl = byKey.get(boneKey(BONE_MAP[leftName] || ''));
+      const tr = byKey.get(boneKey(BONE_MAP[rightName] || ''));
+      if (li === undefined || ri === undefined || tl === undefined || tr === undefined) return null;
+      //  Beide muessen an DIESEM Knochen haengen, sonst liegen ihre `rest`
+      //  in verschiedenen Raeumen und die Differenz bedeutet nichts.
+      if (this.preview.parents[li] !== srcIndex.get(srcName)) return null;
+      if (this.preview.parents[ri] !== srcIndex.get(srcName)) return null;
+
+      const src = toVec(this.preview.rest[li]).sub(toVec(this.preview.rest[ri]));
+      const dst = bindPos[tl].clone().sub(bindPos[tr]).applyQuaternion(bindRot[ti].clone().invert());
+      if (src.lengthSq() < 1e-12 || dst.lengthSq() < 1e-12) return null;
+      return { src: src.normalize(), dst: dst.normalize() };
+    };
+
+    /** Rechtshaendiges Dreibein aus einer Haupt- und einer Hilfsrichtung. */
+    const frame = (aim, side) => {
+      const u = aim.clone().normalize();
+      const w = new Vector3().crossVectors(u, side);
+      if (w.lengthSq() < 1e-6) return null;      // (anti)parallel - nichts zu holen
+      w.normalize();
+      const v = new Vector3().crossVectors(w, u).normalize();
+      return new Quaternion().setFromRotationMatrix(new Matrix4().makeBasis(u, v, w));
+    };
+
     this.tracks = [];
     const corrections = new Map();
+    const sides = new Map();
+
+    //  ERSTER DURCHGANG: die Seitwaertsachsen einsammeln. Sie werden im
+    //  zweiten gebraucht, auch von Knochen, die selbst kein Paar tragen.
+    for (const [srcName, defName] of Object.entries(BONE_MAP)) {
+      const ti = byKey.get(boneKey(defName));
+      if (ti === undefined || srcIndex.get(srcName) === undefined) continue;
+      const side = sideOf(ti, srcName);
+      if (side) sides.set(srcName, side);
+    }
+
+    /**
+     * Die Seitwaertsachse dieses Knochens - oder die des naechsten Vorfahren,
+     * der eine hat.
+     *
+     * Ein Oberschenkel traegt kein symmetrisches Kinderpaar und kann seine
+     * Rolle deshalb nicht selbst bestimmen. Er erbt sie vom Becken. Das setzt
+     * voraus, dass ein Rig seine Achsenkonvention innerhalb einer Kette nicht
+     * wechselt - dieselbe Annahme, unter der auch die Endknochen ihre
+     * Korrektur erben.
+     */
+    const inheritedSide = (srcName) => {
+      if (sides.has(srcName)) return sides.get(srcName);
+      let p = this.preview.parents[srcIndex.get(srcName)];
+      while (p >= 0) {
+        const name = this.preview.bones[p];
+        if (sides.has(name)) return sides.get(name);
+        p = this.preview.parents[p];
+      }
+      return null;
+    };
 
     for (const [srcName, defName] of Object.entries(BONE_MAP)) {
       const si = srcIndex.get(srcName);
@@ -416,21 +539,31 @@ export class MannequinStage {
       if (si === undefined || ti === undefined) continue;
 
       const childName = aimChildOf(srcName);
+      const aim = childName ? dirTo(ti, childName) : null;
       let correction = null;
 
-      if (childName) {
-        const ci = srcIndex.get(childName);
-        const tci = byKey.get(boneKey(BONE_MAP[childName]));
-        if (tci !== undefined) {
-          // Quelle: `rest` ist der Versatz des Kindes IM lokalen Raum des
-          // Elternknochens - genau die Richtung, die wir brauchen.
-          const dSrc = toVec(this.preview.rest[ci]).normalize();
-          const dDst = bindPos[tci].clone().sub(bindPos[ti])
-            .applyQuaternion(bindRot[ti].clone().invert()).normalize();
-          if (dSrc.lengthSq() > 0.5 && dDst.lengthSq() > 0.5) {
-            correction = new Quaternion().setFromUnitVectors(dDst, dSrc);
-          }
+      if (aim) {
+        //  DIE SEITWAERTSACHSE IST DER GRUND, WARUM HIER EIN DREIBEIN STEHT UND
+        //  NICHT DIE KUERZESTE DREHUNG. `setFromUnitVectors` bildet eine
+        //  Richtung auf eine andere ab und laesst die Drehung UM diese Richtung
+        //  offen; sie waehlt die kuerzeste, und das ist eine willkuerliche
+        //  Wahl. An einem Oberschenkel sieht das niemand - der ist rund. Am
+        //  Becken und am Brustkorb sieht es jeder, denn ein Rumpf ist breit:
+        //  die Figur stand mit dem Oberkoerper quer zu den Beinen.
+        //
+        //  Mit einer zweiten Richtung ist die Drehung vollstaendig bestimmt.
+        //  Die Seitwaertsachse eignet sich dafuer, weil sie quer zum Knochen
+        //  liegt und in beiden Skeletten dieselbe Strecke meint.
+        const side = inheritedSide(srcName);
+        if (side) {
+          const qSrc = frame(aim.src, side.src);
+          const qDst = frame(aim.dst, side.dst);
+          if (qSrc && qDst) correction = qSrc.multiply(qDst.invert());
         }
+        //  Ohne brauchbare Seitwaertsachse bleibt die alte Naeherung: die
+        //  Richtung stimmt, die Rolle ist geraten. Das betrifft nur Knochen
+        //  ohne jeden Vorfahren mit Paar - im menschlichen Skelett keinen.
+        if (!correction) correction = new Quaternion().setFromUnitVectors(aim.dst, aim.src);
       }
 
       this.tracks.push({ src: si, bone: ti, srcName, correction });
