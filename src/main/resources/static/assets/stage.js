@@ -184,6 +184,33 @@ function axisGroupOf(name) {
 
 /** Feine Knochen - dieselbe Unterscheidung wie im Strichmaennchen. */
 const DETAIL = /^(Left|Right)(Thumb|Index|Middle|Ring|Little)/;
+
+/**
+ * Knochen, die in ihrer Bindepose bleiben, statt der Vorschau zu folgen.
+ *
+ * DIE ZEHEN, UND DAS IST EINE EINSCHRAENKUNG, KEINE LOESUNG. Ein Zehenknochen
+ * hat kein Kind und damit keine eigene Richtung; er kann seine Korrektur nur
+ * erben. Was er dabei erbt, ist die Konvention des FUSSES, und die passt
+ * nicht: gemessen traegt die Zehe 121,8 Grad lokale Drehung gegen den Fuss,
+ * bewegt sich im ganzen Clip aber nur um 5,2. Der grosse Rest ist
+ * Achsenkonvention, und geerbt bleibt er als Knick stehen - die Fussspitzen
+ * klappten nach unten, um 109 und 133 Grad an ihrer Bindepose vorbei.
+ *
+ * Trennen liesse sich Konvention von Haltung nur mit den Ruhepose-
+ * Orientierungen der Quelle, und die stehen nicht im `.awclip`: `rest` sind
+ * blosse Versaetze, summiert man sie ohne Rotationen auf, liegt die Figur auf
+ * einer Geraden. Das Format muesste ein Feld mehr tragen (und Client, Server
+ * und Formatversion muessten es zusammen bekommen).
+ *
+ * Bis dahin ist ein glatter Fuss ohne Abrollen ehrlicher als ein geknickter
+ * mit. Es kostet die 5 Grad, die die Zehen in einem Clip wirklich tun.
+ *
+ * Die FINGER stehen aus demselben Grund nicht hier: bei ihnen ist die grosse
+ * lokale Drehung tatsaechlich die Haltung - die Faust -, und Erben gibt sie
+ * richtig weiter.
+ */
+const KEEP_BIND_POSE = /Toes$/;
+
 // ── Unity -> glTF ────────────────────────────────────────────────────────
 //
 // Unity ist linkshaendig mit +Z nach vorn, glTF rechtshaendig mit -Z nach vorn.
@@ -650,6 +677,8 @@ export class MannequinStage {
       const si = srcIndex.get(srcName);
       const ti = byKey.get(boneKey(defName));
       if (si === undefined || ti === undefined) continue;
+      //  Ohne Track bleibt der Knochen in seiner Bindepose - siehe applyFrame.
+      if (KEEP_BIND_POSE.test(srcName)) continue;
 
       const childName = aimChildOf(srcName);
       const aim = childName ? dirTo(ti, childName) : null;
