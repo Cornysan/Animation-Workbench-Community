@@ -46,6 +46,13 @@ class SkeletonViewer {
     this.detail = this.preview.bones.map((b) => SkeletonViewer.DETAIL.test(b));
 
     this.worldFrames = this.preview.hips.map((_, f) => this.solveFrame(f));
+
+    //  DER VORSCHAU-BLOCK TRAEGT SEIN RIG NICHT. Es steht am Paket (`rig`),
+    //  und dorthin reicht dieser Viewer nicht. Der Wurzelknochen sagt es aber
+    //  eindeutig genug: humanoid heisst er immer `Hips`, weil die Namen dort
+    //  aus einer festen Menge kommen. Alles andere bringt sein eigenes
+    //  Skelett mit und wird deshalb anders eingepasst (siehe [computeBounds]).
+    this.humanoid = this.preview.bones[0] === "Hips";
     this.computeBounds();
 
     if (this.interactive) this.attachInput();
@@ -102,11 +109,16 @@ class SkeletonViewer {
 
   computeBounds() {
     let minY = Infinity, maxY = -Infinity, maxExtent = 0.5;
+    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
     const first = this.worldFrames[0];
     for (const frame of this.worldFrames) {
       for (const p of frame) {
-        minY = Math.min(minY, p[1]);
-        maxY = Math.max(maxY, p[1]);
+        if (p[0] < minX) minX = p[0];
+        if (p[0] > maxX) maxX = p[0];
+        if (p[1] < minY) minY = p[1];
+        if (p[1] > maxY) maxY = p[1];
+        if (p[2] < minZ) minZ = p[2];
+        if (p[2] > maxZ) maxZ = p[2];
       }
     }
     for (const p of first) {
@@ -115,6 +127,18 @@ class SkeletonViewer {
     this.floorY = minY;
     this.height = Math.max(0.5, maxY - minY);
     this.extent = maxExtent;
+
+    //  Die ganze Box ueber alle Bilder - fuer alles, was keine aufrechte Figur
+    //  ist. Eine Tuer haengt an ihrer Angel und steht damit NEBEN dem
+    //  Ursprung, ein Kranarm liegt quer: auf die Wurzel zentriert und nach der
+    //  Hoehe eingepasst stand so ein Clip als Strich am Kartenrand.
+    this.box = {
+      cx: (minX + maxX) / 2,
+      cy: (minY + maxY) / 2,
+      cz: (minZ + maxZ) / 2,
+      height: Math.max(1e-3, maxY - minY),
+      girth: Math.max(1e-3, maxX - minX, maxZ - minZ),
+    };
   }
 
   // ── Eingabe ───────────────────────────────────────────────────────────
@@ -206,11 +230,20 @@ class SkeletonViewer {
     const points = this.worldFrames[frame];
     const hips = points[0];
 
-    // Kamera folgt der Hüfte waagerecht, damit Laufzyklen im Bild bleiben.
-    const target = [hips[0], this.floorY + this.height * 0.5, hips[2]];
-    //  Einpassung aus BEIDEN Maßen: die Figur soll rund 84 % der Höhe füllen,
-    //  in schmalen Karten aber nicht seitlich oder unten anstoßen.
-    const scale = (Math.min(h * 0.84, w * 0.62) / this.height) * this.zoom;
+    //  Aufrecht: die Kamera folgt der Hüfte waagerecht, damit Laufzyklen im
+    //  Bild bleiben, und die Figur füllt rund 84 % der Höhe - in schmalen
+    //  Karten aber nicht seitlich oder unten anstoßend.
+    //
+    //  Generisch: die Mitte der Box statt der Wurzel, und eingepasst in BEIDE
+    //  Richtungen. Sonst entscheidet der Zufall, wo der Ursprung des Rigs
+    //  liegt, über die Bildmitte.
+    const target = this.humanoid
+      ? [hips[0], this.floorY + this.height * 0.5, hips[2]]
+      : [this.box.cx, this.box.cy, this.box.cz];
+
+    const scale = (this.humanoid
+      ? Math.min(h * 0.84, w * 0.62) / this.height
+      : Math.min(h * 0.84 / this.box.height, w * 0.78 / this.box.girth)) * this.zoom;
 
     const cy = Math.cos(this.yaw), sy = Math.sin(this.yaw);
     const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
