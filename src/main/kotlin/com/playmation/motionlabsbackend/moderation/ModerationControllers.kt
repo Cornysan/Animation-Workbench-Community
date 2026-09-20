@@ -34,6 +34,20 @@ class ReportController(private val moderation: ModerationService) {
         return ResponseEntity.status(HttpStatus.CREATED).body(mapOf("id" to id, "status" to "received"))
     }
 
+    /** Ein Kommentar, nicht der Clip. Versteckt wird entsprechend nur der Kommentar. */
+    @PostMapping("/packages/{slug}/comments/{commentId}/reports")
+    fun reportComment(
+        @PathVariable slug: String,
+        @PathVariable commentId: UUID,
+        @RequestBody body: ReportRequest,
+        authentication: Authentication?,
+        request: HttpServletRequest,
+    ): ResponseEntity<Map<String, Any>> {
+        val id = moderation.reportComment(
+            authentication.requirePrincipal(), slug, commentId, body.category, body.message, request.clientIp())
+        return ResponseEntity.status(HttpStatus.CREATED).body(mapOf("id" to id, "status" to "received"))
+    }
+
     /** Öffentlich, ohne Konto - Rechteinhaber dürfen nie vor verschlossener Tür stehen. */
     @PostMapping("/takedowns")
     fun takedown(@RequestBody body: ModerationService.TakedownInput, request: HttpServletRequest) =
@@ -49,7 +63,11 @@ class AdminController(
 ) {
     data class Decision(val note: String = "", val strike: Boolean = false, val falseReport: Boolean = false, val upheld: Boolean = false)
     data class AccountStatusRequest(val status: AccountStatus, val note: String = "")
-    data class SettingsRequest(val communityEnabled: Boolean? = null, val uploadsEnabled: Boolean? = null)
+    data class SettingsRequest(
+        val communityEnabled: Boolean? = null,
+        val uploadsEnabled: Boolean? = null,
+        val economyEnabled: Boolean? = null,
+    )
 
     @GetMapping("/cases")
     fun cases() = moderation.openCases()
@@ -64,6 +82,18 @@ class AdminController(
     fun remove(@PathVariable slug: String, @RequestBody body: Decision, authentication: Authentication?, request: HttpServletRequest): Map<String, String> {
         moderation.remove(authentication.requirePrincipal(), slug, body.note, body.strike, request.clientIp())
         return mapOf("status" to "removed")
+    }
+
+    @PostMapping("/comments/{id}/remove")
+    fun removeComment(@PathVariable id: UUID, @RequestBody body: Decision, authentication: Authentication?, request: HttpServletRequest): Map<String, String> {
+        moderation.removeComment(authentication.requirePrincipal(), id, body.note, body.strike, request.clientIp())
+        return mapOf("status" to "removed")
+    }
+
+    @PostMapping("/comments/{id}/restore")
+    fun restoreComment(@PathVariable id: UUID, @RequestBody body: Decision, authentication: Authentication?, request: HttpServletRequest): Map<String, String> {
+        moderation.restoreComment(authentication.requirePrincipal(), id, body.note, request.clientIp())
+        return mapOf("status" to "restored")
     }
 
     @PostMapping("/reports/{id}/dismiss")
@@ -88,7 +118,12 @@ class AdminController(
     fun updateSettings(@RequestBody body: SettingsRequest): Map<String, Boolean> {
         body.communityEnabled?.let { settings.set(SystemSettingsService.COMMUNITY_ENABLED, it) }
         body.uploadsEnabled?.let { settings.set(SystemSettingsService.UPLOADS_ENABLED, it) }
-        return mapOf("communityEnabled" to settings.communityEnabled(), "uploadsEnabled" to settings.uploadsEnabled())
+        body.economyEnabled?.let { settings.set(SystemSettingsService.ECONOMY_ENABLED, it) }
+        return mapOf(
+            "communityEnabled" to settings.communityEnabled(),
+            "uploadsEnabled" to settings.uploadsEnabled(),
+            "economyEnabled" to settings.economyEnabled(),
+        )
     }
 
     @GetMapping("/audit")

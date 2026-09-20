@@ -140,3 +140,9 @@ portal:
   pseudonym-secret: test-pseudonym-secret
   dev-login: true
   admin-discord-ids: dev:admin
+  limits:
+    # Alle Tests kommen aus derselben MockMvc-"IP". Das Tages-Limit je IP ist
+    # gegen Missbrauch gedacht, nicht gegen einen Testlauf - es haelt sonst
+    # ab dem dreissigsten Upload die halbe Suite an.
+    uploads-per-day-per-ip: 500
+    uploads-per-day: 100

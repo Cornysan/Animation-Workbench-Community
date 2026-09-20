@@ -91,10 +91,20 @@
   const actions = document.getElementById("actions");
   const user = await me().catch(() => null);
 
-  const download = el("button", { class: "primary" }, "Download .awclip");
+  //  Seit der Muenzwirtschaft ist Herunterladen Freischalten, und das kostet
+  //  unter Umstaenden. Der Knopf muss das sagen, BEVOR er es tut - "Download"
+  //  auf einem Knopf, der zehn Muenzen abbucht, waere eine Falle.
+  const status = await fetch("/api/v1/status", { credentials: "same-origin" })
+    .then((r) => r.json())
+    .catch(() => ({}));
+
+  const costs = status.economyEnabled && !clip.unlockedByMe && clip.license === "CC-BY-4.0";
+  const download = el("button", { class: "primary" },
+    costs ? "Unlock for " + status.unlockCost + " coins" : "Download .awclip");
+
   download.addEventListener("click", async () => {
     try {
-      const link = await api("POST", "/api/v1/packages/" + encodeURIComponent(slug) + "/download-link");
+      const link = await api("POST", "/api/v1/packages/" + encodeURIComponent(slug) + "/unlock");
       const a = el("a", { href: link.url, download: link.fileName });
       document.body.append(a);
       a.click();

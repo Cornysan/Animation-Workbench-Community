@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -52,16 +53,6 @@ class PackageController(private val catalog: CatalogService) {
             .contentType(MediaType.APPLICATION_JSON)
             .body(catalog.previewJson(slug, authentication.portalPrincipal()))
 
-    /**
-     * Der Clip wurde in ein Projekt übernommen. Getrennt vom Dateiabruf, weil
-     * die Workbench zum Stöbern herunterlädt.
-     */
-    @PostMapping("/packages/{slug}/taken")
-    fun taken(@PathVariable slug: String, request: HttpServletRequest): Map<String, String> {
-        catalog.taken(slug, request.clientIp())
-        return mapOf("status" to "ok")
-    }
-
     @PostMapping("/packages/{slug}/like")
     fun like(
         @PathVariable slug: String,
@@ -69,9 +60,19 @@ class PackageController(private val catalog: CatalogService) {
         authentication: Authentication?,
     ) = mapOf("likes" to catalog.like(slug, authentication.requirePrincipal(), body.liked))
 
+    /**
+     * Freischalten: bucht ab, schreibt die Quittung, schreibt dem Besitzer gut
+     * und liefert den Link. Ist die Quittung schon da, kommt nur der Link -
+     * ein zweites Mal kostet nie.
+     */
+    @PostMapping("/packages/{slug}/unlock")
+    fun unlock(@PathVariable slug: String, authentication: Authentication?, request: HttpServletRequest) =
+        catalog.unlock(slug, authentication.requirePrincipal(), request.clientIp())
+
+    /** Nur fuer schon freigeschaltete Clips - sonst fuehrt der Weg ueber [unlock]. */
     @PostMapping("/packages/{slug}/download-link")
-    fun downloadLink(@PathVariable slug: String, request: HttpServletRequest) =
-        catalog.downloadLink(slug, request.clientIp())
+    fun downloadLink(@PathVariable slug: String, authentication: Authentication?, request: HttpServletRequest) =
+        catalog.downloadLink(slug, authentication.requirePrincipal(), request.clientIp())
 
     /**
      * Upload eines neuen Pakets. Multipart: `file` (.awclip) plus die Erklärung
@@ -134,5 +135,57 @@ class FileController(private val catalog: CatalogService) {
             .cacheControl(CacheControl.noStore())
             .contentType(MediaType.APPLICATION_OCTET_STREAM)
             .body(file.bytes)
+    }
+}
+
+/**
+ * Kommentare an einer Animation. Lesen darf jeder, schreiben nur angemeldet -
+ * dieselbe Trennung wie bei den Herzen.
+ *
+ * Das Melden liegt bei der Moderation, nicht hier: eine Meldung ist kein
+ * Katalogvorgang, und sie soll durch dieselbe Tuer wie die Paketmeldung.
+ */
+@RestController
+@RequestMapping("/api/v1/packages/{slug}/comments")
+class CommentController(private val comments: CommentService) {
+
+    data class CommentRequest(val body: String = "")
+
+    @GetMapping
+    fun list(
+        @PathVariable slug: String,
+        @RequestParam(required = false, defaultValue = "0") page: Int,
+        @RequestParam(required = false, defaultValue = "20") size: Int,
+        authentication: Authentication?,
+    ) = comments.list(slug, authentication.portalPrincipal(), page, size)
+
+    @PostMapping
+    fun post(
+        @PathVariable slug: String,
+        @RequestBody body: CommentRequest,
+        authentication: Authentication?,
+        request: HttpServletRequest,
+    ): ResponseEntity<CommentView> =
+        ResponseEntity.status(HttpStatus.CREATED)
+            .body(comments.post(authentication.requirePrincipal(), slug, body.body, request.clientIp()))
+
+    @PatchMapping("/{id}")
+    fun edit(
+        @PathVariable slug: String,
+        @PathVariable id: UUID,
+        @RequestBody body: CommentRequest,
+        authentication: Authentication?,
+        request: HttpServletRequest,
+    ) = comments.edit(authentication.requirePrincipal(), slug, id, body.body, request.clientIp())
+
+    @DeleteMapping("/{id}")
+    fun delete(
+        @PathVariable slug: String,
+        @PathVariable id: UUID,
+        authentication: Authentication?,
+        request: HttpServletRequest,
+    ): Map<String, String> {
+        comments.delete(authentication.requirePrincipal(), slug, id, request.clientIp())
+        return mapOf("status" to "removed")
     }
 }

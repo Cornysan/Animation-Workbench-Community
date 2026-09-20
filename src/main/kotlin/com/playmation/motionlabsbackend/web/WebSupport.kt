@@ -44,6 +44,9 @@ class StatusController(
     data class StatusResponse(
         val communityEnabled: Boolean,
         val uploadsEnabled: Boolean,
+        /** Kostet Freischalten gerade etwas? Der Client verdrahtet keinen Preis. */
+        val economyEnabled: Boolean,
+        val unlockCost: Int,
         val formatVersion: Int,
         val declarationText: String,
         val declarationVersion: Int,
@@ -59,7 +62,8 @@ class StatusController(
 
     @GetMapping("/status")
     fun status() = StatusResponse(
-        settings.communityEnabled(), settings.uploadsEnabled(), AwclipSchema.FORMAT_VERSION,
+        settings.communityEnabled(), settings.uploadsEnabled(),
+        settings.economyEnabled(), portal.economy.unlockCost, AwclipSchema.FORMAT_VERSION,
         Declaration.TEXT, Declaration.VERSION, licenses(),
         discordSignIn = discordClientId.isNotBlank() && discordClientId != "unset",
         devLogin = portal.devLogin,

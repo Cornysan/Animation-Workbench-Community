@@ -59,6 +59,9 @@ class AnimationPackage(
     var takeCount: Long = 0,
 
     var likeCount: Long = 0,
+
+    /** Sichtbare Kommentare. Abgeleitet wie [likeCount], neu gezaehlt statt fortgeschrieben. */
+    var commentCount: Long = 0,
     var createdAt: Instant,
     var updatedAt: Instant,
 ) {

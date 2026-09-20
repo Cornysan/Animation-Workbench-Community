@@ -8,6 +8,8 @@ import com.playmation.motionlabsbackend.common.Crypto
 import com.playmation.motionlabsbackend.common.PortalException
 import com.playmation.motionlabsbackend.common.RateLimiter
 import com.playmation.motionlabsbackend.config.PortalProperties
+import com.playmation.motionlabsbackend.economy.EconomyService
+import com.playmation.motionlabsbackend.economy.QuestService
 import com.playmation.motionlabsbackend.format.AwclipHash
 import com.playmation.motionlabsbackend.format.AwclipReadResult
 import com.playmation.motionlabsbackend.format.AwclipReader
@@ -57,7 +59,10 @@ data class PackageSummary(
     /** Übernahmen in ein Projekt - siehe [AnimationPackage.takeCount]. */
     val downloads: Long,
     val likes: Long,
+    val comments: Long,
     val likedByMe: Boolean,
+    /** Quittung vorhanden - die Workbench zeigt dann keinen Preis mehr an. */
+    val unlockedByMe: Boolean,
     val hasPreview: Boolean,
     val createdAt: Instant,
 )
@@ -75,7 +80,9 @@ data class PackageDetail(
     val curveCount: Int,
     val downloads: Long,
     val likes: Long,
+    val comments: Long,
     val likedByMe: Boolean,
+    val unlockedByMe: Boolean,
     val hasPreview: Boolean,
     val createdAt: Instant,
     val updatedAt: Instant,
@@ -94,6 +101,8 @@ class CatalogService(
     private val versions: PackageVersionRepository,
     private val declarations: UploadDeclarationRepository,
     private val likes: PackageLikeRepository,
+    private val economy: EconomyService,
+    private val quests: QuestService,
     private val accountRepository: AccountRepository,
     private val accounts: AccountService,
     private val blobs: BlobStore,
@@ -213,6 +222,12 @@ class CatalogService(
         audit.record(account.id, if (existing == null) "package.created" else "package.version-added", "package", pkg.slug,
             "v${version.versionNumber} hash=$hash origin=${doc.origin} license=${manifest.license}", ip)
 
+        //  Nur ein NEUER Clip erfuellt die Wochenaufgabe. Eine weitere Version
+        //  desselben Clips ist Pflege, kein Beitrag - und waere sonst der
+        //  billigste Weg, die Praemie jede Woche mitzunehmen.
+        if (existing == null && manifest.license == AwclipSchema.LICENSE_PUBLIC)
+            quests.onClipShared(account.id)
+
         return detail(pkg, version, principal)
     }
 
@@ -307,12 +322,17 @@ class CatalogService(
             likes.likedAmong(me.accountId, result.content.map { it.id }).toSet()
         } ?: emptySet()
 
+        val unlockedByMe = principal?.let { me ->
+            economy.unlockedAmong(me.accountId, result.content.map { it.id })
+        } ?: emptySet()
+
         return PageResult(
             result.content.mapNotNull { pkg ->
                 val version = currentVersions[pkg.currentVersionId] ?: return@mapNotNull null
                 PackageSummary(pkg.slug, pkg.title, pkg.tagList(), pkg.license, authors[pkg.ownerId] ?: "unknown",
                     version.durationSeconds, version.frameRate, pkg.takeCount, pkg.likeCount,
-                    pkg.id in likedByMe, version.previewBlobKey != null, pkg.createdAt)
+                    pkg.commentCount, pkg.id in likedByMe, pkg.id in unlockedByMe,
+                    version.previewBlobKey != null, pkg.createdAt)
             },
             pageIndex, pageSize, result.totalElements,
         )
@@ -338,16 +358,54 @@ class CatalogService(
         return blobs.open(key).use { it.readBytes() }
     }
 
+    /**
+     * Ein Link fuer einen Clip, den man schon hat. Die Quittung ist die
+     * Eintrittskarte - ohne sie fuehrt der Weg ueber [unlock].
+     *
+     * Bis zur Muenzwirtschaft war dieser Aufruf offen. Er ist es nicht mehr:
+     * eine Freischaltung ohne Konto liesse sich nicht abrechnen, und ein
+     * Zaehler ohne Konto war schon vorher nur eine Behauptung.
+     */
     @Transactional(readOnly = true)
-    fun downloadLink(slug: String, ip: String): DownloadLink {
+    fun downloadLink(slug: String, principal: PortalPrincipal, ip: String): DownloadLink {
         rateLimiter.require("download-link", ip, properties.limits.downloadLinksPerHourPerIp, Duration.ofHours(1))
 
-        val (pkg, version) = visible(slug, null)
+        val (pkg, version) = visible(slug, principal)
+        if (pkg.ownerId != principal.accountId && !economy.hasUnlocked(pkg.id, principal.accountId))
+            throw PortalException.conflict("not-unlocked", "Unlock this clip first.")
+
+        return link(pkg, version)
+    }
+
+    /**
+     * Der eine Vorgang, der Muenzen bewegt: abbuchen, Quittung schreiben,
+     * Besitzer gutschreiben, zaehlen, Link zurueckgeben - alles in einer
+     * Transaktion.
+     *
+     * Er ersetzt den alten Zweischritt aus `download-link` und `taken`. Der
+     * alte Zaehler war anonym und damit faelschbar; dieser haengt an einer
+     * Zeile je Konto und Paket.
+     */
+    @Transactional
+    fun unlock(slug: String, principal: PortalPrincipal, ip: String): DownloadLink {
+        rateLimiter.require("download-link", ip, properties.limits.downloadLinksPerHourPerIp, Duration.ofHours(1))
+
+        val account = accounts.requireUsable(principal.accountId)
+        val (pkg, version) = visible(slug, principal)
+
+        if (economy.unlock(account, pkg))
+            audit.record(account.id, "package.unlocked", "package", pkg.slug, null, ip)
+
+        return link(pkg, version)
+    }
+
+    private fun link(pkg: AnimationPackage, version: PackageVersion): DownloadLink {
         val expires = clock.instant().plusSeconds(properties.tokens.downloadLinkSeconds)
         val signature = sign(version.id, expires.epochSecond)
-        val url = "/api/v1/files/${version.id}?exp=${expires.epochSecond}&sig=$signature"
-
-        return DownloadLink(url, expires, fileName(pkg, version), pkg.license)
+        return DownloadLink(
+            "/api/v1/files/${version.id}?exp=${expires.epochSecond}&sig=$signature",
+            expires, fileName(pkg, version), pkg.license,
+        )
     }
 
     data class DownloadableFile(val fileName: String, val bytes: ByteArray, val license: String)
@@ -367,32 +425,15 @@ class CatalogService(
         if (pkg.status != PackageStatus.PUBLISHED || version.status != VersionStatus.PUBLISHED || pkg.currentVersionId != version.id)
             throw PortalException.notFound("This clip is not available.")
 
-        //  Bewusst KEIN Zähler hier: die Workbench lädt Clips schon zum
-        //  Stöbern. Gezählt wird die Übernahme in ein Projekt - siehe [taken].
+        //  Bewusst KEIN Zähler hier. Gezählt wird die Quittung aus [unlock];
+        //  der Dateiabruf kann danach beliebig oft kommen, etwa wenn ein
+        //  Abonnement erneut gestaged wird.
         return DownloadableFile(fileName(pkg, version), blobs.open(version.blobKey).use { it.readBytes() }, pkg.license)
     }
 
     // ════════════════════════════════════════════════════════════════════
-    // ÜBERNAHME UND HERZEN
+    // HERZEN
     // ════════════════════════════════════════════════════════════════════
-
-    /**
-     * Der Clip ist in einem Projekt gelandet. Braucht keine Anmeldung, weil
-     * Herunterladen auch keine braucht - dafür ein Limit je IP.
-     *
-     * Ehrlich dazu: ein solcher Ruf ist fälschbar. Das gilt für jeden
-     * Download-Zähler im Netz; die Zahl ist ein weiches Maß und kein Beleg.
-     * Sie am Dateiabruf festzumachen wäre nicht fälschungssicherer gewesen,
-     * nur zusätzlich falsch.
-     */
-    @Transactional
-    fun taken(slug: String, ip: String) {
-        rateLimiter.require("taken", ip, properties.limits.downloadLinksPerHourPerIp, Duration.ofHours(1))
-
-        val (pkg, _) = visible(slug, null)
-        pkg.takeCount++
-        packages.save(pkg)
-    }
 
     /**
      * Ein Herz setzen oder zurücknehmen. Anmeldepflichtig - sonst wäre die Zahl
@@ -421,7 +462,7 @@ class CatalogService(
     // ── Hilfen ──────────────────────────────────────────────────────────
 
     /** Öffentlich sichtbar, oder für Besitzer und Admins auch im Prüfzustand. */
-    private fun visible(slug: String, principal: PortalPrincipal?): Pair<AnimationPackage, PackageVersion> {
+    internal fun visible(slug: String, principal: PortalPrincipal?): Pair<AnimationPackage, PackageVersion> {
         val pkg = packages.findBySlug(slug) ?: throw PortalException.notFound("Package not found")
         val privileged = principal != null && (principal.isAdmin || principal.accountId == pkg.ownerId)
 
@@ -440,8 +481,9 @@ class CatalogService(
             pkg.slug, pkg.title, pkg.description, pkg.tagList(), pkg.license,
             authorNames(listOf(pkg.ownerId))[pkg.ownerId] ?: "unknown",
             version.versionNumber, version.durationSeconds, version.frameRate, version.curveCount,
-            pkg.takeCount, pkg.likeCount,
+            pkg.takeCount, pkg.likeCount, pkg.commentCount,
             principal != null && likes.existsByPackageIdAndAccountId(pkg.id, principal.accountId),
+            principal != null && (isOwner || economy.hasUnlocked(pkg.id, principal.accountId)),
             version.previewBlobKey != null, pkg.createdAt, pkg.updatedAt,
             if (isOwner || principal?.isAdmin == true) pkg.status.name else null,
             isOwner,

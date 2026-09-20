@@ -40,6 +40,16 @@
         <td>Art. 6(1)(f) GDPR &ndash; defending against rights claims</td>
       </tr>
       <tr>
+        <td>Comments: the text, who wrote it, when, and any edit</td>
+        <td>Showing the conversation under a clip, on the portal and in the Animation Workbench</td>
+        <td>Art. 6(1)(b) GDPR</td>
+      </tr>
+      <tr>
+        <td>Coins: every booking with its reason, and the balance it adds up to</td>
+        <td>Keeping track of what you contributed and what you unlocked, and being able to correct it</td>
+        <td>Art. 6(1)(b) GDPR</td>
+      </tr>
+      <tr>
         <td>Reports: what was reported, by whom, when</td>
         <td>Moderation, and recognising repeated false reports</td>
         <td>Art. 6(1)(c) and (f) GDPR &ndash; obligations under the Digital Services Act</td>
@@ -98,7 +108,11 @@
     <li><strong>IP addresses in declarations, reports and takedowns:</strong> replaced by a keyed
       pseudonym after 30 days. The record stays, the address does not. Running this is a scheduled
       job on the server, not a promise for later.</li>
-    <li><strong>Your account and uploads:</strong> until you delete them or the account.</li>
+    <li><strong>Your account, uploads and comments:</strong> until you delete them or the account.
+      A deleted comment stops being shown at once; the text itself is kept so that a report about it
+      can still be looked at.</li>
+    <li><strong>Coin bookings:</strong> as long as the account exists. The record is append-only, so
+      a correction is a new line rather than a change to the old one.</li>
     <li><strong>Removed clips:</strong> the file goes, the record of the decision stays &ndash; it is
       what stops the same clip being uploaded again.</li>
     <li><strong>Audit log and moderation decisions:</strong> kept as long as they can still matter

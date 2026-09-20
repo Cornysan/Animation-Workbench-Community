@@ -59,7 +59,7 @@ class SecurityConfig {
         //  eines angemeldeten Nutzers - ein CSRF-Angriff hätte nichts zu gewinnen.
         //  Der Entwickler-Login existiert nur mit portal.dev-login und soll aus
         //  Skripten (curl) nutzbar sein.
-        val csrfExempt = Regex("^/api/v1/(auth/editor/(start|poll)|packages/[a-z0-9]+/download-link|dev/login)$")
+        val csrfExempt = Regex("^/api/v1/(auth/editor/(start|poll)|dev/login)$")
 
         val csrfRequired = RequestMatcher { request ->
             request.method !in safeMethods &&
@@ -80,12 +80,17 @@ class SecurityConfig {
                 authorize(HttpMethod.GET, "/api/v1/packages", permitAll)
                 authorize(HttpMethod.GET, "/api/v1/packages/*", permitAll)
                 authorize(HttpMethod.GET, "/api/v1/packages/*/preview", permitAll)
-                authorize(HttpMethod.POST, "/api/v1/packages/*/download-link", permitAll)
+                //  Mitlesen darf jeder, schreiben nur angemeldet - dieselbe
+                //  Trennung wie bei den Herzen. Der Katalog ist eine Auslage,
+                //  keine geschlossene Gesellschaft.
+                authorize(HttpMethod.GET, "/api/v1/packages/*/comments", permitAll)
 
-                //  Ohne Anmeldung, wie das Herunterladen selbst - sonst koennte
-                //  nur die Haelfte der Nutzer gezaehlt werden und die Zahl saege
-                //  etwas anderes, als sie behauptet. Gebremst wird per IP.
-                authorize(HttpMethod.POST, "/api/v1/packages/*/taken", permitAll)
+                //  Freischalten und Herunterladen brauchen seit der
+                //  Muenzwirtschaft ein Konto: ohne Konto gibt es keine
+                //  Quittung, und ohne Quittung keine Abrechnung. Der alte
+                //  anonyme Zaehler /taken ist damit entfallen - er war eine
+                //  Behauptung, keine Zahl. Beide faengt die Regel
+                //  "/api/** authenticated" weiter unten ein.
 
                 //  Herzen dagegen NUR angemeldet: eine offene Zahl waere eine
                 //  Einladung an jeden Skriptschreiber.

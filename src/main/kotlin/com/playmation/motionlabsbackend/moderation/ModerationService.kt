@@ -7,12 +7,17 @@ import com.playmation.motionlabsbackend.auth.ApiTokenService
 import com.playmation.motionlabsbackend.auth.PortalPrincipal
 import com.playmation.motionlabsbackend.catalog.AnimationPackage
 import com.playmation.motionlabsbackend.catalog.AnimationPackageRepository
+import com.playmation.motionlabsbackend.catalog.CommentService
+import com.playmation.motionlabsbackend.catalog.CommentStatus
+import com.playmation.motionlabsbackend.catalog.PackageComment
+import com.playmation.motionlabsbackend.catalog.PackageCommentRepository
 import com.playmation.motionlabsbackend.catalog.PackageStatus
 import com.playmation.motionlabsbackend.catalog.PackageVersionRepository
 import com.playmation.motionlabsbackend.catalog.VersionStatus
 import com.playmation.motionlabsbackend.common.PortalException
 import com.playmation.motionlabsbackend.common.RateLimiter
 import com.playmation.motionlabsbackend.config.PortalProperties
+import com.playmation.motionlabsbackend.economy.EconomyService
 import com.playmation.motionlabsbackend.system.AlertService
 import com.playmation.motionlabsbackend.system.AuditService
 import org.springframework.stereotype.Service
@@ -36,12 +41,15 @@ class ModerationService(
     private val packages: AnimationPackageRepository,
     private val versions: PackageVersionRepository,
     private val reports: ReportRepository,
+    private val comments: PackageCommentRepository,
+    private val commentService: CommentService,
     private val takedowns: TakedownRequestRepository,
     private val actions: ModerationActionRepository,
     private val notifications: NotificationRepository,
     private val accountRepository: AccountRepository,
     private val accounts: AccountService,
     private val tokens: ApiTokenService,
+    private val economy: EconomyService,
     private val alerts: AlertService,
     private val audit: AuditService,
     private val rateLimiter: RateLimiter,
@@ -65,7 +73,7 @@ class ModerationService(
             throw PortalException.notFound("Package not found")
         if (pkg.ownerId == reporter.id)
             throw PortalException.badRequest("own-package", "You cannot report your own clip - withdraw it instead.")
-        if (reports.existsByPackageIdAndReporterIdAndStatus(pkg.id, reporter.id, CaseStatus.OPEN))
+        if (reports.existsByPackageIdAndReporterIdAndStatusAndCommentIdIsNull(pkg.id, reporter.id, CaseStatus.OPEN))
             throw PortalException.conflict("already-reported", "You already reported this clip.")
 
         val now = clock.instant()
@@ -80,6 +88,49 @@ class ModerationService(
         alerts.send(
             "Report: ${pkg.title}",
             "Category: $category\nPackage: ${packageUrl(pkg)}\nHidden now: $hidden\nMessage: ${report.message}"
+        )
+
+        return report.id
+    }
+
+    /**
+     * Einen Kommentar melden. Gleiche Tuer, gleiche Wirkung wie bei einem
+     * Paket - nur trifft das sofortige Verstecken den Kommentar und laesst den
+     * Clip stehen. Ein einzelner unangebrachter Satz darf keine Animation aus
+     * dem Katalog nehmen.
+     */
+    @Transactional
+    fun reportComment(principal: PortalPrincipal, slug: String, commentId: UUID, category: ReportCategory, message: String, ip: String): UUID {
+        val reporter = accounts.requireUsable(principal.accountId)
+
+        if (reporter.falseReports >= properties.moderation.reportingBlockedAfterFalseReports)
+            throw PortalException.forbidden("Reporting is disabled for this account.")
+        rateLimiter.require("report", reporter.id.toString(), properties.limits.reportsPerHour, Duration.ofHours(1))
+
+        val comment = commentService.find(commentId)
+        val pkg = packages.findById(comment.packageId).orElseThrow { PortalException.notFound("Comment not found") }
+
+        if (pkg.slug != slug) throw PortalException.notFound("Comment not found")
+        if (comment.status == CommentStatus.REMOVED) throw PortalException.notFound("Comment not found")
+        if (comment.accountId == reporter.id)
+            throw PortalException.badRequest("own-comment", "You cannot report your own comment - delete it instead.")
+        if (reports.existsByCommentIdAndReporterIdAndStatus(comment.id, reporter.id, CaseStatus.OPEN))
+            throw PortalException.conflict("already-reported", "You already reported this comment.")
+
+        val now = clock.instant()
+        val report = reports.save(
+            Report(packageId = pkg.id, commentId = comment.id, reporterId = reporter.id, category = category,
+                message = message.trim().take(2000), createdAt = now)
+        )
+
+        val hidden = autoHideComment(comment, pkg, "report ${report.id}")
+        audit.record(reporter.id, "comment-report.created", "comment", comment.id.toString(),
+            "category=$category report=${report.id}", ip)
+
+        alerts.send(
+            "Report on a comment: ${pkg.title}",
+            "Category: $category\nPackage: ${packageUrl(pkg)}\nHidden now: $hidden\n" +
+                "Comment: ${comment.body.take(400)}\nMessage: ${report.message}"
         )
 
         return report.id
@@ -163,6 +214,8 @@ class ModerationService(
         val message: String,
         val reporter: String?,
         val contact: String?,
+        /** Nur bei kind = "comment-report": das Ziel der Entscheidung. */
+        val commentId: UUID? = null,
     )
 
     data class PackageRef(val slug: String, val title: String, val status: String, val owner: String, val ownerStrikes: Int)
@@ -173,8 +226,18 @@ class ModerationService(
 
         for (report in reports.findByStatusOrderByCreatedAtAsc(CaseStatus.OPEN)) {
             val pkg = packages.findById(report.packageId).orElse(null) ?: continue
-            result += CaseView("report", report.id, report.createdAt, listOf(ref(pkg)), report.category.name, report.message,
-                accountRepository.findById(report.reporterId).map { it.displayName }.orElse("?"), null)
+            val reporter = accountRepository.findById(report.reporterId).map { it.displayName }.orElse("?")
+
+            //  Ein Kommentarfall braucht den gemeldeten Text vor Augen, sonst
+            //  muesste der Moderator ihn im Katalog suchen - wo er gerade
+            //  versteckt ist.
+            val comment = report.commentId?.let { comments.findById(it).orElse(null) }
+            val kind = if (report.commentId == null) "report" else "comment-report"
+            val message = if (comment == null) report.message
+            else "${comment.body}\n\n-- reported as: ${report.message}"
+
+            result += CaseView(kind, report.id, report.createdAt, listOf(ref(pkg)), report.category.name, message,
+                reporter, null, report.commentId)
         }
 
         for (request in takedowns.findByStatusOrderByCreatedAtAsc(CaseStatus.OPEN)) {
@@ -194,7 +257,7 @@ class ModerationService(
             throw PortalException.conflict("open-takedown", "Resolve the open takedown request for this clip first.")
 
         val now = clock.instant()
-        for (report in reports.findByPackageIdAndStatus(pkg.id, CaseStatus.OPEN)) {
+        for (report in reports.findByPackageIdAndStatusAndCommentIdIsNull(pkg.id, CaseStatus.OPEN)) {
             close(report, CaseStatus.DISMISSED, admin, note, now)
             notify(report.reporterId, "Your report about '${pkg.title}' was reviewed. The clip stays available.")
         }
@@ -219,10 +282,14 @@ class ModerationService(
         pkg.updatedAt = now
         versions.findByPackageIdOrderByVersionNumberDesc(pkg.id).forEach { it.status = VersionStatus.REMOVED }
 
-        for (report in reports.findByPackageIdAndStatus(pkg.id, CaseStatus.OPEN)) {
+        for (report in reports.findByPackageIdAndStatusAndCommentIdIsNull(pkg.id, CaseStatus.OPEN)) {
             close(report, CaseStatus.UPHELD, admin, note, now)
             notify(report.reporterId, "Thank you - '${pkg.title}' was removed after your report.")
         }
+
+        //  Was an einem fremden Werk verdient wurde, war nie verdient. Die
+        //  Buchung bleibt stehen und bekommt eine Gegenbuchung.
+        economy.reverseEarnings(pkg)
 
         notify(pkg.ownerId, "'${pkg.title}' was removed from the community. Reason: $note")
         action(admin.accountId, "remove", pkg.id, note)
@@ -243,7 +310,14 @@ class ModerationService(
         }
 
         val pkg = packages.findById(report.packageId).orElse(null)
-        if (pkg != null) {
+        val comment = report.commentId?.let { comments.findById(it).orElse(null) }
+
+        if (pkg != null && comment != null) {
+            //  Ein Kommentarfall abweisen heisst: der Kommentar kommt zurueck.
+            //  Das Paket war nie versteckt und darf hier nicht angefasst werden.
+            notify(report.reporterId, "Your report about a comment on '${pkg.title}' was reviewed. It stays available.")
+            restoreCommentIfNoOpenCases(comment, pkg, admin, note)
+        } else if (pkg != null) {
             notify(report.reporterId, "Your report about '${pkg.title}' was reviewed. The clip stays available.")
             restoreIfNoOpenCases(pkg, admin, note)
         }
@@ -282,6 +356,52 @@ class ModerationService(
         audit.record(admin.accountId, "moderation.account-status", "account", accountId.toString(), "$status $note", ip)
     }
 
+    /** Begruendet: Kommentar weg, offene Faelle dazu abgeschlossen. */
+    @Transactional
+    fun removeComment(admin: PortalPrincipal, commentId: UUID, note: String, strike: Boolean, ip: String) {
+        val comment = commentService.find(commentId)
+        val pkg = packages.findById(comment.packageId).orElseThrow { PortalException.notFound("Comment not found") }
+        val now = clock.instant()
+
+        comment.status = CommentStatus.REMOVED
+        comment.removedBy = admin.accountId
+        comment.removedReason = note.take(2000).ifBlank { "removed by moderator" }
+        commentService.recount(pkg)
+
+        for (report in reports.findByCommentIdAndStatus(comment.id, CaseStatus.OPEN)) {
+            close(report, CaseStatus.UPHELD, admin, note, now)
+            notify(report.reporterId, "Thank you - the comment you reported on '${pkg.title}' was removed.")
+        }
+
+        notify(comment.accountId, "Your comment on '${pkg.title}' was removed. Reason: $note")
+        action(admin.accountId, "remove-comment", comment.id, note, targetType = "comment")
+        audit.record(admin.accountId, "moderation.remove-comment", "comment", comment.id.toString(), "strike=$strike $note", ip)
+
+        if (strike) addStrike(admin, comment.accountId, "removed a comment on '${pkg.slug}'", ip)
+    }
+
+    /** Unbegruendet: Kommentar wieder sichtbar, alle offenen Faelle dazu abgewiesen. */
+    @Transactional
+    fun restoreComment(admin: PortalPrincipal, commentId: UUID, note: String, ip: String) {
+        val comment = commentService.find(commentId)
+        val pkg = packages.findById(comment.packageId).orElseThrow { PortalException.notFound("Comment not found") }
+        val now = clock.instant()
+
+        for (report in reports.findByCommentIdAndStatus(comment.id, CaseStatus.OPEN)) {
+            close(report, CaseStatus.DISMISSED, admin, note, now)
+            notify(report.reporterId, "Your report about a comment on '${pkg.title}' was reviewed. It stays available.")
+        }
+
+        if (comment.status == CommentStatus.AUTO_HIDDEN) {
+            comment.status = CommentStatus.VISIBLE
+            commentService.recount(pkg)
+            notify(comment.accountId, "Your comment on '${pkg.title}' was reviewed and is visible again.")
+        }
+
+        action(admin.accountId, "restore-comment", comment.id, note, targetType = "comment")
+        audit.record(admin.accountId, "moderation.restore-comment", "comment", comment.id.toString(), note, ip)
+    }
+
     // ── Hilfen ──────────────────────────────────────────────────────────
 
     /** true, wenn das Paket dadurch unsichtbar wurde. */
@@ -294,9 +414,32 @@ class ModerationService(
         return true
     }
 
+    /**
+     * Dasselbe eine Ebene tiefer: der Kommentar verschwindet, der Clip bleibt.
+     * true, wenn er dadurch unsichtbar wurde.
+     */
+    private fun autoHideComment(comment: PackageComment, pkg: AnimationPackage, reason: String): Boolean {
+        if (comment.status != CommentStatus.VISIBLE) return false
+        comment.status = CommentStatus.AUTO_HIDDEN
+        commentService.recount(pkg)
+        action(null, "auto-hide-comment", comment.id, reason, targetType = "comment")
+        notify(comment.accountId, "Your comment on '${pkg.title}' was reported and is hidden until a moderator has looked at it.")
+        return true
+    }
+
+    private fun restoreCommentIfNoOpenCases(comment: PackageComment, pkg: AnimationPackage, admin: PortalPrincipal, note: String) {
+        if (comment.status != CommentStatus.AUTO_HIDDEN) return
+        if (reports.findByCommentIdAndStatus(comment.id, CaseStatus.OPEN).isNotEmpty()) return
+
+        comment.status = CommentStatus.VISIBLE
+        commentService.recount(pkg)
+        action(admin.accountId, "restore-comment", comment.id, note, targetType = "comment")
+        notify(comment.accountId, "Your comment on '${pkg.title}' was reviewed and is visible again.")
+    }
+
     private fun restoreIfNoOpenCases(pkg: AnimationPackage, admin: PortalPrincipal, note: String) {
         if (pkg.status != PackageStatus.AUTO_HIDDEN) return
-        if (reports.findByPackageIdAndStatus(pkg.id, CaseStatus.OPEN).isNotEmpty() || openTakedownsFor(pkg).isNotEmpty()) return
+        if (reports.findByPackageIdAndStatusAndCommentIdIsNull(pkg.id, CaseStatus.OPEN).isNotEmpty() || openTakedownsFor(pkg).isNotEmpty()) return
 
         pkg.status = PackageStatus.PUBLISHED
         pkg.updatedAt = clock.instant()
@@ -329,14 +472,19 @@ class ModerationService(
         report.resolutionNote = note.take(2000)
     }
 
-    private fun action(actorId: UUID?, action: String, targetId: UUID, reason: String?) {
-        val targetType = when {
+    /**
+     * [targetType] nur angeben, wo die Ableitung aus dem Namen nicht trägt -
+     * "remove-comment" enthält weder "account" noch "report" und liefe sonst
+     * als Paket ins Protokoll.
+     */
+    private fun action(actorId: UUID?, action: String, targetId: UUID, reason: String?, targetType: String? = null) {
+        val kind = targetType ?: when {
             action.startsWith("account") || action == "strike" -> "account"
             action.contains("report") -> "report"
             action.startsWith("takedown") -> "takedown"
             else -> "package"
         }
-        actions.save(ModerationAction(actorId = actorId, action = action, targetType = targetType, targetId = targetId,
+        actions.save(ModerationAction(actorId = actorId, action = action, targetType = kind, targetId = targetId,
             reason = reason?.take(2000), createdAt = clock.instant()))
     }
 

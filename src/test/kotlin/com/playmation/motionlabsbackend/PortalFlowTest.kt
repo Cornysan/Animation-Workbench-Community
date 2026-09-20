@@ -17,6 +17,7 @@ import org.springframework.test.web.servlet.get
 import org.springframework.test.web.servlet.multipart
 import org.springframework.test.web.servlet.post
 import org.springframework.test.web.servlet.delete
+import org.springframework.test.web.servlet.patch
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 import java.io.ByteArrayOutputStream
@@ -91,11 +92,43 @@ class PortalFlowTest {
             header("Authorization", "Bearer $token")
         }
 
+    private fun unlock(token: String, slug: String) =
+        mvc.post("/api/v1/packages/$slug/unlock") { header("Authorization", "Bearer $token") }
+
+    private fun unlockOk(token: String, slug: String): String =
+        unlock(token, slug).andExpect { status { isOk() } }.body()["url"].asString()
+
+    private fun coins(token: String): Long =
+        mvc.get("/api/v1/me") { header("Authorization", "Bearer $token") }.body()["coins"].asLong()
+
+    private fun setEconomy(admin: String, on: Boolean) =
+        adminPost("/api/v1/admin/settings", admin, """{"economyEnabled":$on}""").andExpect { status { isOk() } }
+
     private fun adminPost(path: String, admin: String, body: String) =
         mvc.post(path) {
             contentType = MediaType.APPLICATION_JSON
             content = body
             header("Authorization", "Bearer $admin")
+        }
+
+    private fun comment(token: String?, slug: String, text: String) =
+        mvc.post("/api/v1/packages/$slug/comments") {
+            contentType = MediaType.APPLICATION_JSON
+            content = json.writeValueAsString(mapOf("body" to text))
+            token?.let { header("Authorization", "Bearer $it") }
+            with(csrf())
+        }
+
+    private fun commentOk(token: String, slug: String, text: String): String =
+        comment(token, slug, text).andExpect { status { isCreated() } }.body()["id"].asString()
+
+    private fun commentsOf(slug: String) = mvc.get("/api/v1/packages/$slug/comments").andExpect { status { isOk() } }.body()
+
+    private fun reportComment(token: String, slug: String, commentId: String): ResultActionsDsl =
+        mvc.post("/api/v1/packages/$slug/comments/$commentId/reports") {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"category":"INAPPROPRIATE","message":"Not ok."}"""
+            header("Authorization", "Bearer $token")
         }
 
     // ── Tests ───────────────────────────────────────────────────────────
@@ -208,7 +241,9 @@ class PortalFlowTest {
             jsonPath("$.bones[0]") { value("Hips") }
         }
 
-        val link = mvc.post("/api/v1/packages/$slug/download-link").andExpect { status { isOk() } }.body()
+        val link = mvc.post("/api/v1/packages/$slug/download-link") {
+            header("Authorization", "Bearer $token")
+        }.andExpect { status { isOk() } }.body()
         val downloaded = mvc.get(link["url"].asString()).andExpect { status { isOk() } }.andReturn().response.contentAsByteArray
         assertContentEquals(bytes, downloaded)
 
@@ -234,26 +269,34 @@ class PortalFlowTest {
         }
     }
 
+    /**
+     * Der Zaehler haengt an der Quittung, nicht an einem Ruf, den jeder
+     * absetzen kann. Der alte anonyme `/taken` war ehrlich beschriftet, aber
+     * faelschbar - dieser hier kostet ein Konto.
+     */
     @Test
-    fun `browsing does not count as a download - taking into a project does`() {
+    fun `the counter follows the receipt, not the file fetch`() {
         val owner = login("counter-${unique()}")
+        val taker = login("taker-${unique()}")
         val slug = uploadOk(owner, awclip(0.73, "Counted walk"))
 
         fun downloads() = mvc.get("/api/v1/packages/$slug").body()["downloads"].asLong()
 
         assertEquals(0L, downloads(), "a fresh clip has not been taken by anyone")
 
-        //  Die Workbench laedt beim Abonnieren herunter - und laedt auch beim
-        //  Stoebern. Der Abruf allein darf nichts zaehlen.
-        val link = mvc.post("/api/v1/packages/$slug/download-link") { with(csrf()) }
-            .andExpect { status { isOk() } }.body()["url"].asString()
+        //  Der Besitzer holt seine eigene Datei - das ist kein Vorgang.
+        mvc.get(unlockOk(owner, slug)).andExpect { status { isOk() } }
+        assertEquals(0L, downloads(), "the owner taking their own clip is not a take")
+
+        val link = unlockOk(taker, slug)
         mvc.get(link).andExpect { status { isOk() } }
-
-        assertEquals(0L, downloads(), "fetching the file is browsing, not taking")
-
-        mvc.post("/api/v1/packages/$slug/taken") { with(csrf()) }.andExpect { status { isOk() } }
-
         assertEquals(1L, downloads(), "taking it into a project is what counts")
+
+        //  Die Datei darf danach beliebig oft kommen, etwa beim erneuten
+        //  Staging nach einem Recompile.
+        mvc.get(link).andExpect { status { isOk() } }
+        unlockOk(taker, slug)
+        assertEquals(1L, downloads(), "a second fetch is not a second take")
     }
 
     @Test
@@ -314,7 +357,9 @@ class PortalFlowTest {
     fun `a report hides the clip at once, even for links handed out before`() {
         val owner = login("owner-${unique()}")
         val slug = uploadOk(owner, awclip(0.41))
-        val link = mvc.post("/api/v1/packages/$slug/download-link").body()["url"].asString()
+        val link = mvc.post("/api/v1/packages/$slug/download-link") {
+            header("Authorization", "Bearer $owner")
+        }.body()["url"].asString()
 
         report(login("reporter-${unique()}"), slug).andExpect { status { isCreated() } }
 
@@ -466,5 +511,372 @@ class PortalFlowTest {
         val after = declarations.findById(declaration.id).get()
         assertTrue(after.ipPseudonymized, "slug $slug")
         assertTrue(after.ipAddress!!.startsWith("p:"))
+    }
+
+    // ═════════════════════════════════════════════════════════════════════
+    // KOMMENTARE
+    // ═════════════════════════════════════════════════════════════════════
+
+    @Test
+    fun `anyone can read comments, only signed-in accounts can write them`() {
+        val owner = login("c-owner-${unique()}")
+        val reader = login("c-reader-${unique()}")
+        val slug = uploadOk(owner, awclip(0.11))
+
+        assertEquals(0, commentsOf(slug)["total"].asInt())
+
+        commentOk(reader, slug, "Lovely arc on the arms.")
+        comment(null, slug, "and me too").andExpect { status { isUnauthorized() } }
+
+        val list = commentsOf(slug)
+        assertEquals(1, list["total"].asInt())
+        assertEquals("Lovely arc on the arms.", list["comments"][0]["body"].asString())
+        assertFalse(list["comments"][0]["mine"].asBoolean(), "anonymous readers own nothing")
+
+        assertEquals(1, mvc.get("/api/v1/packages/$slug").body()["comments"].asInt())
+    }
+
+    @Test
+    fun `an empty comment is refused and a long one is turned away at the door`() {
+        val author = login("c-empty-${unique()}")
+        val slug = uploadOk(author, awclip(0.12))
+
+        comment(author, slug, "   ").andExpect { status { isBadRequest() } }
+        comment(author, slug, "x".repeat(1001)).andExpect { status { isBadRequest() } }
+        assertEquals(0, commentsOf(slug)["total"].asInt())
+    }
+
+    @Test
+    fun `the author can edit and delete, a stranger can do neither`() {
+        val author = login("c-author-${unique()}")
+        val stranger = login("c-stranger-${unique()}")
+        val slug = uploadOk(author, awclip(0.13))
+        val id = commentOk(author, slug, "Frist typo")
+
+        mvc.patch("/api/v1/packages/$slug/comments/$id") {
+            contentType = MediaType.APPLICATION_JSON
+            content = json.writeValueAsString(mapOf("body" to "First, fixed"))
+            header("Authorization", "Bearer $author")
+        }.andExpect { status { isOk() } }
+
+        val edited = commentsOf(slug)["comments"][0]
+        assertEquals("First, fixed", edited["body"].asString())
+        assertFalse(edited["editedAt"].isNull, "an edit must be visible as an edit")
+
+        mvc.delete("/api/v1/packages/$slug/comments/$id") {
+            header("Authorization", "Bearer $stranger")
+        }.andExpect { status { isForbidden() } }
+
+        mvc.delete("/api/v1/packages/$slug/comments/$id") {
+            header("Authorization", "Bearer $author")
+        }.andExpect { status { isOk() } }
+
+        assertEquals(0, commentsOf(slug)["total"].asInt())
+        assertEquals(0, mvc.get("/api/v1/packages/$slug").body()["comments"].asInt())
+    }
+
+    /**
+     * Der Kern der Trennung: eine Meldung an einem Kommentar darf die
+     * Animation nicht aus dem Katalog nehmen. Ein einzelner Satz ist kein
+     * Grund, die Arbeit eines anderen zu verstecken.
+     */
+    @Test
+    fun `reporting a comment hides the comment and leaves the clip alone`() {
+        val owner = login("c-rep-owner-${unique()}")
+        val rude = login("c-rude-${unique()}")
+        val slug = uploadOk(owner, awclip(0.14))
+        val id = commentOk(rude, slug, "Something unpleasant")
+
+        reportComment(owner, slug, id).andExpect { status { isCreated() } }
+
+        assertEquals(0, commentsOf(slug)["total"].asInt(), "the comment is gone")
+        mvc.get("/api/v1/packages/$slug").andExpect { status { isOk() } }
+
+        reportComment(owner, slug, id).andExpect { status { isConflict() } }
+    }
+
+    @Test
+    fun `nobody reports their own comment`() {
+        val author = login("c-self-${unique()}")
+        val slug = uploadOk(author, awclip(0.15))
+        val id = commentOk(author, slug, "My own words")
+
+        reportComment(author, slug, id).andExpect { status { isBadRequest() } }
+        assertEquals(1, commentsOf(slug)["total"].asInt())
+    }
+
+    @Test
+    fun `dismissing a comment report brings the comment back, not the clip`() {
+        val admin = login("admin")
+        val owner = login("c-dis-owner-${unique()}")
+        val writer = login("c-dis-writer-${unique()}")
+        val slug = uploadOk(owner, awclip(0.16))
+        val id = commentOk(writer, slug, "Harmless remark")
+
+        reportComment(owner, slug, id).andExpect { status { isCreated() } }
+
+        val case = mvc.get("/api/v1/admin/cases") { header("Authorization", "Bearer $admin") }
+            .body().first { !it["commentId"].isNull && it["commentId"].asString() == id }
+        assertEquals("comment-report", case["kind"].asString())
+        assertTrue(case["message"].asString().contains("Harmless remark"), "the moderator must see the text")
+
+        adminPost("/api/v1/admin/reports/${case["id"].asString()}/dismiss", admin, """{"note":"fine"}""")
+            .andExpect { status { isOk() } }
+
+        assertEquals(1, commentsOf(slug)["total"].asInt())
+    }
+
+    @Test
+    fun `a hidden clip hides its comments with it`() {
+        val admin = login("admin")
+        val owner = login("c-hid-owner-${unique()}")
+        val other = login("c-hid-other-${unique()}")
+        val slug = uploadOk(owner, awclip(0.17))
+        commentOk(other, slug, "Still visible")
+
+        report(other, slug).andExpect { status { isCreated() } }
+
+        mvc.get("/api/v1/packages/$slug/comments").andExpect { status { isNotFound() } }
+        comment(other, slug, "sneaking in").andExpect { status { isNotFound() } }
+
+        adminPost("/api/v1/admin/packages/$slug/restore", admin, """{"note":"fine"}""").andExpect { status { isOk() } }
+        assertEquals(1, commentsOf(slug)["total"].asInt())
+    }
+
+    @Test
+    fun `a moderator can remove a comment and the author is told`() {
+        val admin = login("admin")
+        val owner = login("c-mod-owner-${unique()}")
+        val writer = login("c-mod-writer-${unique()}")
+        val slug = uploadOk(owner, awclip(0.18))
+        val id = commentOk(writer, slug, "To be removed")
+
+        adminPost("/api/v1/admin/comments/$id/remove", admin, """{"note":"off topic"}""").andExpect { status { isOk() } }
+
+        assertEquals(0, commentsOf(slug)["total"].asInt())
+        val messages = mvc.get("/api/v1/me/notifications") { header("Authorization", "Bearer $writer") }.body()
+        assertTrue(messages.any { it["message"].asString().contains("was removed") }, "the author hears about it")
+    }
+
+    // ═════════════════════════════════════════════════════════════════════
+    // MUENZEN
+    // ═════════════════════════════════════════════════════════════════════
+
+    /**
+     * Das Tor ist im Auslieferungszustand ZU: die Wirtschaft laeuft mit, aber
+     * Freischalten kostet nichts. So steht beim Umlegen niemand bei null.
+     */
+    @Test
+    fun `with the gate closed unlocking is free but the owner still earns`() {
+        val admin = login("admin")
+        setEconomy(admin, false)
+
+        val owner = login("e-owner-${unique()}")
+        val taker = login("e-taker-${unique()}")
+        val slug = uploadOk(owner, awclip(0.315))
+
+        val ownerBefore = coins(owner)
+        val takerBefore = coins(taker)
+
+        unlockOk(taker, slug)
+
+        assertEquals(takerBefore, coins(taker), "a closed gate costs nothing")
+        assertEquals(ownerBefore + 1, coins(owner), "the credit runs either way")
+    }
+
+    @Test
+    fun `an open gate charges once and the receipt lasts`() {
+        val admin = login("admin")
+        setEconomy(admin, true)
+        try {
+            val owner = login("e-once-owner-${unique()}")
+            val taker = login("e-once-taker-${unique()}")
+            val slug = uploadOk(owner, awclip(0.32))
+
+            val before = coins(taker)
+            unlockOk(taker, slug)
+            assertEquals(before - 10, coins(taker), "ten coins for the first unlock")
+
+            unlockOk(taker, slug)
+            unlockOk(taker, slug)
+            assertEquals(before - 10, coins(taker), "the receipt lasts - a second time is free")
+
+            assertTrue(
+                mvc.get("/api/v1/packages/$slug") { header("Authorization", "Bearer $taker") }
+                    .body()["unlockedByMe"].asBoolean(),
+                "the workbench must be able to tell",
+            )
+        } finally {
+            setEconomy(admin, false)
+        }
+    }
+
+    @Test
+    fun `nobody pays for their own clip and nobody earns from it`() {
+        val admin = login("admin")
+        setEconomy(admin, true)
+        try {
+            val owner = login("e-self-${unique()}")
+            val slug = uploadOk(owner, awclip(0.33))
+            val before = coins(owner)
+
+            unlockOk(owner, slug)
+
+            assertEquals(before, coins(owner), "the own clip moves nothing in either direction")
+            assertEquals(0L, mvc.get("/api/v1/packages/$slug").body()["downloads"].asLong())
+        } finally {
+            setEconomy(admin, false)
+        }
+    }
+
+    /**
+     * Ein privat geteilter Slug ist eine Einladung, keine Auslage. Wer ihn
+     * bekommt, soll nicht an einer Kasse stehen.
+     */
+    @Test
+    fun `a private clip is free to unlock and pays nothing`() {
+        val admin = login("admin")
+        setEconomy(admin, true)
+        try {
+            val owner = login("e-priv-owner-${unique()}")
+            val taker = login("e-priv-taker-${unique()}")
+            val slug = uploadOk(owner, awclip(0.34, license = AwclipSchema.LICENSE_PRIVATE))
+
+            val ownerBefore = coins(owner)
+            val takerBefore = coins(taker)
+
+            unlockOk(taker, slug)
+
+            assertEquals(takerBefore, coins(taker), "a private link is not a shop")
+            assertEquals(ownerBefore, coins(owner), "and it pays nothing either")
+        } finally {
+            setEconomy(admin, false)
+        }
+    }
+
+    @Test
+    fun `an empty purse is turned away and leaves no receipt`() {
+        val admin = login("admin")
+        setEconomy(admin, true)
+        try {
+            val owner = login("e-poor-owner-${unique()}")
+            val broke = login("e-poor-${unique()}")
+            val slugs = (0..5).map { uploadOk(owner, awclip(0.40 + it * 0.001)) }
+
+            //  Die Grundausstattung reicht fuer genau fuenf.
+            for (slug in slugs.take(5)) unlockOk(broke, slug)
+            assertEquals(0L, coins(broke), "fifty coins buy five unlocks")
+
+            unlock(broke, slugs[5]).andExpect {
+                status { isConflict() }
+                jsonPath("$.error.code") { value("not-enough-coins") }
+            }
+
+            assertFalse(
+                mvc.get("/api/v1/packages/${slugs[5]}") { header("Authorization", "Bearer $broke") }
+                    .body()["unlockedByMe"].asBoolean(),
+                "a refused unlock must not leave a receipt",
+            )
+            assertEquals(0L, mvc.get("/api/v1/packages/${slugs[5]}").body()["downloads"].asLong())
+        } finally {
+            setEconomy(admin, false)
+        }
+    }
+
+    @Test
+    fun `a download link needs a receipt`() {
+        val admin = login("admin")
+        setEconomy(admin, true)
+        try {
+            val owner = login("e-link-owner-${unique()}")
+            val stranger = login("e-link-other-${unique()}")
+            val slug = uploadOk(owner, awclip(0.36))
+
+            mvc.post("/api/v1/packages/$slug/download-link") {
+                header("Authorization", "Bearer $stranger")
+            }.andExpect {
+                status { isConflict() }
+                jsonPath("$.error.code") { value("not-unlocked") }
+            }
+
+            mvc.post("/api/v1/packages/$slug/download-link") { with(csrf()) }
+                .andExpect { status { isUnauthorized() } }
+
+            unlockOk(stranger, slug)
+            mvc.post("/api/v1/packages/$slug/download-link") {
+                header("Authorization", "Bearer $stranger")
+            }.andExpect { status { isOk() } }
+        } finally {
+            setEconomy(admin, false)
+        }
+    }
+
+    /**
+     * Die Wochenaufgabe ist die eigentliche Beitragspraemie - mit hartem
+     * Deckel, sonst waere sie ein Kopfgeld je Upload.
+     */
+    @Test
+    fun `sharing pays once a week, not once a clip`() {
+        val sharer = login("e-quest-${unique()}")
+        val start = coins(sharer)
+
+        uploadOk(sharer, awclip(0.515))
+        assertEquals(start + 30, coins(sharer), "the first clip this week pays")
+
+        uploadOk(sharer, awclip(0.52))
+        uploadOk(sharer, awclip(0.53))
+        assertEquals(start + 30, coins(sharer), "the second and third do not")
+
+        val quests = mvc.get("/api/v1/me/quests") { header("Authorization", "Bearer $sharer") }
+            .andExpect { status { isOk() } }.body()
+        assertTrue(quests["quests"][0]["done"].asBoolean())
+        assertEquals("share-a-clip", quests["quests"][0]["key"].asString())
+    }
+
+    @Test
+    fun `a milestone is credited exactly once`() {
+        val admin = login("admin")
+        setEconomy(admin, false)
+
+        val owner = login("e-mile-${unique()}")
+        val slug = uploadOk(owner, awclip(0.615))
+        val before = coins(owner)
+
+        repeat(10) { unlockOk(login("e-mile-taker-$it-${unique()}"), slug) }
+
+        // Zehn Freischaltungen zu je einer Muenze, dazu der Meilenstein bei 10.
+        assertEquals(before + 10 + 25, coins(owner), "ten earnings plus the first milestone")
+
+        unlockOk(login("e-mile-extra-${unique()}"), slug)
+        assertEquals(before + 10 + 25 + 1, coins(owner), "the eleventh pays one coin, not the milestone again")
+
+        val quests = mvc.get("/api/v1/me/quests") { header("Authorization", "Bearer $owner") }.body()
+        assertEquals(11L, quests["unlocksEarned"].asLong())
+        assertTrue(quests["milestones"][0]["reached"].asBoolean())
+    }
+
+    /**
+     * Was an einem fremden Werk verdient wurde, war nie verdient. Die Buchung
+     * bleibt stehen und bekommt eine Gegenbuchung - ein anhaengendes Protokoll
+     * erzaehlt auch die Korrektur.
+     */
+    @Test
+    fun `removing a clip for a rights violation books the earnings back`() {
+        val admin = login("admin")
+        setEconomy(admin, false)
+
+        val owner = login("e-rev-owner-${unique()}")
+        val slug = uploadOk(owner, awclip(0.715))
+        repeat(3) { unlockOk(login("e-rev-taker-$it-${unique()}"), slug) }
+
+        val earned = coins(owner)
+        adminPost("/api/v1/admin/packages/$slug/remove", admin, """{"note":"Asset Store pack","strike":false}""")
+            .andExpect { status { isOk() } }
+
+        assertEquals(earned - 3, coins(owner), "three earnings, three reversals")
+
+        val ledger = mvc.get("/api/v1/me/coins") { header("Authorization", "Bearer $owner") }
+            .andExpect { status { isOk() } }.body()
+        assertTrue(ledger["recent"].any { it["reason"].asString() == "reversal" }, "the correction is on the record")
     }
 }

@@ -19,6 +19,14 @@ class Report(
     @Id
     var id: UUID = UUID.randomUUID(),
     var packageId: UUID,
+
+    /**
+     * Gesetzt, wenn die Meldung einem Kommentar gilt. Dann versteckt sie den
+     * Kommentar statt des Pakets - `packageId` bleibt trotzdem gefuellt, damit
+     * der Fall in der Fallliste am richtigen Clip haengt.
+     */
+    var commentId: UUID? = null,
+
     var reporterId: UUID,
     @Enumerated(EnumType.STRING)
     var category: ReportCategory,
@@ -87,8 +95,17 @@ class Notification(
 
 interface ReportRepository : JpaRepository<Report, UUID> {
     fun findByStatusOrderByCreatedAtAsc(status: CaseStatus): List<Report>
-    fun findByPackageIdAndStatus(packageId: UUID, status: CaseStatus): List<Report>
-    fun existsByPackageIdAndReporterIdAndStatus(packageId: UUID, reporterId: UUID, status: CaseStatus): Boolean
+
+    /**
+     * Nur Meldungen gegen das Paket selbst. Wiederherstellen und Entfernen
+     * eines Pakets duerfen Kommentarfaelle nicht mit abraeumen - die haben
+     * ihren eigenen Ausgang.
+     */
+    fun findByPackageIdAndStatusAndCommentIdIsNull(packageId: UUID, status: CaseStatus): List<Report>
+    fun existsByPackageIdAndReporterIdAndStatusAndCommentIdIsNull(packageId: UUID, reporterId: UUID, status: CaseStatus): Boolean
+
+    fun findByCommentIdAndStatus(commentId: UUID, status: CaseStatus): List<Report>
+    fun existsByCommentIdAndReporterIdAndStatus(commentId: UUID, reporterId: UUID, status: CaseStatus): Boolean
 }
 
 interface TakedownRequestRepository : JpaRepository<TakedownRequest, UUID> {

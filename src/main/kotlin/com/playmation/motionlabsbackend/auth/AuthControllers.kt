@@ -83,6 +83,7 @@ class MeController(
         val role: String,
         val status: String,
         val unreadNotifications: Long,
+        val coins: Long,
     )
 
     data class NotificationDto(val id: UUID, val message: String, val createdAt: Instant, val read: Boolean)
@@ -92,7 +93,7 @@ class MeController(
         val principal = authentication.requirePrincipal()
         val account = accounts.get(principal.accountId)
         return MeResponse(account.id, account.displayName, account.role.name, account.status.name,
-            notifications.countByAccountIdAndReadAtIsNull(account.id))
+            notifications.countByAccountIdAndReadAtIsNull(account.id), account.coinBalance)
     }
 
     @GetMapping("/notifications")

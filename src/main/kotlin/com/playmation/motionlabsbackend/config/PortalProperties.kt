@@ -14,6 +14,8 @@ data class PortalProperties(
     val devLogin: Boolean = false,
     val alerts: Alerts = Alerts(),
     val limits: Limits = Limits(),
+    val comments: Comments = Comments(),
+    val economy: Economy = Economy(),
     val moderation: Moderation = Moderation(),
     val privacy: Privacy = Privacy(),
     val tokens: Tokens = Tokens(),
@@ -36,6 +38,36 @@ data class PortalProperties(
         val editorLinksPerHourPerIp: Int = 20,
         val downloadLinksPerHourPerIp: Int = 240,
     )
+
+    data class Comments(
+        val perHour: Int = 30,
+        /** So lange darf ein Kommentar noch geaendert werden. Danach steht der Text. */
+        val editMinutes: Long = 15,
+        val maxLength: Int = 1000,
+    )
+
+    /**
+     * Die Tauschwirtschaft. Muenzen sind nicht kaufbar und nicht uebertragbar;
+     * sie entstehen nur hier und verschwinden nur beim Freischalten.
+     *
+     * Die Zahlen sind bewusst schwindend: 10 kosten, 1 bringt. Getragen wird
+     * das von [startingGrant], [weeklyShareReward] und den [milestones].
+     */
+    data class Economy(
+        val unlockCost: Int = 10,
+        val unlockReward: Int = 1,
+        val startingGrant: Int = 50,
+        /** Erst ab diesem Alter des Discord-Kontos gibt es die Grundausstattung. */
+        val grantMinAccountAgeDays: Long = 30,
+        val weeklyShareReward: Int = 30,
+        /** Hoechstens so viel Erloes je Konto und Tag. 0 = kein Deckel. */
+        val dailyEarnCap: Int = 100,
+        val milestones: List<Milestone> = listOf(
+            Milestone(10, 25), Milestone(25, 50), Milestone(50, 100), Milestone(100, 200),
+        ),
+    )
+
+    data class Milestone(val unlocks: Int = 0, val reward: Int = 0)
 
     data class Moderation(
         /** Bestätigte Verstöße bis zur Sperre (Konzept §6, Wiederholungstäter). */
