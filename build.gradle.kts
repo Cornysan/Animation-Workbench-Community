@@ -16,6 +16,22 @@ java {
     }
 }
 
+//  Der Build soll sagen koennen, welcher er ist. Ohne das steht man nach jedem
+//  Ausrollen vor der Frage, ob die Seite den neuen Stand zeigt oder einen
+//  zwischengespeicherten alten - und beantwortet sie, indem man Dateien greppt.
+//
+//  Die Nummer kommt aus der CI (GITHUB_RUN_NUMBER, zaehlt je Lauf hoch), der
+//  Commit aus github.sha. Lokal steht "dev" drin; das ist die ehrliche Antwort,
+//  denn ein Stand von der eigenen Platte hat keine Nummer.
+springBoot {
+    buildInfo {
+        properties {
+            additional.put("number", providers.gradleProperty("buildNumber").getOrElse("dev"))
+            additional.put("commit", providers.gradleProperty("buildCommit").getOrElse("dev").take(7))
+        }
+    }
+}
+
 configurations {
     compileOnly {
         extendsFrom(configurations.annotationProcessor.get())

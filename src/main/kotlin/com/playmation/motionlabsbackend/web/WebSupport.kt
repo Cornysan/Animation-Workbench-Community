@@ -33,6 +33,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException
 class StatusController(
     private val settings: SystemSettingsService,
     private val portal: PortalProperties,
+    private val build: BuildStamp,
     /** Ohne echte Discord-App steht hier die Vorgabe aus der application.yaml. */
     @Value("\${spring.security.oauth2.client.registration.discord.client-id:unset}")
     private val discordClientId: String,
@@ -50,7 +51,11 @@ class StatusController(
         /** Ohne konfigurierte App fuehrt der Discord-Knopf nur zu Discords Fehlerseite. */
         val discordSignIn: Boolean,
         val devLogin: Boolean,
+        /** Welcher Stand antwortet hier - siehe [BuildStamp]. */
+        val build: BuildInfo,
     )
+
+    data class BuildInfo(val number: String, val commit: String, val time: String)
 
     @GetMapping("/status")
     fun status() = StatusResponse(
@@ -58,6 +63,7 @@ class StatusController(
         Declaration.TEXT, Declaration.VERSION, licenses(),
         discordSignIn = discordClientId.isNotBlank() && discordClientId != "unset",
         devLogin = portal.devLogin,
+        build = BuildInfo(build.number, build.commit, build.time),
     )
 
     /**

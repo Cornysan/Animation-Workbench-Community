@@ -21,7 +21,13 @@ COPY build.gradle.kts ./
 RUN ./gradlew dependencies --no-daemon
 
 COPY src ./src
-RUN ./gradlew clean bootJar --no-daemon
+
+# Welcher Stand das hier wird. Die CI reicht GITHUB_RUN_NUMBER und github.sha
+# durch; wer von Hand baut, bekommt "dev" - was zutrifft, denn ein Build von
+# der eigenen Platte hat keine Nummer.
+ARG BUILD_NUMBER=dev
+ARG BUILD_COMMIT=dev
+RUN ./gradlew clean bootJar --no-daemon -PbuildNumber="$BUILD_NUMBER" -PbuildCommit="$BUILD_COMMIT"
 
 
 # ============================================

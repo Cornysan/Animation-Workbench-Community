@@ -33,6 +33,7 @@ class PageController(
     private val notifications: NotificationRepository,
     private val settings: SystemSettingsService,
     private val portal: PortalProperties,
+    private val build: BuildStamp,
     /** Ohne echte Discord-App steht hier die Vorgabe aus der application.yaml. */
     @Value("\${spring.security.oauth2.client.registration.discord.client-id:unset}")
     private val discordClientId: String,
@@ -75,6 +76,9 @@ class PageController(
 
     @ModelAttribute("devLogin")
     fun devLogin() = portal.devLogin
+
+    @ModelAttribute("buildLabel")
+    fun buildLabel() = build.label
 
     @ModelAttribute("communityEnabled")
     fun communityEnabled() = settings.communityEnabled()

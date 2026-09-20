@@ -624,3 +624,13 @@ table.list tr:hover td { background: rgba(255, 255, 255, 0.02); }
   .site-footer { grid-column: 1; grid-row: 3; padding: 20px 18px; justify-content: center; }
   h1 { font-size: 30px; }
 }
+
+/*  Die Build-Marke steht im Fuss ganz rechts und soll dort nicht mitreden:
+    kleiner, blasser, und bei schmalen Fenstern faellt sie in die naechste
+    Zeile wie die Links daneben. */
+.site-footer .build {
+  margin-left: auto;
+  color: var(--text-faint);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
