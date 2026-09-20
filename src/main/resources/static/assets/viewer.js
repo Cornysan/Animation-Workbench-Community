@@ -119,7 +119,12 @@ class SkeletonViewer {
     });
     this.canvas.addEventListener("pointermove", (e) => {
       if (!dragging) return;
-      //  Beide Achsen gegen die Maus. Das Vorzeichen der EINGABE mit der
+      //  Waagerecht gegen die Maus, SENKRECHT MIT ihr: nach oben ziehen
+      //  schiebt die Kamera nach unten, man schaut von unten herauf. Dieselbe
+      //  Bedienung wie in der Mannequin-Buehne (stage.js), wo die Herleitung
+      //  steht.
+      //
+      //  Das Vorzeichen der EINGABE mit der
       //  Workbench zu vergleichen fuehrt in die Irre: dort dreht ein
       //  `Quaternion.Euler` eine echte Kamera, hier projiziert die Methode
       //  unten von Hand, und beide laufen bei gleichem Vorzeichen auf
@@ -132,7 +137,7 @@ class SkeletonViewer {
       //  der den vorigen Fix noch gar nicht enthielt, und die Korrektur drehte
       //  dann gegen die falsche Ausgangslage.
       this.yaw = dragging.yaw - (e.clientX - dragging.x) * 0.01;
-      this.pitch = Math.max(-1.2, Math.min(1.2, dragging.pitch - (e.clientY - dragging.y) * 0.01));
+      this.pitch = Math.max(-1.2, Math.min(1.2, dragging.pitch + (e.clientY - dragging.y) * 0.01));
     });
     this.canvas.addEventListener("pointerup", () => (dragging = null));
     this.canvas.addEventListener("wheel", (e) => {

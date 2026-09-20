@@ -184,7 +184,6 @@ function axisGroupOf(name) {
 
 /** Feine Knochen - dieselbe Unterscheidung wie im Strichmaennchen. */
 const DETAIL = /^(Left|Right)(Thumb|Index|Middle|Ring|Little)/;
-
 // ── Unity -> glTF ────────────────────────────────────────────────────────
 //
 // Unity ist linkshaendig mit +Z nach vorn, glTF rechtshaendig mit -Z nach vorn.
@@ -342,9 +341,23 @@ export class MannequinStage {
     this.renderer.setAnimationLoop(this.loop);
   }
 
-  /** Ziehen dreht, Rad zoomt - beide Achsen GEGEN die Maus, wie im
-   *  Strichmaennchen. Wer hier ein Vorzeichen drehen will: erst pruefen,
-   *  welcher Stand ausgeliefert ist (der Build-Stempel im Fuss sagt es). */
+  /**
+   * Ziehen dreht, Rad zoomt.
+   *
+   * WAAGERECHT gegen die Maus: nach rechts ziehen dreht die Figur nach links,
+   * als haette man sie angefasst.
+   *
+   * SENKRECHT MIT der Maus: nach oben ziehen schiebt die Kamera NACH UNTEN,
+   * man schaut also von unten herauf. Hergeleitet, nicht geraten - in
+   * [placeCamera] steht `position.y = target.y + sin(pitch) * distance`, ein
+   * groesserer Pitch hebt die Kamera also. Nach oben ziehen muss den Pitch
+   * folglich SENKEN, und dafuer steht das Plus in der Zeile unten.
+   *
+   * Wer hier ein Vorzeichen drehen will: erst pruefen, welcher Stand
+   * ausgeliefert ist (der Build-Stempel im Fuss sagt es). Genau daran ist es
+   * schon zweimal gescheitert - beurteilt wurde ein Stand, der den vorigen
+   * Fix noch gar nicht enthielt.
+   */
   attachInput() {
     let drag = null;
     this.canvas.addEventListener('pointerdown', (e) => {
@@ -354,7 +367,7 @@ export class MannequinStage {
     this.canvas.addEventListener('pointermove', (e) => {
       if (!drag) return;
       this.yaw = drag.yaw - (e.clientX - drag.x) * 0.01;
-      this.pitch = Math.max(-0.9, Math.min(1.1, drag.pitch - (e.clientY - drag.y) * 0.01));
+      this.pitch = Math.max(-0.9, Math.min(1.1, drag.pitch + (e.clientY - drag.y) * 0.01));
     });
     this.canvas.addEventListener('pointerup', () => (drag = null));
     this.canvas.addEventListener('pointercancel', () => (drag = null));
