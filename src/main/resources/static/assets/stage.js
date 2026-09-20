@@ -124,26 +124,22 @@ const AIM_CHILD = {
 };
 
 /**
- * Das symmetrische Kinderpaar, das die Seitwaertsachse eines Knochens angibt -
- * von rechts nach links.
+ * Welche Knochenpaare die Breite des Koerpers aufspannen.
  *
- * Es beantwortet die Frage, die die Richtung zum Kind offen laesst: wie ist
- * der Knochen UM seine eigene Achse gedreht. Ein Paar eignet sich dafuer, weil
- * es quer zum Knochen liegt und in beiden Skeletten dieselbe Strecke meint -
- * die Beckenbreite ist die Beckenbreite.
+ * Aus ihnen entsteht je Frame eine Querachse in Weltkoordinaten, und die
+ * beantwortet die Frage, die die Richtung zum Kind offen laesst: wie ist ein
+ * Knochen UM seine eigene Achse gedreht. Zwei Paare, weil eines allein
+ * kippen kann - ein Bein hebt sich, eine Schulter zieht hoch; gemittelt
+ * bleibt die Achse ruhig.
  *
- * Nur diese fuenf Knochen haben ueberhaupt mehrere Kinder. Das reicht: es sind
- * genau die breiten Stellen, an denen eine falsche Rolle zu sehen ist. Alles
- * andere ist rund und erbt (siehe `inheritedSide`).
+ * Es sind bewusst GLOBALE Paare, keine Kinderpaare je Knochen: ein Knochen
+ * braucht die Breite nicht an sich selbst zu tragen, um zu wissen, wo links
+ * ist. Siehe die Rechnung weiter unten.
  */
-const SIDE_PAIR = {
-  Hips: ['LeftUpperLeg', 'RightUpperLeg'],
-  Chest: ['LeftShoulder', 'RightShoulder'],
-  UpperChest: ['LeftShoulder', 'RightShoulder'],
-  Head: ['LeftEye', 'RightEye'],
-  LeftHand: ['LeftIndexProximal', 'LeftLittleProximal'],
-  RightHand: ['RightIndexProximal', 'RightLittleProximal'],
-};
+const BODY_WIDTH_PAIRS = [
+  ['LeftUpperLeg', 'RightUpperLeg'],
+  ['LeftShoulder', 'RightShoulder'],
+];
 
 /** Feine Knochen - dieselbe Unterscheidung wie im Strichmaennchen. */
 const DETAIL = /^(Left|Right)(Thumb|Index|Middle|Ring|Little)/;
@@ -464,29 +460,76 @@ export class MannequinStage {
       return { src: src.normalize(), dst: dst.normalize() };
     };
 
-    /**
-     * Die Seitwaertsachse: von rechts nach links durch ein symmetrisches
-     * Kinderpaar. Sie steht quer zum Knochen und ist in beiden Skeletten
-     * dieselbe Strecke - damit ist sie die Referenz, die der Aim-Richtung
-     * allein fehlt.
-     */
-    const sideOf = (ti, srcName) => {
-      const pair = SIDE_PAIR[srcName];
-      if (!pair) return null;
-      const [leftName, rightName] = pair;
-      const li = srcIndex.get(leftName), ri = srcIndex.get(rightName);
-      const tl = byKey.get(boneKey(BONE_MAP[leftName] || ''));
-      const tr = byKey.get(boneKey(BONE_MAP[rightName] || ''));
-      if (li === undefined || ri === undefined || tl === undefined || tr === undefined) return null;
-      //  Beide muessen an DIESEM Knochen haengen, sonst liegen ihre `rest`
-      //  in verschiedenen Raeumen und die Differenz bedeutet nichts.
-      if (this.preview.parents[li] !== srcIndex.get(srcName)) return null;
-      if (this.preview.parents[ri] !== srcIndex.get(srcName)) return null;
 
-      const src = toVec(this.preview.rest[li]).sub(toVec(this.preview.rest[ri]));
-      const dst = bindPos[tl].clone().sub(bindPos[tr]).applyQuaternion(bindRot[ti].clone().invert());
-      if (src.lengthSq() < 1e-12 || dst.lengthSq() < 1e-12) return null;
-      return { src: src.normalize(), dst: dst.normalize() };
+    /**
+     * Die Seitwaertsachse je Knochen - das, was die Richtung zum Kind offen
+     * laesst: wie der Knochen UM seine eigene Achse gedreht ist.
+     *
+     * ERSTER VERSUCH WAR: ein symmetrisches Kinderpaar am Knochen selbst
+     * (Beckenbreite, Schulterbreite), und wer keins hat, erbt vom Vorfahren.
+     * Das ergab einen Knoten im Bauch. Der Grund: ein Rig dreht den Roll
+     * seiner Wirbelsaeulenknochen, und zwar gemessen um 180 Grad zwischen
+     * Becken und Spine. Wer die Beckenkonvention an Spine und Chest
+     * weitergibt, legt den Sprung an die falsche Stelle - zwischen Chest und
+     * UpperChest - und verdrillt den Rumpf dazwischen.
+     *
+     * JETZT WIRD SIE GEMESSEN STATT VERERBT. Die Koerperbreite ist in jedem
+     * Frame bekannt: die Strecke von Bein zu Bein und von Schulter zu
+     * Schulter, in Weltkoordinaten. Rechnet man sie in den lokalen Raum eines
+     * Knochens zurueck, ist sie ueber die Frames fast konstant - dreht sich
+     * der ganze Koerper, dreht sich die Weltrotation des Knochens mit und hebt
+     * die Drehung auf. Nur eine echte Verdrehung DIESES Knochens gegen den
+     * Koerper bewegt sie, und die mittelt sich ueber einen Clip heraus.
+     *
+     * Gemessen an einem Clip mit 56 Frames: die Achse liegt bei 0,97 bis 1,00
+     * (1 = ueber alle Frames identisch). Sie zeigt fuer Hips nach -Z und fuer
+     * Spine, Chest und UpperChest nach +Z - der Kipppunkt des Rigs, den keine
+     * Vererbung erraten haette.
+     *
+     * Damit braucht jeder Knochen eine eigene Achse, und keiner muss raten.
+     */
+    const bodyWidthAt = (positions) => {
+      const axis = new Vector3();
+      for (const [leftName, rightName] of BODY_WIDTH_PAIRS) {
+        const li = srcIndex.get(leftName), ri = srcIndex.get(rightName);
+        if (li === undefined || ri === undefined) continue;
+        const d = positions[li].clone().sub(positions[ri]);
+        if (d.lengthSq() > 1e-12) axis.add(d.normalize());
+      }
+      return axis.lengthSq() > 1e-12 ? axis.normalize() : null;
+    };
+
+    //  Quelle: ueber alle Frames mitteln.
+    const sideSrc = this.preview.bones.map(() => new Vector3());
+    for (let f = 0; f < this.solved.frames; f++) {
+      const width = bodyWidthAt(this.solved.positions[f]);
+      if (!width) break;
+      const rotations = this.solved.rotations[f];
+      for (let i = 0; i < sideSrc.length; i++) {
+        sideSrc[i].add(width.clone().applyQuaternion(rotations[i].clone().invert()));
+      }
+    }
+    sideSrc.forEach((v) => { if (v.lengthSq() > 1e-12) v.normalize(); });
+
+    //  Ziel: dieselbe Strecke in der Bindepose des Modells, je Knochen lokal.
+    const widthDst = (() => {
+      const axis = new Vector3();
+      for (const [leftName, rightName] of BODY_WIDTH_PAIRS) {
+        const tl = byKey.get(boneKey(BONE_MAP[leftName] || ''));
+        const tr = byKey.get(boneKey(BONE_MAP[rightName] || ''));
+        if (tl === undefined || tr === undefined) continue;
+        const d = bindPos[tl].clone().sub(bindPos[tr]);
+        if (d.lengthSq() > 1e-12) axis.add(d.normalize());
+      }
+      return axis.lengthSq() > 1e-12 ? axis.normalize() : null;
+    })();
+
+    const sideOf = (ti, srcName) => {
+      const si = srcIndex.get(srcName);
+      if (si === undefined || !widthDst) return null;
+      const src = sideSrc[si];
+      if (src.lengthSq() < 1e-12) return null;
+      return { src, dst: widthDst.clone().applyQuaternion(bindRot[ti].clone().invert()) };
     };
 
     /** Rechtshaendiges Dreibein aus einer Haupt- und einer Hilfsrichtung. */
@@ -501,37 +544,6 @@ export class MannequinStage {
 
     this.tracks = [];
     const corrections = new Map();
-    const sides = new Map();
-
-    //  ERSTER DURCHGANG: die Seitwaertsachsen einsammeln. Sie werden im
-    //  zweiten gebraucht, auch von Knochen, die selbst kein Paar tragen.
-    for (const [srcName, defName] of Object.entries(BONE_MAP)) {
-      const ti = byKey.get(boneKey(defName));
-      if (ti === undefined || srcIndex.get(srcName) === undefined) continue;
-      const side = sideOf(ti, srcName);
-      if (side) sides.set(srcName, side);
-    }
-
-    /**
-     * Die Seitwaertsachse dieses Knochens - oder die des naechsten Vorfahren,
-     * der eine hat.
-     *
-     * Ein Oberschenkel traegt kein symmetrisches Kinderpaar und kann seine
-     * Rolle deshalb nicht selbst bestimmen. Er erbt sie vom Becken. Das setzt
-     * voraus, dass ein Rig seine Achsenkonvention innerhalb einer Kette nicht
-     * wechselt - dieselbe Annahme, unter der auch die Endknochen ihre
-     * Korrektur erben.
-     */
-    const inheritedSide = (srcName) => {
-      if (sides.has(srcName)) return sides.get(srcName);
-      let p = this.preview.parents[srcIndex.get(srcName)];
-      while (p >= 0) {
-        const name = this.preview.bones[p];
-        if (sides.has(name)) return sides.get(name);
-        p = this.preview.parents[p];
-      }
-      return null;
-    };
 
     for (const [srcName, defName] of Object.entries(BONE_MAP)) {
       const si = srcIndex.get(srcName);
@@ -554,7 +566,7 @@ export class MannequinStage {
         //  Mit einer zweiten Richtung ist die Drehung vollstaendig bestimmt.
         //  Die Seitwaertsachse eignet sich dafuer, weil sie quer zum Knochen
         //  liegt und in beiden Skeletten dieselbe Strecke meint.
-        const side = inheritedSide(srcName);
+        const side = sideOf(ti, srcName);
         if (side) {
           const qSrc = frame(aim.src, side.src);
           const qDst = frame(aim.dst, side.dst);
