@@ -84,6 +84,9 @@ interface ClipCollectionRepository : JpaRepository<ClipCollection, UUID> {
 
     fun findByOwnerIdAndStatusOrderByUpdatedAtDesc(ownerId: UUID, status: CollectionStatus): List<ClipCollection>
 
+    /** Alles, was jemandem gehoert - auch Entferntes, beim Schliessen des Kontos. */
+    fun findByOwnerId(ownerId: UUID): List<ClipCollection>
+
     fun countByOwnerIdAndStatusAndVisibility(
         ownerId: UUID,
         status: CollectionStatus,

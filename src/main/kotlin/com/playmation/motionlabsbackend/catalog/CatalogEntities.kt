@@ -196,6 +196,9 @@ data class PackageLikeId(
 
 interface PackageLikeRepository : JpaRepository<PackageLike, PackageLikeId> {
     fun existsByPackageIdAndAccountId(packageId: UUID, accountId: UUID): Boolean
+
+    /** Alle Herzen eines Kontos - beim Schliessen des Kontos. */
+    fun findByAccountId(accountId: UUID): List<PackageLike>
     fun deleteByPackageIdAndAccountId(packageId: UUID, accountId: UUID): Long
     fun countByPackageId(packageId: UUID): Long
 

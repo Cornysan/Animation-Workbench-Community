@@ -513,7 +513,9 @@ class PortalFlowTest {
         report(login("reporter-${unique()}"), slug).andExpect { status { isCreated() } }
 
         val cases = mvc.get("/api/v1/admin/cases") { header("Authorization", "Bearer $admin") }.andExpect { status { isOk() } }.body()
-        assertTrue(cases.any { it["packages"][0]["slug"].asString() == slug })
+        //  Seit es Meldungen gegen KONTEN gibt, stehen in derselben Liste
+        //  auch Faelle ohne Paket - die haben kein `packages[0]`.
+        assertTrue(cases.any { it["packages"].size() > 0 && it["packages"][0]["slug"].asString() == slug })
 
         mvc.get("/api/v1/admin/cases") { header("Authorization", "Bearer $owner") }.andExpect { status { isForbidden() } }
 

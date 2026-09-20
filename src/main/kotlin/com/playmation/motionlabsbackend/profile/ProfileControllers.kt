@@ -6,6 +6,7 @@ import com.playmation.motionlabsbackend.catalog.CatalogService
 import com.playmation.motionlabsbackend.common.clientIp
 import jakarta.servlet.http.HttpServletRequest
 import org.springframework.security.core.Authentication
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -66,7 +67,10 @@ class ProfileController(
 /** Das eigene Profil aendern. Liegt unter `/me`, weil es kein fremdes sein kann. */
 @RestController
 @RequestMapping("/api/v1/me")
-class MyProfileController(private val profiles: ProfileService) {
+class MyProfileController(
+    private val profiles: ProfileService,
+    private val deletion: AccountDeletionService,
+) {
 
     @PatchMapping("/profile")
     fun edit(
@@ -74,4 +78,17 @@ class MyProfileController(private val profiles: ProfileService) {
         authentication: Authentication?,
         request: HttpServletRequest,
     ) = profiles.edit(authentication.requirePrincipal(), body, request.clientIp())
+
+    /**
+     * Das eigene Konto schliessen (Art. 17 DSGVO).
+     *
+     * Es gibt keinen zweiten Weg und keine Wartefrist: wer hier loescht, hat
+     * es auf der Seite davor bestaetigt bekommen, was verschwindet und was
+     * bleibt. Was genau passiert, steht bei [AccountDeletionService].
+     */
+    @DeleteMapping
+    fun deleteAccount(
+        authentication: Authentication?,
+        request: HttpServletRequest,
+    ) = deletion.deleteOwnAccount(authentication.requirePrincipal(), request.clientIp())
 }

@@ -11,6 +11,7 @@ import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequ
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.ResultActionsDsl
+import org.springframework.test.web.servlet.delete
 import org.springframework.test.web.servlet.get
 import org.springframework.test.web.servlet.multipart
 import org.springframework.test.web.servlet.patch
@@ -238,6 +239,57 @@ class ProfileFlowTest {
         //  niemand, was als naechstes ansteht.
         val mine = profile(name, token).body()["achievements"]
         assertTrue(mine.size() > after.size())
+    }
+
+    /**
+     * Das Konto schliessen: der Name geht, das Gespraech bleibt lesbar.
+     *
+     * Der Test haelt genau die Abwaegung fest, um die es dabei geht - was
+     * verschwinden MUSS (Person) und was bleiben muss (die Saetze unter fremden
+     * Clips, damit dort kein Loch entsteht).
+     */
+    @Test
+    fun `closing an account takes the person with it and leaves the conversation`() {
+        val name = "leaving" + unique()
+        val other = "staying" + unique()
+        val token = login(name)
+        val otherToken = login(other)
+
+        val mine = uploadOk(token, "Withdrawn on the way out")
+        val theirs = uploadOk(otherToken, "Stays in the catalogue")
+
+        //  Ein Herz, ein Folgen, ein Satz unter einem fremden Clip.
+        mvc.post("/api/v1/packages/$theirs/like") {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"liked":true}"""
+            header("Authorization", "Bearer $token")
+        }.andExpect { status { isOk() } }
+
+        follow(token, other, true).andExpect { status { isOk() } }
+
+        mvc.post("/api/v1/packages/$theirs/comments") {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"body":"This is a good walk cycle."}"""
+            header("Authorization", "Bearer $token")
+        }.andExpect { status { isCreated() } }
+
+        mvc.delete("/api/v1/me") { header("Authorization", "Bearer $token") }
+            .andExpect { status { isOk() } }
+
+        //  Die Person ist weg - Profil, Herz, Folgen, eigener Clip.
+        profile(name).andExpect { status { isNotFound() } }
+        assertEquals(0, profile(other).body()["followers"].asInt())
+        assertEquals(0, mvc.get("/api/v1/packages/$theirs").body()["likes"].asInt())
+        mvc.get("/api/v1/packages/$mine").andExpect { status { isNotFound() } }
+
+        //  Der Satz steht noch da, ohne Namen.
+        val comments = mvc.get("/api/v1/packages/$theirs/comments").andExpect { status { isOk() } }.body()
+        val remaining = comments["comments"].first { it["body"].asString().startsWith("This is a good walk") }
+        assertEquals("Deleted user", remaining["author"].asString())
+
+        //  Und die Anmeldung gilt nicht mehr.
+        mvc.get("/api/v1/me") { header("Authorization", "Bearer $token") }
+            .andExpect { status { isUnauthorized() } }
     }
 
     /**

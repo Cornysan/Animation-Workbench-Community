@@ -31,6 +31,41 @@
         el("td", {}, clip.downloads),
         el("td", { class: "muted small" }, formatDate(clip.updatedAt))))));
 
+  /**
+   * Das Konto schliessen.
+   *
+   * Zwei Huerden, weil es nicht rueckgaengig zu machen ist: der erste Kasten
+   * sagt VORHER, was verschwindet und was bleibt, der zweite verlangt ein
+   * getipptes Wort. Ein einzelnes "Sind Sie sicher?" klickt man weg, ohne es
+   * gelesen zu haben - und genau dieser Klick waere hier endgueltig.
+   */
+  document.getElementById("delete-account").addEventListener("click", async () => {
+    const warning =
+      "Close this account?\n\n" +
+      "Gone: your name, your profile, your collections, your likes, who you follow.\n\n" +
+      "Withdrawn: your shared clips disappear from the catalogue - but copies other people " +
+      "already took stay theirs, as CC BY 4.0 says.\n\n" +
+      "Kept without your name: your comments, so conversations under other people's clips " +
+      "stay readable.\n\n" +
+      "This cannot be undone.";
+
+    if (!confirm(warning)) return;
+    if (prompt("Type DELETE to confirm.") !== "DELETE") {
+      notice(state, "Nothing was deleted.", "");
+      return;
+    }
+
+    try {
+      await ensureCsrf();
+      const result = await api("DELETE", "/api/v1/me");
+      alert("Your account is closed. " + result.withdrawnClips + " clip(s) withdrawn, " +
+        result.deletedCollections + " collection(s) deleted.");
+      location.href = "/";
+    } catch (e) {
+      notice(state, e.message, "error");
+    }
+  });
+
   document.getElementById("revoke").addEventListener("click", async () => {
     if (!confirm("Sign out every Animation Workbench connected to this account?")) return;
     try {

@@ -995,12 +995,15 @@ table.list tr:hover td { background: rgba(255, 255, 255, 0.02); }
 
 .landing h1::after { content: none; }          /* der Kopf traegt seinen eigenen Rhythmus */
 
+/* EINE SPALTE, seit die Figur im Kopf weg ist. Vorher standen hier zwei:
+   links der Text, rechts eine Buehne mit einem herausgegriffenen Clip. Das
+   Gitter zwei Zeilen weiter unten zeigt dieselbe Bewegung in jeder Karte -
+   und zwar alle, statt einer ausgewaehlten. Der Text bleibt auf Lesebreite
+   begrenzt: `main.wide` ist 1640 px, und eine Ueberschrift, die so breit
+   laeuft, liest niemand. */
 .hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
-  gap: 44px;
-  align-items: center;
-  padding: 16px 0 12px;
+  max-width: 760px;
+  padding: 16px 0 6px;
 }
 
 .hero-copy h1 { font-size: clamp(34px, 4.2vw, 52px); margin-bottom: 18px; }
@@ -1077,23 +1080,6 @@ table.list tr:hover td { background: rgba(255, 255, 255, 0.02); }
 .latest .tag-bar { margin: -4px 0 18px; }
 .latest .tag { font-size: 13.5px; padding: 6px 14px; }
 
-.hero-stage .viewer canvas { height: 420px; }
-
-/* Welcher Clip da laeuft - ohne die Zeile ist der Kopf eine Zierde, mit ihr
-   ist er der erste Clip des Katalogs. */
-.hero-caption {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 12px;
-  padding: 0 4px;
-  color: var(--text);
-  font-size: 14px;
-}
-.hero-caption:hover { text-decoration: none; }
-.hero-caption:hover .hero-caption-cta { color: var(--accent-strong); }
-.hero-caption-cta { margin-left: auto; color: var(--accent); font-weight: 600; }
-
 /* ── Die drei Schritte ─────────────────────────────────────────────────── */
 
 .section-title { font-size: 22px; letter-spacing: -0.015em; margin: 0; }
@@ -1152,8 +1138,7 @@ table.list tr:hover td { background: rgba(255, 255, 255, 0.02); }
 .section-link { color: var(--accent); font-size: 14px; font-weight: 600; }
 
 @media (max-width: 900px) {
-  .hero { grid-template-columns: minmax(0, 1fr); gap: 28px; padding-top: 4px; }
-  .hero-stage .viewer canvas { height: 340px; }
+  .hero { padding-top: 4px; }
   .how { margin-top: 40px; }
   .latest { padding-top: 36px; }
 }

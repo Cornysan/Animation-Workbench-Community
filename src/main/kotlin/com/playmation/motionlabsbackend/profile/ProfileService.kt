@@ -318,18 +318,21 @@ class ProfileService(
             }
 
     /**
-     * Das Bild liegt bei Discord; wir speichern nur seinen Hash.
+     * Die Adresse des Profilbildes - eine Adresse DIESES Servers.
      *
-     * Die Adresse traegt die Discord-Kennung - die steht damit in einer
-     * oeffentlichen Antwort. Das ist der Preis fuer ein Bild ohne eigene
-     * Bildablage; die Alternative waere ein Umweg ueber das Portal, der das
-     * Bild zwischenspeichert. Der Entwickler-Login hat keine Kennung, die
-     * Discord kennt - dort bleibt es beim Buchstabenkreis.
+     * Der direkte Weg zu `cdn.discordapp.com` waere kuerzer gewesen und kostet
+     * zweierlei: die Discord-Kennung staende im Quelltext jeder Profilseite,
+     * und Discord saehe die IP-Adresse jedes Besuchers - auch der nicht
+     * angemeldeten. Das Bild geht deshalb ueber [AvatarCache].
+     *
+     * Wer kein Bild hat (und jeder Entwickler-Login), bekommt hier `null`; die
+     * Seite zeigt dann den Buchstabenkreis.
      */
     private fun avatarUrl(account: Account): String? {
-        val hash = account.avatar?.takeIf { it.isNotBlank() } ?: return null
+        val handle = account.handle ?: return null
+        if (account.avatar.isNullOrBlank()) return null
         if (!account.discordId.all { it.isDigit() }) return null
-        return "https://cdn.discordapp.com/avatars/${account.discordId}/$hash.png?size=128"
+        return "/avatar/$handle.png"
     }
 
     companion object {

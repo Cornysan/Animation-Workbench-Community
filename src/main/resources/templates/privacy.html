@@ -79,6 +79,33 @@
   <p>Discord is asked only for the <code>identify</code> scope. That is your user ID and display name &ndash;
      <strong>not your email address</strong>, not your servers, not your messages.</p>
 
+  <h2>What your profile shows everyone</h2>
+  <p>Signing in gives you a public profile at <code>/u.html?u=&lt;handle&gt;</code>. Anyone can open it,
+     with or without an account. It shows:</p>
+  <ul>
+    <li>your display name from Discord and your handle (the address; you can change it on your profile),</li>
+    <li>the day you first signed in,</li>
+    <li>anything you write in your bio,</li>
+    <li>your profile picture, if your Discord account has one,</li>
+    <li>your public clips and public collections, and how often they were liked, saved and used,</li>
+    <li><strong>who you follow</strong>, and how many people follow you.</li>
+  </ul>
+  <p>Following someone is therefore not private: it appears on your profile and on theirs, and the
+     person you follow gets a message with your name. If you would rather not be seen doing it, do
+     not follow - there is no hidden mode, because a half-public list would be the worst of both.</p>
+  <p>The legal basis is Art. 6(1)(b) GDPR: a community where nobody can be found is not the service
+     you signed in for. What you can do about it: unfollow, empty your bio, change your handle, or
+     close the account (below).</p>
+
+  <h2>Your profile picture does not come from Discord</h2>
+  <p>It would have been shorter to point the page straight at <code>cdn.discordapp.com</code>. Two
+     things speak against it, and both of them are about you rather than about us: the address
+     contains your Discord user ID, which would then sit in the source of every page showing your
+     picture - and your browser would fetch it from Discord, so <em>Discord</em> would learn the IP
+     address of every visitor, including people who have no account there and are only reading.</p>
+  <p>So this server fetches the picture once and serves it from <code>/avatar/&lt;handle&gt;.png</code>.
+     It keeps a copy for a day. Discord sees this server, not the people reading the page.</p>
+
   <h2>No tracking</h2>
   <p>No analytics, no advertising, no tracking pixels, no external fonts or scripts. Everything the
      page loads comes from this server.</p>
@@ -111,6 +138,12 @@
     <li><strong>Your account, uploads and comments:</strong> until you delete them or the account.
       A deleted comment stops being shown at once; the text itself is kept so that a report about it
       can still be looked at.</li>
+    <li><strong>After you close your account:</strong> the account row stays, but anonymous - name,
+      handle, bio, picture and the Discord ID are replaced. Everything that pointed at you points at
+      nobody: comments show &bdquo;Deleted user&ldquo;, a report you once filed loses its name. Your
+      collections, likes and follows are deleted outright, your clips are withdrawn from the
+      catalogue. Coin bookings and moderation records stay, because they are what makes a decision
+      about someone else explainable - they no longer name a person.</li>
     <li><strong>Coin bookings:</strong> as long as the account exists. The record is append-only, so
       a correction is a new line rather than a change to the old one.</li>
     <li><strong>Removed clips:</strong> the file goes, the record of the decision stays &ndash; it is
@@ -124,6 +157,9 @@
   <p>You may ask for access (Art. 15), correction (Art. 16), deletion (Art. 17), restriction
      (Art. 18), portability (Art. 20), and you may object to processing based on legitimate interests
      (Art. 21). One email to the address above is enough; no form.</p>
+  <p><strong>Deletion needs no email:</strong> the button is on
+     <a href="/me.html">My clips</a>, under &bdquo;Your account&ldquo;. It says what goes and what
+     stays before it does anything.</p>
   <p>You may also complain to a supervisory authority.</p>
   <div class="todo">Name the competent authority &ndash; the one for the state you live in, e.g. Bayerisches Landesamt f&uuml;r Datenschutzaufsicht for Bavaria.</div>
 

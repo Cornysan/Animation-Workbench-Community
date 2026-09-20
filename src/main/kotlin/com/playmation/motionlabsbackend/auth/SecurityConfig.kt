@@ -87,6 +87,9 @@ class SecurityConfig {
                 //  angemeldeter Besucher, sondern ein Bot von Discord - mit
                 //  einem Konto waere es nie zu sehen.
                 authorize(HttpMethod.GET, "/clip-card/**", permitAll)
+                //  Das Profilbild. Es geht ueber diesen Server, damit Discord
+                //  nicht die IP jedes Lesers erfaehrt - siehe AvatarCache.
+                authorize(HttpMethod.GET, "/avatar/**", permitAll)
                 //  Mitlesen darf jeder, schreiben nur angemeldet - dieselbe
                 //  Trennung wie bei den Herzen. Der Katalog ist eine Auslage,
                 //  keine geschlossene Gesellschaft.
@@ -140,7 +143,12 @@ class SecurityConfig {
                 contentSecurityPolicy {
                     // font-src steht ausdruecklich da, obwohl default-src es abdeckt:
                     // Inter wird selbst ausgeliefert, kein Google-Fonts-Abruf.
-                    policyDirectives = "default-src 'self'; img-src 'self' data: https://cdn.discordapp.com; " +
+                    //
+                    // cdn.discordapp.com stand hier fuer die Profilbilder und ist
+                    // wieder weg: sie gehen jetzt ueber diesen Server (AvatarCache),
+                    // damit Discord nicht die IP jedes Lesers erfaehrt. Solange die
+                    // Regel fehlt, kann auch kein neuer Hotlink unbemerkt einziehen.
+                    policyDirectives = "default-src 'self'; img-src 'self' data:; " +
                         "style-src 'self'; script-src 'self'; font-src 'self'; " +
                         "object-src 'none'; frame-ancestors 'none'; base-uri 'self'"
                 }
