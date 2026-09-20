@@ -37,7 +37,7 @@
 <head th:fragment="head(title)">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title th:text="|${title} - Animation Workbench Community|">Animation Workbench Community</title>
+  <title th:text="|${title} - Animation Workbench Community (Beta)|">Animation Workbench Community (Beta)</title>
   <link rel="icon" href="/favicon.ico">
   <link rel="stylesheet" href="/assets/app.css">
 
@@ -56,7 +56,7 @@
   <meta name="aw-signin" th:attr="content=${discordSignIn} ? '/oauth2/authorization/discord' : (${devLogin} ? '/dev.html' : '')">
 
   <meta property="og:type" content="website">
-  <meta property="og:site_name" content="Animation Workbench Community">
+  <meta property="og:site_name" content="Animation Workbench Community (Beta)">
   <meta property="og:title" th:attr="content=${meta.title}">
   <meta property="og:description" th:attr="content=${meta.description}">
   <meta property="og:url" th:attr="content=${meta.url}" th:if="${meta.url}">
@@ -80,12 +80,17 @@
 <header class="site-header" th:fragment="header">
   <div class="header-inner">
 
-    <a class="brand" href="/" title="Animation Workbench Community">
+    <a class="brand" href="/" title="Animation Workbench Community (Beta)">
       <img class="brand-lockup" src="/assets/brand/aw-lockup-weiss.svg"
            alt="Animation Workbench" width="150" height="29">
       <img class="brand-mark" src="/assets/brand/aw-mark-dark.svg"
            alt="Animation Workbench" width="28" height="28">
-      <small>Community</small>
+      <!--
+        Dass dies eine Beta ist, steht ab jetzt im Kopf und nicht nur in den
+        Nutzungsbedingungen: wer hier hochlaedt, soll es sehen, bevor er es
+        tut - nicht erst, wenn etwas fehlt.
+      -->
+      <small>Community <b class="beta-mark">Beta</b></small>
     </a>
 
     <nav class="site-nav">
@@ -112,15 +117,6 @@
           <path d="M4 5h11l2 2h3v12H4z"></path>
         </svg>
         <span>My clips</span>
-      </a>
-
-      <a href="/licenses.html" title="Licenses" class="nav-item"
-         th:classappend="${active == 'licenses'} ? ' active'">
-        <svg viewBox="0 0 24 24" class="nav-icon" aria-hidden="true" fill="none" stroke="currentColor"
-             stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
-          <path d="M6 3h9l4 4v14H6z"></path><path d="M15 3v5h4"></path>
-        </svg>
-        <span>Licenses</span>
       </a>
 
       <!--
@@ -160,7 +156,14 @@
       <div class="account" th:if="${user != null}">
         <a class="badge" href="/me.html" title="Notifications"
            th:if="${user.unread > 0}" th:text="${user.unreadLabel}">1 message</a>
-        <a class="account-name" href="/me.html" th:title="${user.roleLabel}">
+        <!--
+          Der eigene Name fuehrt aufs eigene PROFIL, nicht ins private Fach:
+          "wie sehen mich die anderen" ist die Frage, die man sich beim Klick
+          auf den eigenen Namen stellt. Das private Fach (Meldungen, Status,
+          Anmeldungen) bleibt der Eintrag "My clips" in der Navigation.
+        -->
+        <a class="account-name" th:href="${user.handle != null} ? ${'/u.html?u=' + user.handle} : '/me.html'"
+           th:title="${user.roleLabel}">
           <span class="avatar" th:text="${user.initial}">?</span>
           <span th:text="${user.displayName}">Name</span>
         </a>
@@ -198,8 +201,18 @@
       <strong>Share your own.</strong>
       In the Animation Workbench: right-click a clip &rarr; <em>Share with the Community</em>.
     </p>
+    <!--
+      "Licenses" stand bis hierher oben in der Navigation, neben Katalog und
+      eigenen Clips. Das ist eine Seite, die man EINMAL liest - beim ersten
+      Teilen, wenn die Frage "was darf ich damit" aufkommt - und danach nie
+      wieder. Oben kostete sie einen der drei Plaetze, die jeder Besucher auf
+      jeder Seite sieht; hier steht sie bei den anderen Seiten, die man sucht,
+      wenn man sie braucht. Die Wege dorthin bleiben: die Startseite nennt
+      CC BY 4.0, die Nutzungsbedingungen verlinken mit.
+    -->
     <nav class="footer-links">
       <a href="/rules.html">Community rules</a>
+      <a href="/licenses.html">Licenses</a>
       <a href="/takedown.html">Report a rights violation</a>
       <a href="/terms.html">Terms</a>
       <a href="/privacy.html">Privacy</a>

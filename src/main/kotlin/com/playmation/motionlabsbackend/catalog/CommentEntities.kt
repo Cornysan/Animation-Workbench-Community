@@ -49,4 +49,7 @@ interface PackageCommentRepository : JpaRepository<PackageComment, UUID> {
     ): Page<PackageComment>
 
     fun countByPackageIdAndStatus(packageId: UUID, status: CommentStatus): Long
+
+    /** Wie oft sich jemand am Gespraech beteiligt hat - eine Zahl fuers Profil. */
+    fun countByAccountIdAndStatus(accountId: UUID, status: CommentStatus): Long
 }

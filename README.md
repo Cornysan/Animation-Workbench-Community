@@ -44,6 +44,11 @@ Swagger UI: http://localhost:8080/swagger-ui.html (nur im `dev`-Profil).
   Upload, Duplikat, signierter Download, Meldung mit Auto-Hide, Entfernen mit
   Strike, Wiederupload-Sperre, Takedown ohne Konto, Kill Switch,
   Workbench-Anmeldung, Sperre, IP-Pseudonymisierung.
+- `ProfileFlowTest` und `CollectionFlowTest` nehmen sich die zwei Dinge vor,
+  die ein Portal zu einer Gemeinschaft machen: Handle, Folgen, Melden eines
+  Kontos (das NICHTS versteckt), Auszeichnungen - und Sammlungen aus fremden
+  Clips, in die kein privater Clip hineinkommt und aus denen ein
+  zurückgezogener still verschwindet.
 
 ## Aufbau
 
@@ -53,6 +58,8 @@ Swagger UI: http://localhost:8080/swagger-ui.html (nur im `dev`-Profil).
 | `account`, `auth` | Konten, Discord-OAuth2 (Browser), Device Flow + Bearer-Token (Workbench), Entwickler-Login |
 | `catalog` | Upload mit Erklärung, Duplikat- und Wiederupload-Sperre, Suche, Vorschau, signierte Download-Links |
 | `moderation` | Melden → sofort AUTO_HIDDEN, Takedown-Formular ohne Konto, Admin-Entscheidungen, Strikes, Benachrichtigungen |
+| `profile` | Handle als Adresse, Folgen, Bio und Avatar, abgeleitete Auszeichnungen |
+| `collection` | Sammlungen: eigene und fremde Clips, öffentlich oder nur über den Link |
 | `system` | Kill Switch, Audit-Log, Alarme (Discord-Webhook + Mail), IP-Pseudonymisierung |
 | `storage` | Dateiablage außerhalb der Datenbank, nie öffentlich |
 
@@ -67,6 +74,8 @@ Security Policy erlaubt nur Skripte von dieser Adresse.
 | `/` | `landing.html` | Startseite: ein Clip auf der Figur, drei Schritte, die neuesten Clips. |
 | `/browse.html` | `browse.html` | Der Katalog. Lag bis zur Startseite auf `/`. |
 | `/clip.html?p=<slug>` | `clip.html` | Ein Clip. Diese Adresse steht in Discord-Vorschauen und Takedown-Mails - sie aendert sich nicht. |
+| `/u.html?u=<handle>` | `user.html` | Ein Profil: Clips, Sammlungen, Folgen, Auszeichnungen. Der Handle ist die Adresse, nicht der Anzeigename - er ueberlebt eine Umbenennung. |
+| `/collection.html?c=<slug>` | `collection.html` | Eine Sammlung. Derselbe Aufbau wie der Katalog, nur von Hand ausgesucht. |
 
 ### Die Figur im Viewer
 

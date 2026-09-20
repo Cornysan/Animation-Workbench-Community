@@ -11,6 +11,7 @@ import java.util.UUID
 @Service
 class AccountService(
     private val accounts: AccountRepository,
+    private val handles: AccountHandleService,
     private val quests: QuestService,
     private val properties: PortalProperties,
     private val clock: Clock,
@@ -20,9 +21,13 @@ class AccountService(
      * aktualisieren. Gesperrte Konten kommen nicht herein. Admin wird, wer in
      * `portal.admin-discord-ids` steht - bei jedem Login neu ausgewertet, damit
      * das Entfernen aus der Liste auch wirkt.
+     *
+     * @param avatar Discords Avatar-Hash, wenn die Anmeldung einen mitbringt.
+     *   `null` laesst den vorhandenen stehen - der Entwickler-Login weiss
+     *   nichts ueber Bilder und soll deshalb auch keines loeschen.
      */
     @Transactional
-    fun login(discordId: String, displayName: String): Account {
+    fun login(discordId: String, displayName: String, avatar: String? = null): Account {
         val now = clock.instant()
         val account = accounts.findByDiscordId(discordId)
             ?: Account(discordId = discordId, displayName = displayName.take(80), createdAt = now)
@@ -33,6 +38,13 @@ class AccountService(
         account.displayName = displayName.take(80).ifBlank { "user" }
         account.role = if (discordId in properties.adminIds()) Role.ADMIN else Role.USER
         account.lastLoginAt = now
+        avatar?.let { account.avatar = it.take(64) }
+
+        //  Der Handle wird EINMAL vergeben und danach nie wieder aus dem
+        //  Anzeigenamen nachgezogen: er ist die Adresse, und eine Adresse, die
+        //  sich mit dem Discord-Namen aendert, bricht jeden geteilten Link.
+        handles.ensure(account)
+
         val saved = accounts.save(account)
 
         //  Die Grundausstattung haengt an der ersten Anmeldung, nicht an einem

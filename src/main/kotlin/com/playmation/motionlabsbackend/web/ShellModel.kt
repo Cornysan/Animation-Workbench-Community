@@ -44,6 +44,12 @@ class ShellModel(
      */
     data class ShellUser(
         val displayName: String,
+        /**
+         * Die eigene Profiladresse. Der Name im Kopf fuehrt dorthin - das ist
+         * der kuerzeste Weg zu "wie sehen mich die anderen". Leer nur, solange
+         * der Nachlauf einem Bestandskonto noch keinen Handle gegeben hat.
+         */
+        val handle: String?,
         val initial: String,
         val admin: Boolean,
         val unread: Long,
@@ -59,6 +65,7 @@ class ShellModel(
 
         return ShellUser(
             displayName = account.displayName,
+            handle = account.handle,
             initial = account.displayName.firstOrNull()?.uppercase() ?: "?",
             admin = admin,
             unread = unread,
@@ -96,7 +103,7 @@ class ShellModel(
     )
 
     fun defaultMeta() = PageMeta(
-        "Animation Workbench Community",
+        "Animation Workbench Community (Beta)",
         "Humanoid animation clips made in the Animation Workbench, shared as plain motion data - " +
             "no FBX, no rig, no model. Free to use under CC BY 4.0.",
         url = portal.publicBaseUrl,

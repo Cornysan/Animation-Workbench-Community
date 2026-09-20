@@ -1,5 +1,6 @@
 package com.playmation.motionlabsbackend.moderation
 
+import com.playmation.motionlabsbackend.account.Account
 import com.playmation.motionlabsbackend.account.AccountRepository
 import com.playmation.motionlabsbackend.account.AccountService
 import com.playmation.motionlabsbackend.account.AccountStatus
@@ -18,6 +19,7 @@ import com.playmation.motionlabsbackend.common.PortalException
 import com.playmation.motionlabsbackend.common.RateLimiter
 import com.playmation.motionlabsbackend.config.PortalProperties
 import com.playmation.motionlabsbackend.economy.EconomyService
+import com.playmation.motionlabsbackend.format.AwclipSchema
 import com.playmation.motionlabsbackend.system.AlertService
 import com.playmation.motionlabsbackend.system.AuditService
 import org.springframework.stereotype.Service
@@ -136,6 +138,50 @@ class ModerationService(
         return report.id
     }
 
+    /**
+     * Ein KONTO melden - "diese Person, nicht dieser Clip".
+     *
+     * Der Unterschied zu allem anderen hier: sie versteckt nichts. Auto-Hide
+     * ist bei einem Clip richtig, weil ein Clip ersetzbar ist und in Ruhe
+     * geprueft werden kann; bei einem Konto waere derselbe Griff die
+     * Fernbedienung, mit der jeder jeden Ersteller stummschaltet. Die Meldung
+     * legt einen offenen Fall an und schickt den Alarm - entschieden wird von
+     * Hand, ueber `/admin.html` und die vorhandenen Wege (Konto sperren,
+     * einzelne Clips entfernen, Meldung abweisen).
+     */
+    @Transactional
+    fun reportAccount(principal: PortalPrincipal, handle: String, category: ReportCategory, message: String, ip: String): UUID {
+        val reporter = accounts.requireUsable(principal.accountId)
+
+        if (reporter.falseReports >= properties.moderation.reportingBlockedAfterFalseReports)
+            throw PortalException.forbidden("Reporting is disabled for this account.")
+        rateLimiter.require("report", reporter.id.toString(), properties.limits.reportsPerHour, Duration.ofHours(1))
+
+        val target = accountRepository.findByHandle(handle.trim().lowercase())
+            ?: throw PortalException.notFound("No such profile")
+
+        if (target.id == reporter.id)
+            throw PortalException.badRequest("own-account", "You cannot report your own account.")
+        if (reports.existsByAccountIdAndReporterIdAndStatus(target.id, reporter.id, CaseStatus.OPEN))
+            throw PortalException.conflict("already-reported", "You already reported this account.")
+
+        val report = reports.save(
+            Report(accountId = target.id, reporterId = reporter.id, category = category,
+                message = message.trim().take(2000), createdAt = clock.instant())
+        )
+
+        audit.record(reporter.id, "account-report.created", "account", target.id.toString(),
+            "category=$category report=${report.id}", ip)
+
+        alerts.send(
+            "Report on an account: ${target.displayName}",
+            "Category: $category\nProfile: ${profileUrl(target)}\nStrikes so far: ${target.strikes}\n" +
+                "Nothing was hidden - decide by hand.\nMessage: ${report.message}"
+        )
+
+        return report.id
+    }
+
     // ════════════════════════════════════════════════════════════════════
     // TAKEDOWN
     // ════════════════════════════════════════════════════════════════════
@@ -216,6 +262,22 @@ class ModerationService(
         val contact: String?,
         /** Nur bei kind = "comment-report": das Ziel der Entscheidung. */
         val commentId: UUID? = null,
+
+        /** Nur bei kind = "account-report": das gemeldete Konto. */
+        val account: AccountRef? = null,
+    )
+
+    /**
+     * Das gemeldete Konto, so weit der Moderator es fuer die Entscheidung
+     * braucht: wer, wie erreichbar (Profil), und was bisher vorgefallen ist.
+     */
+    data class AccountRef(
+        val id: UUID,
+        val handle: String?,
+        val displayName: String,
+        val status: String,
+        val strikes: Int,
+        val clips: Long,
     )
 
     data class PackageRef(val slug: String, val title: String, val status: String, val owner: String, val ownerStrikes: Int)
@@ -225,8 +287,20 @@ class ModerationService(
         val result = mutableListOf<CaseView>()
 
         for (report in reports.findByStatusOrderByCreatedAtAsc(CaseStatus.OPEN)) {
-            val pkg = packages.findById(report.packageId).orElse(null) ?: continue
             val reporter = accountRepository.findById(report.reporterId).map { it.displayName }.orElse("?")
+
+            //  Eine Meldung gegen ein KONTO haengt an keinem Paket. Sie steht
+            //  in derselben Liste, weil es nur eine Liste gibt - aber sie
+            //  bringt ihr eigenes Ziel mit.
+            val reported = report.accountId?.let { accountRepository.findById(it).orElse(null) }
+            if (report.accountId != null) {
+                if (reported == null) continue
+                result += CaseView("account-report", report.id, report.createdAt, emptyList(),
+                    report.category.name, report.message, reporter, null, null, accountRef(reported))
+                continue
+            }
+
+            val pkg = report.packageId?.let { packages.findById(it).orElse(null) } ?: continue
 
             //  Ein Kommentarfall braucht den gemeldeten Text vor Augen, sonst
             //  muesste der Moderator ihn im Katalog suchen - wo er gerade
@@ -309,10 +383,14 @@ class ModerationService(
             accountRepository.findById(report.reporterId).ifPresent { it.falseReports++ }
         }
 
-        val pkg = packages.findById(report.packageId).orElse(null)
+        val pkg = report.packageId?.let { packages.findById(it).orElse(null) }
         val comment = report.commentId?.let { comments.findById(it).orElse(null) }
 
-        if (pkg != null && comment != null) {
+        //  Eine Kontomeldung hat nichts versteckt, also gibt es auch nichts
+        //  zurueckzuholen - nur dem Melder zu sagen, dass jemand hingesehen hat.
+        if (report.accountId != null) {
+            notify(report.reporterId, "Your report about an account was reviewed. No action was taken.")
+        } else if (pkg != null && comment != null) {
             //  Ein Kommentarfall abweisen heisst: der Kommentar kommt zurueck.
             //  Das Paket war nie versteckt und darf hier nicht angefasst werden.
             notify(report.reporterId, "Your report about a comment on '${pkg.title}' was reviewed. It stays available.")
@@ -498,4 +576,13 @@ class ModerationService(
     }
 
     private fun packageUrl(pkg: AnimationPackage) = "${properties.publicBaseUrl.trimEnd('/')}/clip.html?p=${pkg.slug}"
+
+    private fun profileUrl(account: Account) =
+        "${properties.publicBaseUrl.trimEnd('/')}/u.html?u=${account.handle ?: ""}"
+
+    private fun accountRef(account: Account) = AccountRef(
+        account.id, account.handle, account.displayName, account.status.name, account.strikes,
+        packages.countByOwnerIdAndStatusAndLicense(
+            account.id, PackageStatus.PUBLISHED, AwclipSchema.LICENSE_PUBLIC),
+    )
 }

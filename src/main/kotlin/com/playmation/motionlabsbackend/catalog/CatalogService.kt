@@ -4,6 +4,7 @@ import com.playmation.motionlabsbackend.account.AccountRepository
 import com.playmation.motionlabsbackend.account.AccountService
 import com.playmation.motionlabsbackend.account.AccountStatus
 import com.playmation.motionlabsbackend.auth.PortalPrincipal
+import com.playmation.motionlabsbackend.collection.CollectionItemRepository
 import com.playmation.motionlabsbackend.common.Crypto
 import com.playmation.motionlabsbackend.common.PortalException
 import com.playmation.motionlabsbackend.common.RateLimiter
@@ -15,6 +16,7 @@ import com.playmation.motionlabsbackend.format.AwclipReadResult
 import com.playmation.motionlabsbackend.format.AwclipReader
 import com.playmation.motionlabsbackend.format.AwclipSchema
 import com.playmation.motionlabsbackend.format.StrictJson
+import com.playmation.motionlabsbackend.profile.ProfileService
 import com.playmation.motionlabsbackend.storage.BlobStore
 import com.playmation.motionlabsbackend.system.AuditService
 import com.playmation.motionlabsbackend.system.SystemSettingsService
@@ -54,6 +56,8 @@ data class PackageSummary(
     val tags: List<String>,
     val license: String,
     val author: String,
+    /** Die Adresse des Erstellers - der Name auf der Karte verlinkt darauf. */
+    val authorHandle: String?,
     val durationSeconds: Float,
     val frameRate: Float,
     /** `humanoid` oder `generic` - die Karte zeigt danach Figur oder Strichmännchen. */
@@ -61,8 +65,12 @@ data class PackageSummary(
     /** Übernahmen in ein Projekt - siehe [AnimationPackage.takeCount]. */
     val downloads: Long,
     val likes: Long,
+    /** Der Stern: wie viele Personen den Clip in einer Sammlung haben. */
+    val saves: Long,
     val comments: Long,
     val likedByMe: Boolean,
+    /** Liegt er in einer MEINER Sammlungen - der Stern steht dann gefuellt. */
+    val savedByMe: Boolean,
     /** Quittung vorhanden - die Workbench zeigt dann keinen Preis mehr an. */
     val unlockedByMe: Boolean,
     val hasPreview: Boolean,
@@ -76,6 +84,7 @@ data class PackageDetail(
     val tags: List<String>,
     val license: String,
     val author: String,
+    val authorHandle: String?,
     val version: Int,
     val durationSeconds: Float,
     val frameRate: Float,
@@ -83,8 +92,10 @@ data class PackageDetail(
     val rig: String,
     val downloads: Long,
     val likes: Long,
+    val saves: Long,
     val comments: Long,
     val likedByMe: Boolean,
+    val savedByMe: Boolean,
     val unlockedByMe: Boolean,
     val hasPreview: Boolean,
     val createdAt: Instant,
@@ -104,8 +115,16 @@ class CatalogService(
     private val versions: PackageVersionRepository,
     private val declarations: UploadDeclarationRepository,
     private val likes: PackageLikeRepository,
+    /**
+     * Nur fuer den Stern: "liegt dieser Clip in einer meiner Sammlungen". Die
+     * Ablage, nicht der Dienst - sonst zeigten Katalog und Sammlungen
+     * aufeinander.
+     */
+    private val savedCollections: CollectionItemRepository,
     private val economy: EconomyService,
     private val quests: QuestService,
+    /** Nur fuer die Nachricht an die Follower, wenn ein neuer Clip erscheint. */
+    private val profiles: ProfileService,
     private val accountRepository: AccountRepository,
     private val accounts: AccountService,
     private val blobs: BlobStore,
@@ -231,8 +250,15 @@ class CatalogService(
         //  Nur ein NEUER Clip erfuellt die Wochenaufgabe. Eine weitere Version
         //  desselben Clips ist Pflege, kein Beitrag - und waere sonst der
         //  billigste Weg, die Praemie jede Woche mitzunehmen.
-        if (existing == null && manifest.license == AwclipSchema.LICENSE_PUBLIC)
+        if (existing == null && manifest.license == AwclipSchema.LICENSE_PUBLIC) {
             quests.onClipShared(account.id)
+
+            //  Wer jemandem folgt, folgt ihm wegen genau dieses Augenblicks.
+            //  Auch hier nur beim neuen Clip: eine zweite Fassung ist keine
+            //  Nachricht wert, und ein privater Clip schon gar nicht.
+            profiles.notifyFollowers(
+                account.id, "${account.displayName} shared a new clip: '${pkg.title}'.")
+        }
 
         //  Ein frischer Clip darf nicht eine Minute darauf warten, dass die
         //  Startseite ihn mitzaehlt und seine Schlagworte in der Leiste stehen.
@@ -284,9 +310,18 @@ class CatalogService(
     // LESEN
     // ════════════════════════════════════════════════════════════════════
 
+    /**
+     * @param author "alles von dieser Person" ueber den Anzeigenamen - der Weg
+     *   aus der Zeit vor den Profilen, der bestehen bleibt, weil die Adresse
+     *   `/browse.html?author=…` in Umlauf ist.
+     * @param ownerId dasselbe, nur eindeutig: die Clips EINES Kontos, wie das
+     *   Profil sie zeigt. Beides geht durch dieselbe Suche, damit es nur eine
+     *   Stelle gibt, die entscheidet, was oeffentlich sichtbar ist.
+     */
     @Transactional(readOnly = true)
     fun search(q: String?, tag: String?, sort: String?, page: Int, size: Int,
-               principal: PortalPrincipal? = null, author: String? = null): PageResult<PackageSummary> {
+               principal: PortalPrincipal? = null, author: String? = null,
+               ownerId: UUID? = null): PageResult<PackageSummary> {
         val pageSize = size.coerceIn(1, 50)
         val pageIndex = page.coerceAtLeast(0)
 
@@ -320,6 +355,7 @@ class CatalogService(
             }
 
             authorIds?.let { predicates += root.get<UUID>("ownerId").`in`(it) }
+            ownerId?.let { predicates += cb.equal(root.get<UUID>("ownerId"), it) }
 
             cb.and(*predicates.toTypedArray())
         }
@@ -334,29 +370,73 @@ class CatalogService(
         }
 
         val result = packages.findAll(spec, PageRequest.of(pageIndex, pageSize, order))
-        val authors = authorNames(result.content.map { it.ownerId })
-        val currentVersions = versions.findAllById(result.content.mapNotNull { it.currentVersionId }).associateBy { it.id }
 
-        //  EINE Abfrage für die ganze Seite statt einer je Karte.
-        val likedByMe = principal?.let { me ->
-            likes.likedAmong(me.accountId, result.content.map { it.id }).toSet()
-        } ?: emptySet()
-
-        val unlockedByMe = principal?.let { me ->
-            economy.unlockedAmong(me.accountId, result.content.map { it.id })
-        } ?: emptySet()
-
-        return PageResult(
-            result.content.mapNotNull { pkg ->
-                val version = currentVersions[pkg.currentVersionId] ?: return@mapNotNull null
-                PackageSummary(pkg.slug, pkg.title, pkg.tagList(), pkg.license, authors[pkg.ownerId] ?: "unknown",
-                    version.durationSeconds, version.frameRate, version.rig, pkg.takeCount, pkg.likeCount,
-                    pkg.commentCount, pkg.id in likedByMe, pkg.id in unlockedByMe,
-                    version.previewBlobKey != null, pkg.createdAt)
-            },
-            pageIndex, pageSize, result.totalElements,
-        )
+        return PageResult(cardsFor(result.content, principal), pageIndex, pageSize, result.totalElements)
     }
+
+    /**
+     * Karten zu einer Liste von Paketen - EINE Abfrage je Seite statt einer je
+     * Karte, fuer Autoren, Fassungen, Herzen, Sterne und Quittungen.
+     */
+    private fun cardsFor(found: List<AnimationPackage>, principal: PortalPrincipal?): List<PackageSummary> {
+        val authors = authors(found.map { it.ownerId })
+        val currentVersions = versions.findAllById(found.mapNotNull { it.currentVersionId }).associateBy { it.id }
+
+        val likedByMe = principal?.let { me -> likes.likedAmong(me.accountId, found.map { it.id }).toSet() } ?: emptySet()
+        val unlockedByMe = principal?.let { me -> economy.unlockedAmong(me.accountId, found.map { it.id }) } ?: emptySet()
+        val savedByMe = principal?.takeIf { found.isNotEmpty() }
+            ?.let { me -> savedCollections.savedAmong(me.accountId, found.map { it.id }).toSet() } ?: emptySet()
+
+        return found.mapNotNull { pkg ->
+            val version = currentVersions[pkg.currentVersionId] ?: return@mapNotNull null
+            val author = authors[pkg.ownerId]
+            PackageSummary(pkg.slug, pkg.title, pkg.tagList(), pkg.license,
+                author?.name ?: "unknown", author?.handle,
+                version.durationSeconds, version.frameRate, version.rig, pkg.takeCount, pkg.likeCount,
+                pkg.saveCount, pkg.commentCount, pkg.id in likedByMe, pkg.id in savedByMe,
+                pkg.id in unlockedByMe, version.previewBlobKey != null, pkg.createdAt)
+        }
+    }
+
+    /**
+     * Karten zu bestimmten Paketen, in DIESER Reihenfolge - fuer eine
+     * Sammlung, die ihre Auswahl selbst sortiert.
+     *
+     * Gezeigt wird nur, was auch im Katalog steht: ein zurueckgezogener oder
+     * versteckter Clip faellt still heraus, statt als Luecke dazustehen. Die
+     * Sammlung behaelt ihn trotzdem - kommt er zurueck, steht er wieder da.
+     */
+    @Transactional(readOnly = true)
+    fun summaries(ids: List<UUID>, principal: PortalPrincipal?): List<PackageSummary> {
+        if (ids.isEmpty()) return emptyList()
+
+        val found = packages.findAllById(ids)
+            .filter { it.status == PackageStatus.PUBLISHED && it.license == AwclipSchema.LICENSE_PUBLIC }
+            .sortedBy { ids.indexOf(it.id) }
+
+        return cardsFor(found, principal)
+    }
+
+    /**
+     * Ein Paket, das im Katalog steht - und nur dann. Die Eintrittspruefung
+     * fuer Sammlungen: was hier scheitert, kommt in keine.
+     */
+    @Transactional(readOnly = true)
+    fun publicPackage(slug: String): AnimationPackage {
+        val pkg = packages.findBySlug(slug.trim().lowercase())
+            ?: throw PortalException.notFound("Package not found")
+
+        if (pkg.status != PackageStatus.PUBLISHED)
+            throw PortalException.notFound("Package not found")
+        if (pkg.license != AwclipSchema.LICENSE_PUBLIC)
+            throw PortalException.badRequest(
+                "private-clip", "A private clip cannot go into a collection - it is only shared by link.")
+
+        return pkg
+    }
+
+    /** Die Fassung zu einer Kennung - fuer den Deckel einer Sammlungskarte. */
+    fun versionOf(versionId: UUID): PackageVersion? = versions.findById(versionId).orElse(null)
 
     @Transactional(readOnly = true)
     fun detail(slug: String, principal: PortalPrincipal?): PackageDetail {
@@ -497,12 +577,14 @@ class CatalogService(
 
     private fun detail(pkg: AnimationPackage, version: PackageVersion, principal: PortalPrincipal?): PackageDetail {
         val isOwner = principal?.accountId == pkg.ownerId
+        val author = authors(listOf(pkg.ownerId))[pkg.ownerId]
         return PackageDetail(
             pkg.slug, pkg.title, pkg.description, pkg.tagList(), pkg.license,
-            authorNames(listOf(pkg.ownerId))[pkg.ownerId] ?: "unknown",
+            author?.name ?: "unknown", author?.handle,
             version.versionNumber, version.durationSeconds, version.frameRate, version.curveCount, version.rig,
-            pkg.takeCount, pkg.likeCount, pkg.commentCount,
+            pkg.takeCount, pkg.likeCount, pkg.saveCount, pkg.commentCount,
             principal != null && likes.existsByPackageIdAndAccountId(pkg.id, principal.accountId),
+            principal != null && savedCollections.collectionsOfOwnerContaining(principal.accountId, pkg.id).isNotEmpty(),
             principal != null && (isOwner || economy.hasUnlocked(pkg.id, principal.accountId)),
             version.previewBlobKey != null, pkg.createdAt, pkg.updatedAt,
             if (isOwner || principal?.isAdmin == true) pkg.status.name else null,
@@ -513,8 +595,14 @@ class CatalogService(
     /** Eine Kennung, die keinem Konto gehoert - siehe `authorIds` in [search]. */
     private val NO_ACCOUNT: UUID = UUID(0, 0)
 
+    /** Name und Handle des Erstellers - der Name steht da, der Handle verlinkt. */
+    private data class Author(val name: String, val handle: String?)
+
+    private fun authors(ids: Collection<UUID>): Map<UUID, Author> =
+        accountRepository.findAllById(ids.toSet()).associate { it.id to Author(it.displayName, it.handle) }
+
     private fun authorNames(ids: Collection<UUID>): Map<UUID, String> =
-        accountRepository.findAllById(ids.toSet()).associate { it.id to it.displayName }
+        authors(ids).mapValues { it.value.name }
 
     private fun sign(versionId: UUID, exp: Long) = Crypto.hmacHex(properties.downloadSecret, "$versionId|$exp")
 

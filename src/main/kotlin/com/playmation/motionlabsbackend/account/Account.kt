@@ -28,6 +28,40 @@ class Account(
 
     var displayName: String,
 
+    /**
+     * Die oeffentliche Adresse dieses Kontos: `/u.html?u=<handle>`.
+     *
+     * Eindeutig, klein geschrieben, aus dem Anzeigenamen abgeleitet - und
+     * danach unabhaengig von ihm. Wer bei Discord seinen Namen aendert, behaelt
+     * seine Adresse; zwei Gleichnamige bekommen zwei verschiedene. Keins von
+     * beidem kann der Anzeigename, und an genau ihm haengt sonst jeder
+     * geteilte Profil-Link.
+     *
+     * Nullbar, weil Flyway vor dem ersten Login laeuft: [AccountHandles]
+     * vergibt beim Anmelden, [HandleBackfill] holt Bestandskonten beim Start
+     * nach. Wer ein Profil zeigen will, darf sich trotzdem auf ihn verlassen.
+     */
+    var handle: String? = null,
+
+    /** Ein Satz ueber sich, auf dem Profil unter dem Namen. */
+    var bio: String? = null,
+
+    /**
+     * Discords Avatar-HASH, nicht das Bild. Daraus baut die Seite
+     * `https://cdn.discordapp.com/avatars/<discordId>/<avatar>.png` - das Bild
+     * bleibt bei Discord, wir speichern nur, wie es heisst. Ohne Hash steht
+     * der Buchstabenkreis da, den es ohnehin schon gibt.
+     */
+    var avatar: String? = null,
+
+    /**
+     * Follower. Abgeleitet aus `account_follow` und in derselben Transaktion
+     * fortgeschrieben - dieselbe Rollenverteilung wie bei
+     * `AnimationPackage.likeCount`: die Tabelle ist die Wahrheit, die Spalte
+     * die schnelle Antwort.
+     */
+    var followerCount: Long = 0,
+
     @Enumerated(EnumType.STRING)
     var role: Role = Role.USER,
 
@@ -55,14 +89,21 @@ class Account(
 interface AccountRepository : JpaRepository<Account, UUID> {
     fun findByDiscordId(discordId: String): Account?
 
+    /** Die Adresse eines Profils - eindeutig, anders als der Anzeigename. */
+    fun findByHandle(handle: String): Account?
+
+    fun existsByHandle(handle: String): Boolean
+
+    /** Konten ohne Handle - die Arbeitsliste von [HandleBackfill]. */
+    fun findByHandleIsNull(): List<Account>
+
     /**
      * Konten zu einem Anzeigenamen - fuer "alles von dieser Person" im Katalog.
      *
      * Eine LISTE, kein einzelnes Konto: der Anzeigename ist nicht eindeutig.
-     * Es gibt (noch) kein Handle, und eine Konto-UUID in einer Adresse waere
-     * weder lesbar noch etwas, das dort zu suchen hat. Zwei Gleichnamige saehen
-     * einander in derselben Liste - unschoen, aber ehrlicher als eine Adresse,
-     * die niemand vorlesen kann. Wenn es Handles gibt, ist das hier die Stelle.
+     * Das Profil geht deshalb ueber [findByHandle]; dieser Weg bleibt, weil
+     * `/browse.html?author=<Name>` in Umlauf ist und ein toter Filter
+     * schlimmer waere als zwei Gleichnamige in einer Liste.
      */
     fun findByDisplayName(displayName: String): List<Account>
 }

@@ -194,7 +194,7 @@ class PortalFlowTest {
         //  vertauschtes Ziel erst im Betrieb auf.
         val catalog = mvc.get("/browse.html").andReturn().response.contentAsString
         assertTrue(catalog.contains("Community clips"), "Katalog fehlt unter /browse.html")
-        assertTrue(anonymous.contains("/licenses.html"), "Navigation fehlt im HTML")
+        assertTrue(anonymous.contains("/browse.html"), "Navigation fehlt im HTML")
         assertTrue(anonymous.contains("Report a rights violation"), "Fuss fehlt im HTML")
 
         //  Weggelassen, nicht versteckt: mit einer Klasse „hidden" im Dokument

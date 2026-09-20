@@ -48,6 +48,22 @@ class ReportController(private val moderation: ModerationService) {
         return ResponseEntity.status(HttpStatus.CREATED).body(mapOf("id" to id, "status" to "received"))
     }
 
+    /**
+     * Ein KONTO melden - dieselbe Tuer, andere Folge: hier wird nichts
+     * versteckt (die Begruendung steht bei [ModerationService.reportAccount]).
+     */
+    @PostMapping("/users/{handle}/reports")
+    fun reportAccount(
+        @PathVariable handle: String,
+        @RequestBody body: ReportRequest,
+        authentication: Authentication?,
+        request: HttpServletRequest,
+    ): ResponseEntity<Map<String, Any>> {
+        val id = moderation.reportAccount(
+            authentication.requirePrincipal(), handle, body.category, body.message, request.clientIp())
+        return ResponseEntity.status(HttpStatus.CREATED).body(mapOf("id" to id, "status" to "received"))
+    }
+
     /** Öffentlich, ohne Konto - Rechteinhaber dürfen nie vor verschlossener Tür stehen. */
     @PostMapping("/takedowns")
     fun takedown(@RequestBody body: ModerationService.TakedownInput, request: HttpServletRequest) =

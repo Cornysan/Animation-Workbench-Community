@@ -1,0 +1,75 @@
+<!doctype html>
+<!--
+  Ein Profil.
+
+  Bis hierher war ein Ersteller eine Zeichenkette: sein Name auf der Karte
+  fuehrte in eine gefilterte Liste. Eine Liste beantwortet "was hat die Person
+  gemacht" - aber nicht "wer ist das", "was sammelt sie" und "wie bleibe ich
+  dran". Das hier ist der Ort dafuer.
+
+  DER RAHMEN STEHT IM HTML, DER INHALT KOMMT NACH. Wie auf der Clip-Seite: der
+  Server fuellt die Link-Vorschau (er kennt das Profil ohnehin), die Seite holt
+  Zahlen, Clips und Sammlungen selbst - jeder Reiter erst, wenn er geoeffnet
+  wird. Wer nur auf ein Profil schaut, soll nicht vier Listen laden.
+-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/shell :: head('Profile')}"></head>
+<body th:attr="data-signed-in=${user != null}">
+<header th:replace="~{fragments/shell :: header}"></header>
+<main class="wide">
+  <div th:replace="~{fragments/shell :: paused}"></div>
+  <div id="state"></div>
+
+  <div id="profile" class="hidden">
+    <section class="profile-head">
+      <div id="avatar" class="profile-avatar">?</div>
+
+      <div class="profile-identity">
+        <h1 id="name"></h1>
+        <div class="profile-handle" id="handle"></div>
+        <p class="profile-bio" id="bio" hidden></p>
+        <div class="profile-numbers" id="numbers"></div>
+      </div>
+
+      <div class="profile-actions" id="actions"></div>
+    </section>
+
+    <div id="action-state"></div>
+
+    <div class="segmented profile-tabs" id="tabs" role="group" aria-label="What to show"></div>
+
+    <div id="panel"></div>
+  </div>
+
+  <!--
+    Dieselbe Tuer wie beim Clip, mit einem anderen Satz darunter: eine Meldung
+    gegen ein Konto versteckt NICHTS. Das steht hier, damit niemand sie als
+    Stummschalttaste benutzt und sich dann wundert.
+  -->
+  <dialog id="report-dialog" class="sheet">
+    <form method="dialog" id="report-form">
+      <h2>Report this account</h2>
+      <p class="muted small">Nothing is hidden by this report - a moderator reads it and decides. For a single clip,
+        report the clip instead: that one does hide it right away.</p>
+      <label class="field"><span>Reason</span>
+        <select name="category">
+          <option value="COPYRIGHT">Shares other people's work</option>
+          <option value="INAPPROPRIATE">Inappropriate content or behaviour</option>
+          <option value="BROKEN">Spam</option>
+          <option value="OTHER">Something else</option>
+        </select>
+      </label>
+      <label class="field"><span>What happened?</span><textarea name="message" maxlength="2000" rows="4"></textarea></label>
+      <div class="dialog-actions">
+        <button value="cancel" class="ghost">Cancel</button>
+        <button class="danger" value="send">Report</button>
+      </div>
+    </form>
+  </dialog>
+</main>
+<footer th:replace="~{fragments/shell :: footer}"></footer>
+<script src="/assets/app.js"></script>
+<script src="/assets/viewer.js"></script>
+<script src="/assets/pages/user.js"></script>
+</body>
+</html>

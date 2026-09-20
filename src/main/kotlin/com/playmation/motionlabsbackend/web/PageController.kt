@@ -1,8 +1,11 @@
 package com.playmation.motionlabsbackend.web
 
 import com.playmation.motionlabsbackend.catalog.CatalogService
+import com.playmation.motionlabsbackend.collection.CollectionService
+import com.playmation.motionlabsbackend.collection.CollectionVisibility
 import com.playmation.motionlabsbackend.config.PortalProperties
 import com.playmation.motionlabsbackend.format.AwclipSchema
+import com.playmation.motionlabsbackend.profile.ProfileService
 import org.springframework.security.core.Authentication
 import org.springframework.stereotype.Controller
 import org.springframework.ui.Model
@@ -32,6 +35,8 @@ class PageController(
     private val shell: ShellModel,
     /** Nur zum Fuellen der Link-Vorschau - den Inhalt holt die Seite selbst. */
     private val catalog: CatalogService,
+    private val profiles: ProfileService,
+    private val collections: CollectionService,
     private val portal: PortalProperties,
 ) {
 
@@ -116,6 +121,60 @@ class PageController(
         }
 
         return view(model, "clip", active = "browse")
+    }
+
+    /**
+     * Ein Profil. Die Adresse traegt den HANDLE, nicht den Anzeigenamen: sie
+     * soll eine Umbenennung ueberleben und auf genau ein Konto zeigen.
+     *
+     * Die Vorschau zeigt die Bewegung dieser Person - das Kartenbild ihres
+     * neuesten Clips. Wer noch keinen geteilt hat, bekommt keines; ein
+     * Buchstabe im Kreis waere als Vorschaubild schlechter als gar keines.
+     */
+    @GetMapping("/u.html")
+    fun user(@RequestParam(name = "u", required = false) handle: String?, model: Model): String {
+        val meta = handle?.let { runCatching { profiles.meta(it) }.getOrNull() }
+
+        if (meta != null) {
+            val base = portal.publicBaseUrl.trimEnd('/')
+            model.addAttribute("meta", ShellModel.PageMeta(
+                title = meta.displayName + " on Animation Workbench Community (Beta)",
+                description = meta.bio
+                    ?: "Animation clips shared by ${meta.displayName} - free to use under CC BY 4.0.",
+                image = meta.cardSlug?.let { "$base/clip-card/$it.png" },
+                url = "$base/u.html?u=$handle",
+                noindex = !portal.searchIndexing,
+            ))
+        }
+
+        return view(model, "user")
+    }
+
+    /**
+     * Eine Sammlung. Dieselbe Rechnung wie beim Profil - der erste Clip darin
+     * traegt das Bild. Eine nicht gelistete bekommt keines: wer "nur ueber den
+     * Link" waehlt, hat keine Karte bestellt, die ihren Inhalt in jeden Kanal
+     * traegt, in den der Link geraet.
+     */
+    @GetMapping("/collection.html")
+    fun collection(@RequestParam(name = "c", required = false) slug: String?, model: Model): String {
+        val detail = slug?.let { runCatching { collections.detail(it, null) }.getOrNull() }
+
+        if (detail != null && detail.visibility == CollectionVisibility.PUBLIC.name) {
+            val base = portal.publicBaseUrl.trimEnd('/')
+            val cover = detail.items.firstOrNull { it.hasPreview }?.slug
+
+            model.addAttribute("meta", ShellModel.PageMeta(
+                title = detail.title + " by " + detail.owner,
+                description = detail.description.takeIf { it.isNotBlank() }
+                    ?: "A collection of ${detail.items.size} animation clips.",
+                image = cover?.let { "$base/clip-card/$it.png" },
+                url = "$base/collection.html?c=${detail.slug}",
+                noindex = !portal.searchIndexing,
+            ))
+        }
+
+        return view(model, "collection", active = "browse")
     }
 
     @GetMapping("/me.html")

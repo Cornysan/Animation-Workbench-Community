@@ -6,7 +6,10 @@
  * Zustand ausser dem Slug in der Adresse.
  */
 (async () => {
-  const { api, ensureCsrf, me, el, notice, formatDuration, formatDate, copyText, param, signInButton } = AW;
+  const {
+    api, ensureCsrf, me, el, notice, formatDuration, formatDate, copyText, param, signInButton,
+    iconButton, likeButton, saveButton, profileHref,
+  } = AW;
 
   const slug = param("p");
   const state = document.getElementById("state");
@@ -25,14 +28,16 @@
     return;
   }
 
-  document.title = clip.title + " - Animation Workbench Community";
+  document.title = clip.title + " - Animation Workbench Community (Beta)";
   document.getElementById("clip").classList.remove("hidden");
   document.getElementById("title").textContent = clip.title;
   //  Von hier aus zu allem anderen derselben Person. Ohne diesen Weg ist jeder
-  //  Clip eine Insel, und niemand baut sich einen Namen auf.
+  //  Clip eine Insel, und niemand baut sich einen Namen auf. Seit es Profile
+  //  gibt, fuehrt er dorthin: das beantwortet dieselbe Frage und die naechste
+  //  dazu.
   document.getElementById("author").replaceChildren(el("a", {
-    href: "/browse.html?author=" + encodeURIComponent(clip.author),
-    title: "All clips by " + clip.author,
+    href: profileHref(clip),
+    "data-tip": clip.authorHandle ? "Profile of " + clip.author : "All clips by " + clip.author,
   }, clip.author));
   document.getElementById("author-initial").textContent = (clip.author[0] || "?").toUpperCase();
   document.getElementById("description").textContent = clip.description || "No description.";
@@ -77,66 +82,56 @@
 
   const user = await me().catch(() => null);
 
-  // ── Herz, Link, Meldung ──────────────────────────────────────────────
-  //  Die drei Dinge, die man an einer fremden Animation tun kann, stehen
-  //  nebeneinander unter dem Titel - nicht verstreut zwischen Tabelle und
-  //  Seitenspalte.
+  // ── Herz, Stern, Link, Meldung ───────────────────────────────────────
+  //  Was man an einer fremden Animation tun kann, steht nebeneinander unter
+  //  dem Titel - und zwar als ZEICHEN mit Zahl, dieselben wie auf der Karte
+  //  im Katalog: Herz heisst "gut", Stern heisst "in eine Sammlung". Wer sie
+  //  einmal auf einer Karte benutzt hat, muss sie hier nicht neu lernen.
+  //  Jedes traegt seinen Satz als Tooltip, damit kein Zeichen geraten werden
+  //  muss.
   const bar = document.getElementById("clip-actions");
 
-  const likeCount = el("span", { class: "count" }, String(clip.likes));
-  const like = el("button", {
-    class: "pill-button" + (clip.likedByMe ? " on" : ""),
-    title: user ? "Like this clip" : "Sign in to like this clip",
-  }, el("span", { class: "heart" }, "♥"), likeCount);
-
-  like.addEventListener("click", async () => {
-    if (!user) {
-      notice(actionState, "Sign in to like a clip.", "");
-      return;
-    }
-    const liked = !like.classList.contains("on");
-    like.disabled = true;
-    try {
-      await ensureCsrf();
-      const result = await api("POST", "/api/v1/packages/" + encodeURIComponent(slug) + "/like", { liked });
-      like.classList.toggle("on", liked);
-      likeCount.textContent = String(result.likes);
-    } catch (e) {
-      notice(actionState, e.message, "error");
-    } finally {
-      like.disabled = false;
-    }
-  });
-  bar.append(like);
+  bar.append(likeButton(clip, (e) => notice(actionState, e.message, "error")));
+  bar.append(saveButton(clip, (e) => notice(actionState, e.message, "error")));
 
   //  Ein Portal, das von Links lebt, braucht einen Knopf dafuer. Die Adresse
   //  aus der Leiste zu fischen ist eine Huerde, die niemand nehmen muss.
-  const share = el("button", { class: "pill-button", title: "Copy a link to this clip" },
-    el("span", {}, "Copy link"));
-  share.addEventListener("click", async () => {
-    const ok = await copyText(location.origin + "/clip.html?p=" + encodeURIComponent(slug));
-    share.replaceChildren(el("span", {}, ok ? "Link copied" : "Could not copy"));
-    setTimeout(() => share.replaceChildren(el("span", {}, "Copy link")), 2000);
+  const share = iconButton({
+    name: "link",
+    tip: "Copy a link to this clip",
+    onClick: async () => {
+      const ok = await copyText(location.origin + "/clip.html?p=" + encodeURIComponent(slug));
+      share.dataset.tip = ok ? "Link copied" : "Could not copy";
+      setTimeout(() => { share.dataset.tip = "Copy a link to this clip"; }, 2000);
+    },
   });
   bar.append(share);
 
   if (clip.isOwner) {
-    const withdraw = el("button", { class: "pill-button danger" }, "Withdraw");
-    withdraw.addEventListener("click", async () => {
-      if (!confirm("Withdraw '" + clip.title + "'? It disappears from the community.")) return;
-      try {
-        await api("DELETE", "/api/v1/packages/" + encodeURIComponent(slug));
-        location.href = "/me.html";
-      } catch (e) {
-        notice(actionState, e.message, "error");
-      }
+    const withdraw = iconButton({
+      name: "trash",
+      tip: "Withdraw this clip",
+      className: "danger",
+      onClick: async () => {
+        if (!confirm("Withdraw '" + clip.title + "'? It disappears from the community.")) return;
+        try {
+          await api("DELETE", "/api/v1/packages/" + encodeURIComponent(slug));
+          location.href = "/me.html";
+        } catch (e) {
+          notice(actionState, e.message, "error");
+        }
+      },
     });
     bar.append(withdraw);
   } else if (user) {
     const dialog = document.getElementById("report-dialog");
     const form = document.getElementById("report-form");
-    const report = el("button", { class: "pill-button" }, "Report");
-    report.addEventListener("click", () => dialog.showModal());
+    const report = iconButton({
+      name: "flag",
+      tip: "Report this clip",
+      className: "danger",
+      onClick: () => dialog.showModal(),
+    });
 
     dialog.addEventListener("close", async () => {
       if (dialog.returnValue !== "send") return;

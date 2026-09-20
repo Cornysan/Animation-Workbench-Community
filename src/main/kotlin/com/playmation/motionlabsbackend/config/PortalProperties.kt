@@ -26,6 +26,15 @@ data class PortalProperties(
      * laufen koennen.
      */
     val searchIndexing: Boolean = false,
+    /**
+     * Bis wann "dabei gewesen" die Auszeichnung "Early access" wert ist.
+     *
+     * Leer heisst: die Beta laeuft noch, also bekommt sie jedes Konto. Beim
+     * oeffentlichen Start wird hier das Datum eingetragen, und ab dann kann
+     * sie niemand mehr erwerben - das ist ihr ganzer Sinn. Als ISO-Zeitpunkt,
+     * etwa `2026-10-01T00:00:00Z`.
+     */
+    val betaUntil: java.time.Instant? = null,
     val alerts: Alerts = Alerts(),
     val limits: Limits = Limits(),
     val comments: Comments = Comments(),
@@ -48,6 +57,8 @@ data class PortalProperties(
         val uploadsPerDayRestricted: Int = 2,
         val uploadsPerDayPerIp: Int = 30,
         val reportsPerHour: Int = 10,
+        /** Folgen und Entfolgen zusammen - gegen das Durchklicken einer Liste per Skript. */
+        val followsPerHour: Int = 60,
         val takedownsPerHourPerIp: Int = 5,
         val editorLinksPerHourPerIp: Int = 20,
         val downloadLinksPerHourPerIp: Int = 240,

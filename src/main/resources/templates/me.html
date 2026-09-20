@@ -7,6 +7,16 @@
   <div th:replace="~{fragments/shell :: paused}"></div>
   <h1>My clips</h1>
   <p class="lead">Share clips from the Animation Workbench: right-click a clip, Export Clip, Share as .awclip.</p>
+
+  <!--
+    Diese Seite ist das PRIVATE Fach: Meldungen, Status, Anmeldungen. Wie die
+    anderen einen sehen, steht auf dem Profil - und der Weg dorthin gehoert
+    hierher, sonst findet ihn nur, wer auf seinen eigenen Namen im Kopf klickt.
+  -->
+  <p th:if="${user != null and user.handle != null}">
+    <a class="button" th:href="${'/u.html?u=' + user.handle}">View my public profile</a>
+  </p>
+
   <div id="state"></div>
   <h2>Notifications</h2>
   <div id="notifications"></div>

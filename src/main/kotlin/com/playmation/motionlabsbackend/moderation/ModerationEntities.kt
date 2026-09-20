@@ -18,7 +18,13 @@ enum class CaseStatus { OPEN, UPHELD, DISMISSED }
 class Report(
     @Id
     var id: UUID = UUID.randomUUID(),
-    var packageId: UUID,
+
+    /**
+     * Das gemeldete Paket - leer, wenn die Meldung einem KONTO gilt. Bei
+     * Kommentarmeldungen bleibt es gefuellt, damit der Fall am richtigen Clip
+     * haengt.
+     */
+    var packageId: UUID? = null,
 
     /**
      * Gesetzt, wenn die Meldung einem Kommentar gilt. Dann versteckt sie den
@@ -26,6 +32,14 @@ class Report(
      * der Fall in der Fallliste am richtigen Clip haengt.
      */
     var commentId: UUID? = null,
+
+    /**
+     * Gesetzt, wenn die Meldung einem KONTO gilt - "diese Person, nicht dieser
+     * Clip". Dann versteckt sie NICHTS: ein Konto zu verstecken waere die
+     * Fernbedienung zum Stummschalten jedes Erstellers. Sie legt einen offenen
+     * Fall an, und ein Mensch entscheidet.
+     */
+    var accountId: UUID? = null,
 
     var reporterId: UUID,
     @Enumerated(EnumType.STRING)
@@ -106,6 +120,9 @@ interface ReportRepository : JpaRepository<Report, UUID> {
 
     fun findByCommentIdAndStatus(commentId: UUID, status: CaseStatus): List<Report>
     fun existsByCommentIdAndReporterIdAndStatus(commentId: UUID, reporterId: UUID, status: CaseStatus): Boolean
+
+    /** Meldungen gegen ein KONTO - sie haengen an keinem Paket. */
+    fun existsByAccountIdAndReporterIdAndStatus(accountId: UUID, reporterId: UUID, status: CaseStatus): Boolean
 }
 
 interface TakedownRequestRepository : JpaRepository<TakedownRequest, UUID> {

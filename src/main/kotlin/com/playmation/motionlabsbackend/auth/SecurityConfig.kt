@@ -92,6 +92,20 @@ class SecurityConfig {
                 //  keine geschlossene Gesellschaft.
                 authorize(HttpMethod.GET, "/api/v1/packages/*/comments", permitAll)
 
+                //  Profile sind oeffentlich: ein Ersteller, dessen Seite erst
+                //  nach einer Anmeldung erscheint, kann nicht weiterempfohlen
+                //  werden. Folgen und Melden fallen unter "/api/** authenticated".
+                authorize(HttpMethod.GET, "/api/v1/users/*", permitAll)
+                authorize(HttpMethod.GET, "/api/v1/users/*/packages", permitAll)
+                authorize(HttpMethod.GET, "/api/v1/users/*/followers", permitAll)
+                authorize(HttpMethod.GET, "/api/v1/users/*/following", permitAll)
+
+                //  Sammlungen sind Auslage wie der Katalog: ansehen ohne
+                //  Konto, bauen nur angemeldet. `/api/v1/me/collections`
+                //  faellt nicht hierunter - es faengt mit `me` an.
+                authorize(HttpMethod.GET, "/api/v1/collections", permitAll)
+                authorize(HttpMethod.GET, "/api/v1/collections/*", permitAll)
+
                 //  Freischalten und Herunterladen brauchen seit der
                 //  Muenzwirtschaft ein Konto: ohne Konto gibt es keine
                 //  Quittung, und ohne Quittung keine Abrechnung. Der alte
@@ -223,8 +237,13 @@ class DiscordUserService(private val accounts: AccountService) : OAuth2UserServi
             ?: throw OAuth2AuthenticationException(OAuth2Error("invalid_user"), "Discord did not return a user id")
         val name = (user.attributes["global_name"] ?: user.attributes["username"])?.toString() ?: "user"
 
+        //  Nur der Avatar-HASH, nicht das Bild. Daraus baut die Profilseite die
+        //  Adresse bei cdn.discordapp.com, die in der Content Security Policy
+        //  weiter oben schon steht. Wer keines hat, behaelt den Buchstabenkreis.
+        val avatar = user.attributes["avatar"]?.toString()
+
         val account = try {
-            accounts.login(discordId, name)
+            accounts.login(discordId, name, avatar)
         } catch (ex: PortalException) {
             throw OAuth2AuthenticationException(OAuth2Error("account_banned"), ex.message)
         }

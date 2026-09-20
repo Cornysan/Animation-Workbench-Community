@@ -305,6 +305,437 @@ const AW = (() => {
     }, { rootMargin: "300px" });
   }
 
+  // ── Zeichen statt Woerter ────────────────────────────────────────────
+  //  Ein Zeichen wird schneller erkannt als ein Wort gelesen, und es kostet
+  //  ein Viertel der Breite. Der Preis ist, dass ein Zeichen falsch geraten
+  //  werden kann - deshalb traegt JEDER Icon-Knopf hier seinen Satz mit sich
+  //  (`data-tip` zeigt ihn beim Hovern, `aria-label` sagt ihn vor). Ein Icon
+  //  ohne Tooltip ist ein Raetsel, keine Bedienung.
+  //
+  //  Alles aus EINEM Vorrat, im Strichstil der Navigation (24er Raster,
+  //  1.7 Strichstaerke, currentColor). Gefuellt wird nur, was einen Zustand
+  //  hat: ein gesetztes Herz, ein gesetzter Stern.
+  const ICONS = {
+    heart: '<path d="M12 20.3 4.8 13.1a4.6 4.6 0 0 1 6.5-6.5l.7.7.7-.7a4.6 4.6 0 0 1 6.5 6.5z"/>',
+    star: '<path d="m12 4.5 2.3 4.7 5.2.8-3.8 3.6.9 5.2-4.6-2.5-4.6 2.5.9-5.2-3.8-3.6 5.2-.8z"/>',
+    comment: '<path d="M4 5h16v11H9.5L4 20z"/>',
+    link: '<path d="M10.5 13.5a3.5 3.5 0 0 0 5 0l2.5-2.5a3.5 3.5 0 0 0-5-5l-1 1"/><path d="M13.5 10.5a3.5 3.5 0 0 0-5 0L6 13a3.5 3.5 0 0 0 5 5l1-1"/>',
+    flag: '<path d="M6 21V4"/><path d="M6 5h11l-2 3.5L17 12H6z"/>',
+    follow: '<circle cx="9.5" cy="8" r="3.2"/><path d="M3.5 20c0-3.3 2.7-5.2 6-5.2s6 1.9 6 5.2"/><path d="M18.5 8v6"/><path d="M15.5 11h6"/>',
+    following: '<circle cx="9.5" cy="8" r="3.2"/><path d="M3.5 20c0-3.3 2.7-5.2 6-5.2s6 1.9 6 5.2"/><path d="m16.5 10.5 2 2 4-4"/>',
+    users: '<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.2 6-5.2s6 1.9 6 5.2"/><path d="M16 5.4a3.2 3.2 0 0 1 0 5.2"/><path d="M18.4 14.9c1.7.6 2.6 2 2.6 5.1"/>',
+    folder: '<path d="M4 6h5l2 2.5h9V19H4z"/>',
+    plus: '<path d="M12 5.5v13"/><path d="M5.5 12h13"/>',
+    check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+    close: '<path d="m6.5 6.5 11 11"/><path d="m17.5 6.5-11 11"/>',
+    search: '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>',
+    edit: '<path d="M5 19h3.2l8.6-8.6-3.2-3.2L5 15.8z"/><path d="m14 6.4 3.2 3.2"/>',
+    trash: '<path d="M4.5 7h15"/><path d="M9.5 7V4.5h5V7"/><path d="m6.8 7 1 12.5h8.4l1-12.5"/>',
+    download: '<path d="M12 4v10.5"/><path d="m8 11 4 4 4-4"/><path d="M5 19.5h14"/>',
+    clock: '<circle cx="12" cy="12" r="8"/><path d="M12 7.2V12l3 2"/>',
+    award: '<circle cx="12" cy="9" r="4.6"/><path d="m9.2 13.4-1.7 6.6 4.5-2.6 4.5 2.6-1.7-6.6"/>',
+    share: '<path d="M12 4v11"/><path d="m8 8 4-4 4 4"/><path d="M5 14v5.5h14V14"/>',
+    grid: '<path d="M4 4h6v6H4z"/><path d="M14 4h6v6h-6z"/><path d="M4 14h6v6H4z"/><path d="M14 14h6v6h-6z"/>',
+    dots: '<circle cx="6" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="18" cy="12" r="1.4"/>',
+  };
+
+  /** Ein Zeichen aus dem Vorrat. `filled` fuellt die Flaeche - fuer Zustaende. */
+  function icon(name, filled) {
+    const node = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    node.setAttribute("viewBox", "0 0 24 24");
+    node.setAttribute("class", "icon" + (filled ? " filled" : ""));
+    node.setAttribute("aria-hidden", "true");
+    node.setAttribute("fill", filled ? "currentColor" : "none");
+    node.setAttribute("stroke", "currentColor");
+    node.setAttribute("stroke-width", "1.7");
+    node.setAttribute("stroke-linejoin", "round");
+    node.setAttribute("stroke-linecap", "round");
+    //  Fester Vorrat aus dieser Datei, kein fremder Text - deshalb reicht
+    //  innerHTML, und die Content Security Policy hat nichts dagegen.
+    node.innerHTML = ICONS[name] || "";
+    return node;
+  }
+
+  /**
+   * Ein Knopf, der aus einem Zeichen besteht.
+   *
+   * `tip` ist Pflicht: er wird zum Tooltip UND zur Vorlesefassung. Wer keinen
+   * Satz dafuer hat, hat auch kein Icon dafuer.
+   */
+  function iconButton({ name, tip, count, on, className, onClick, href }) {
+    const attrs = {
+      class: "icon-action" + (on ? " on" : "") + (className ? " " + className : ""),
+      "data-tip": tip,
+      "aria-label": tip,
+      title: null,
+    };
+
+    const children = [icon(name, on), count === undefined || count === null
+      ? null
+      : el("span", { class: "count" }, String(count))];
+
+    if (href) return el("a", { ...attrs, href }, children);
+
+    const button = el("button", { ...attrs, type: "button" }, children);
+    if (onClick) button.addEventListener("click", onClick);
+    return button;
+  }
+
+  /** Den Zustand eines Icon-Knopfes umschalten: gefuelltes Zeichen, neue Zahl. */
+  function setIconState(button, name, on, count) {
+    button.classList.toggle("on", !!on);
+    button.replaceChildren(icon(name, on), count === undefined || count === null
+      ? null
+      : el("span", { class: "count" }, String(count)));
+  }
+
+  // ── Ein Kasten, der an etwas haengt ──────────────────────────────────
+
+  let openPopover = null;
+
+  /**
+   * Ein kleiner Kasten unter einem Knopf - fuer die Sammlungsauswahl.
+   *
+   * Er haengt am <body> und nicht im Knopf: die Karte hat `overflow: hidden`
+   * und wuerde ihn abschneiden. Es gibt immer nur einen; ein Klick daneben,
+   * Escape oder Scrollen schliesst ihn.
+   */
+  function popover(anchor, content) {
+    closePopover();
+
+    const box = el("div", { class: "popover" }, content);
+    document.body.append(box);
+
+    const rect = anchor.getBoundingClientRect();
+    const width = box.offsetWidth;
+    const left = Math.min(Math.max(8, rect.left + rect.width / 2 - width / 2), window.innerWidth - width - 8);
+
+    //  Nach unten, ausser es ist unten kein Platz mehr.
+    const below = rect.bottom + 8 + box.offsetHeight < window.innerHeight;
+    box.style.left = left + window.scrollX + "px";
+    box.style.top = (below ? rect.bottom + 8 : rect.top - box.offsetHeight - 8) + window.scrollY + "px";
+
+    const onDown = (event) => {
+      if (!box.contains(event.target) && !anchor.contains(event.target)) closePopover();
+    };
+    const onKey = (event) => { if (event.key === "Escape") closePopover(); };
+
+    //  Erst im naechsten Takt horchen, sonst schliesst der Klick, der ihn
+    //  geoeffnet hat, ihn gleich wieder.
+    setTimeout(() => {
+      document.addEventListener("mousedown", onDown);
+      document.addEventListener("keydown", onKey);
+    }, 0);
+
+    //  Solange der Kasten offen ist, schweigt der Tooltip des Knopfes: er
+    //  stuende sonst als Zettel ueber dem Kasten, den er erklaert.
+    anchor.classList.add("tip-off");
+
+    openPopover = () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+      anchor.classList.remove("tip-off");
+      box.remove();
+    };
+
+    return box;
+  }
+
+  function closePopover() {
+    if (openPopover) {
+      const close = openPopover;
+      openPopover = null;
+      close();
+    }
+  }
+
+  // ── Herz und Stern ───────────────────────────────────────────────────
+  //  Zwei Handgriffe an einem fremden Clip, und beide sind ein Klick auf ein
+  //  Zeichen: das Herz sagt "gut", der Stern legt ihn in eine Sammlung. Sie
+  //  stehen ueberall gleich - auf der Karte im Katalog, auf dem Profil, in
+  //  einer Sammlung und unter der grossen Vorschau.
+
+  const signedIn = () => document.body.dataset.signedIn === "true";
+
+  /** Der Hinweis fuer alles, was ein Konto braucht - statt eines toten Knopfes. */
+  function signInHint(anchor, sentence) {
+    popover(anchor, el("div", { class: "popover-note" },
+      el("p", {}, sentence),
+      signInButton("Sign in", true)));
+  }
+
+  /**
+   * Das Herz. Setzt oder nimmt zurueck und traegt die Zahl selbst - eine Zahl,
+   * die man anfassen kann, gehoert in den Knopf und nicht daneben.
+   */
+  function likeButton(item, onError) {
+    let liked = !!item.likedByMe;
+    let count = item.likes || 0;
+
+    const button = iconButton({
+      name: "heart",
+      tip: liked ? "Remove your like" : "Like this clip",
+      count: count || null,
+      on: liked,
+      className: "like",
+      onClick: async () => {
+        if (!signedIn()) return signInHint(button, "Sign in to like a clip.");
+
+        button.disabled = true;
+        try {
+          await ensureCsrf();
+          const result = await api("POST", "/api/v1/packages/" + encodeURIComponent(item.slug) + "/like",
+            { liked: !liked });
+          liked = !liked;
+          count = result.likes;
+          setIconState(button, "heart", liked, count || null);
+          button.dataset.tip = liked ? "Remove your like" : "Like this clip";
+          button.setAttribute("aria-label", button.dataset.tip);
+        } catch (e) {
+          if (onError) onError(e);
+        } finally {
+          button.disabled = false;
+        }
+      },
+    });
+
+    return button;
+  }
+
+  /**
+   * Der Stern: in eine Sammlung legen.
+   *
+   * Ein Klick oeffnet die Auswahl - die eigenen Sammlungen, jede mit der
+   * Angabe, ob dieser Clip schon drin liegt, und darunter der Weg zu einer
+   * neuen. Der Stern steht gefuellt, sobald er in irgendeiner liegt; die Zahl
+   * daneben zaehlt PERSONEN, nicht Sammlungen.
+   */
+  function saveButton(item, onError) {
+    let saved = !!item.savedByMe;
+    let count = item.saves || 0;
+
+    const button = iconButton({
+      name: "star",
+      tip: saved ? "In one of your collections" : "Save to a collection",
+      count: count || null,
+      on: saved,
+      className: "save",
+      onClick: () => {
+        if (!signedIn()) return signInHint(button, "Sign in to collect clips.");
+
+        collectionPicker(button, item.slug, saved, (nowSaved) => {
+          if (nowSaved === saved) return;
+          count = Math.max(0, count + (nowSaved ? 1 : -1));
+          saved = nowSaved;
+          setIconState(button, "star", saved, count || null);
+          button.dataset.tip = saved ? "In one of your collections" : "Save to a collection";
+          button.setAttribute("aria-label", button.dataset.tip);
+        }, onError);
+      },
+    });
+
+    return button;
+  }
+
+  /**
+   * Die Auswahl unter dem Stern.
+   *
+   * Suchfeld, Liste, und ganz unten der Weg zu einer neuen Sammlung. Jede
+   * Zeile ist ein Schalter: Klick legt hinein, noch ein Klick nimmt wieder
+   * heraus. Kein Speichern-Knopf - die Zeile IST die Handlung.
+   */
+  async function collectionPicker(anchor, slug, savedNow, onChange, onError) {
+    const list = el("div", { class: "picker-list" }, el("p", { class: "faint small" }, "Loading…"));
+    const search = el("input", { type: "search", placeholder: "Find a collection", "aria-label": "Find a collection" });
+
+    const create = el("button", { class: "picker-new", type: "button" },
+      icon("plus"), el("span", {}, "Add to a new collection"));
+
+    const box = popover(anchor, el("div", { class: "picker" },
+      el("div", { class: "picker-search" }, icon("search"), search),
+      list,
+      create));
+
+    const report = (error) => {
+      list.replaceChildren(el("p", { class: "faint small" }, error.message));
+      if (onError) onError(error);
+    };
+
+    let rows = [];
+    const anySaved = () => rows.some((row) => row.contains);
+
+    const draw = () => {
+      const term = search.value.trim().toLowerCase();
+      const shown = rows.filter((row) => !term || row.title.toLowerCase().includes(term));
+
+      if (!rows.length) {
+        list.replaceChildren(el("p", { class: "faint small" }, "No collections yet - make the first one."));
+        return;
+      }
+      if (!shown.length) {
+        list.replaceChildren(el("p", { class: "faint small" }, "Nothing matches that."));
+        return;
+      }
+
+      list.replaceChildren(...shown.map((row) => {
+        const entry = el("button", { class: "picker-row" + (row.contains ? " on" : ""), type: "button" },
+          icon("star", row.contains),
+          el("span", { class: "picker-title" }, row.title),
+          el("span", { class: "faint small" }, String(row.items)));
+
+        entry.addEventListener("click", async () => {
+          entry.disabled = true;
+          try {
+            await ensureCsrf();
+            const path = "/api/v1/collections/" + encodeURIComponent(row.slug) + "/items";
+            const result = row.contains
+              ? await api("DELETE", path + "/" + encodeURIComponent(slug))
+              : await api("POST", path, { slug });
+
+            row.contains = !row.contains;
+            row.items = result.items;
+            draw();
+            onChange(anySaved());
+          } catch (e) {
+            report(e);
+          } finally {
+            entry.disabled = false;
+          }
+        });
+
+        return entry;
+      }));
+    };
+
+    search.addEventListener("input", draw);
+
+    create.addEventListener("click", async () => {
+      const made = await collectionDialog();
+      if (!made) return;
+
+      try {
+        await ensureCsrf();
+        const result = await api("POST", "/api/v1/collections/" + encodeURIComponent(made.slug) + "/items", { slug });
+        rows.unshift({ slug: made.slug, title: made.title, items: result.items, contains: true });
+        draw();
+        onChange(true);
+      } catch (e) {
+        report(e);
+      }
+    });
+
+    try {
+      rows = await api("GET", "/api/v1/me/collections?contains=" + encodeURIComponent(slug));
+      //  Der Kasten steht schon - die Liste macht ihn hoeher, und er soll
+      //  danach immer noch unter seinem Knopf haengen.
+      draw();
+      if (box.isConnected && savedNow !== anySaved()) onChange(anySaved());
+    } catch (e) {
+      report(e);
+    }
+  }
+
+  /**
+   * Der Dialog fuer eine neue Sammlung: Name, Beschreibung, Sichtbarkeit.
+   *
+   * Ein eigener Kasten statt eines Feldes im Popover, weil hier drei Angaben
+   * zusammenkommen und eine davon eine Entscheidung ist ("sieht das jemand?").
+   */
+  function collectionDialog(existing) {
+    return new Promise((resolve) => {
+      const name = el("input", { type: "text", name: "title", maxlength: "60", required: true,
+        placeholder: "Attack animations", value: existing ? existing.title : "" });
+
+      const description = el("textarea", { name: "description", maxlength: "500", rows: "4",
+        placeholder: "What belongs in here?" }, existing ? existing.description : "");
+
+      const counter = el("span", { class: "faint small counter" }, (description.value.length) + "/500");
+      description.addEventListener("input", () => { counter.textContent = description.value.length + "/500"; });
+
+      const publicChoice = el("input", { type: "radio", name: "visibility", value: "PUBLIC",
+        checked: !existing || existing.visibility !== "UNLISTED" });
+      const unlistedChoice = el("input", { type: "radio", name: "visibility", value: "UNLISTED",
+        checked: existing ? existing.visibility === "UNLISTED" : false });
+
+      const error = el("div", {});
+
+      const form = el("form", { method: "dialog" },
+        el("h2", {}, existing ? "Edit collection" : "New collection"),
+        el("label", { class: "field" }, el("span", {}, "Name"), name),
+        el("label", { class: "field" },
+          el("span", {}, "Description ", el("span", { class: "faint small" }, "optional"), counter),
+          description),
+        el("fieldset", { class: "choices" },
+          el("legend", {}, "Who can see it"),
+          el("label", {}, publicChoice,
+            el("span", {}, el("strong", {}, "Public"), " - on your profile and in the collection list")),
+          el("label", {}, unlistedChoice,
+            el("span", {}, el("strong", {}, "Unlisted"), " - only for people with the link"))),
+        error,
+        el("div", { class: "dialog-actions" },
+          el("button", { value: "cancel", type: "button", class: "ghost" }, "Cancel"),
+          el("button", { value: "save", class: "primary" }, existing ? "Save" : "Create")));
+
+      const dialog = el("dialog", { class: "sheet" }, form);
+      document.body.append(dialog);
+
+      //  Aufraeumen haengt NICHT am `close`-Ereignis des Dialogs. Das ist zwar
+      //  der vorgesehene Weg, aber er ist von der Browserfassung abhaengig -
+      //  in der eingebauten Vorschau dieses Rechners feuert es weder beim
+      //  Absenden eines `method="dialog"`-Formulars noch bei `close()`, und
+      //  dann bliebe ein unsichtbarer Dialog im Dokument stehen. Hier schliesst,
+      //  entfernt und antwortet EINE Stelle.
+      let done = false;
+      const finish = (result) => {
+        if (done) return;
+        done = true;
+        dialog.close();
+        dialog.remove();
+        resolve(result);
+      };
+
+      form.querySelector('button[value="cancel"]').addEventListener("click", (event) => {
+        event.preventDefault();
+        finish(null);
+      });
+
+      //  Escape schliesst den Dialog am Browser vorbei - auch dann soll der
+      //  Aufrufer eine Antwort bekommen.
+      dialog.addEventListener("cancel", (event) => {
+        event.preventDefault();
+        finish(null);
+      });
+
+      let busy = false;
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (busy) return;
+
+        const payload = {
+          title: name.value,
+          description: description.value,
+          visibility: unlistedChoice.checked ? "UNLISTED" : "PUBLIC",
+        };
+
+        busy = true;
+        try {
+          await ensureCsrf();
+          const saved = existing
+            ? await api("PATCH", "/api/v1/collections/" + encodeURIComponent(existing.slug), payload)
+            : await api("POST", "/api/v1/collections", payload);
+          finish(saved);
+        } catch (e) {
+          notice(error, e.message, "error");
+        } finally {
+          busy = false;
+        }
+      });
+
+      dialog.showModal();
+      name.focus();
+    });
+  }
+
   const WEEK = 7 * 24 * 60 * 60 * 1000;
 
   /**
@@ -333,22 +764,21 @@ const AW = (() => {
     const fresh = Date.now() - new Date(item.createdAt).getTime() < WEEK;
 
     //  Der Autor ist ein Weg, kein Etikett: "mehr von dieser Person" ist die
-    //  zweite Frage nach "was ist das".
+    //  zweite Frage nach "was ist das". Seit es Profile gibt, fuehrt er
+    //  dorthin statt in eine gefilterte Liste - ein Profil beantwortet
+    //  dieselbe Frage und dazu die naechste ("wer ist das?").
     const author = el("a", {
       class: "card-author",
-      href: "/browse.html?author=" + encodeURIComponent(item.author),
-      title: "All clips by " + item.author,
+      href: profileHref(item),
+      "data-tip": item.authorHandle ? "Profile of " + item.author : "All clips by " + item.author,
     }, item.author);
 
-    const meta = [author];
-    const add = (text) => {
-      meta.push(el("span", { class: "dot" }, "·"), el("span", {}, text));
-    };
-    // "Used" statt "downloads": gezaehlt wird die Uebernahme in ein Projekt,
-    // nicht der Dateiabruf.
-    if (item.downloads > 0) add(item.downloads === 1 ? "used once" : "used " + item.downloads + "×");
-    if (item.likes > 0) add(item.likes + " ♥");
-    if (item.comments > 0) add(item.comments === 1 ? "1 comment" : item.comments + " comments");
+    //  Die zwei Handgriffe liegen auf der KARTE, nicht erst auf der Clip-Seite:
+    //  wer durch einen Katalog scrollt, sammelt im Vorbeigehen. Beides sind
+    //  Zeichen mit ihrer Zahl - der Text daneben ("used 3×") ist der einzige
+    //  Rest, der wirklich nur Auskunft ist.
+    const actions = el("div", { class: "card-actions" },
+      likeButton(item), saveButton(item));
 
     //  ZWEI ZIELE AUF EINER KARTE, und HTML erlaubt keinen Link im Link.
     //  Der erste Entwurf loeste das mit einem Klick-Handler auf einem <span> -
@@ -371,7 +801,50 @@ const AW = (() => {
           href: "/clip.html?p=" + encodeURIComponent(item.slug),
           title: item.title,
         }, item.title),
-        el("div", { class: "card-meta" }, meta)));
+        el("div", { class: "card-meta" }, author, actions)));
+  }
+
+  /** Wohin der Name eines Erstellers fuehrt - Profil, sonst der alte Filter. */
+  function profileHref(item) {
+    return item.authorHandle
+      ? "/u.html?u=" + encodeURIComponent(item.authorHandle)
+      : "/browse.html?author=" + encodeURIComponent(item.author);
+  }
+
+  /**
+   * Die Sammlungskarte.
+   *
+   * Sie zeigt, was in der Sammlung steht, nicht was ueber sie geschrieben
+   * wurde: der erste Clip laeuft als Deckel, wie auf einer Clip-Karte. Eine
+   * Sammlung ohne Bewegung darauf waere eine Zeile mit Rahmen.
+   */
+  function collectionCard(item, observer) {
+    const cover = item.cover
+      ? el("canvas", { "data-slug": item.cover.slug, "data-rig": item.cover.rig || "humanoid", width: 560, height: 420 })
+      : el("div", { class: "viewer-empty" }, "Empty");
+
+    if (item.cover && observer) observer.observe(cover);
+
+    const author = item.ownerHandle
+      ? el("a", { class: "card-author", href: "/u.html?u=" + encodeURIComponent(item.ownerHandle),
+          "data-tip": "Profile of " + item.owner }, item.owner)
+      : el("span", { class: "card-author" }, item.owner);
+
+    return el("article", { class: "card collection-card" },
+      el("div", { class: "card-stage" },
+        cover,
+        item.visibility === "UNLISTED"
+          ? el("span", { class: "card-flag", "data-tip": "Only people with the link can see it" }, "Unlisted")
+          : null,
+        el("span", { class: "card-duration" },
+          item.items === 1 ? "1 clip" : item.items + " clips")),
+      el("div", { class: "card-body" },
+        el("a", {
+          class: "card-title",
+          href: "/collection.html?c=" + encodeURIComponent(item.slug),
+          title: item.title,
+        }, item.title),
+        el("div", { class: "card-meta" }, author)));
   }
 
   /**
@@ -405,6 +878,8 @@ const AW = (() => {
 
   return {
     api, ApiError, ensureCsrf, me, el, notice, formatDuration, formatDate, formatRelative,
-    copyText, param, signInUrl, signInButton, clipCard, previewObserver,
+    copyText, param, signInUrl, signInButton, clipCard, collectionCard, previewObserver,
+    icon, iconButton, setIconState, popover, closePopover, signInHint, signedIn,
+    likeButton, saveButton, collectionDialog, profileHref,
   };
 })();

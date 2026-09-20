@@ -61,6 +61,13 @@ class AnimationPackage(
 
     var likeCount: Long = 0,
 
+    /**
+     * Wie viele PERSONEN diesen Clip in einer Sammlung haben - der Stern an
+     * der Karte. Gezaehlt werden Besitzer, nicht Zeilen: wer denselben Clip in
+     * drei eigene Sammlungen legt, bleibt eine Person.
+     */
+    var saveCount: Long = 0,
+
     /** Sichtbare Kommentare. Abgeleitet wie [likeCount], neu gezaehlt statt fortgeschrieben. */
     var commentCount: Long = 0,
     var createdAt: Instant,
@@ -131,6 +138,42 @@ interface AnimationPackageRepository : JpaRepository<AnimationPackage, UUID>, Jp
 
     /** Alles, was oeffentlich im Katalog steht - fuer [CatalogOverviewService]. */
     fun findAllByStatusAndLicense(status: PackageStatus, license: String): List<AnimationPackage>
+
+    /** Was auf einem Profil zaehlt: veroeffentlicht UND oeffentlich geteilt. */
+    fun countByOwnerIdAndStatusAndLicense(ownerId: UUID, status: PackageStatus, license: String): Long
+
+    /**
+     * Herzen und Uebernahmen ueber alle Clips eines Kontos - zwei der Zahlen
+     * im Kopf des Profils. Zwei schlichte Abfragen statt einer mit zwei
+     * Spalten: die zusammengesetzte braeuchte eine Projektion, und die waere
+     * hier mehr Erklaerung als Ersparnis.
+     */
+    @Query(
+        "select coalesce(sum(p.likeCount), 0) from AnimationPackage p " +
+            "where p.ownerId = :ownerId and p.status = :status and p.license = :license"
+    )
+    fun sumLikesForOwner(
+        @Param("ownerId") ownerId: UUID,
+        @Param("status") status: PackageStatus,
+        @Param("license") license: String,
+    ): Long
+
+    @Query(
+        "select coalesce(sum(p.takeCount), 0) from AnimationPackage p " +
+            "where p.ownerId = :ownerId and p.status = :status and p.license = :license"
+    )
+    fun sumTakesForOwner(
+        @Param("ownerId") ownerId: UUID,
+        @Param("status") status: PackageStatus,
+        @Param("license") license: String,
+    ): Long
+
+    /** Der neueste oeffentliche Clip - das Bild der Profil-Linkvorschau. */
+    fun findFirstByOwnerIdAndStatusAndLicenseOrderByCreatedAtDesc(
+        ownerId: UUID,
+        status: PackageStatus,
+        license: String,
+    ): AnimationPackage?
 }
 
 /**
