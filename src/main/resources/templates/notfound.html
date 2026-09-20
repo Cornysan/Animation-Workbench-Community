@@ -1,0 +1,31 @@
+<!doctype html>
+<!--
+  Eine Adresse, die es nicht gibt.
+
+  Bis hierher stand hier rohes JSON - auch fuer jemanden, der in Discord einem
+  alten Link folgt. Eine Fehlerseite muss zwei Dinge tun: sagen, was los ist,
+  und einen Weg anbieten. Beides steht hier, und der Weg fuehrt in den Katalog,
+  nicht auf die Startseite: wer einen Clip gesucht hat, sucht weiter Clips.
+-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/shell :: head('Not found')}"></head>
+<body th:attr="data-signed-in=${user != null}">
+<header th:replace="~{fragments/shell :: header}"></header>
+<main>
+  <div class="notfound">
+    <p class="notfound-code">404</p>
+    <h1>That page is not here.</h1>
+    <p class="lead">
+      The address may be mistyped, or the clip behind it was withdrawn by its author
+      or hidden while a moderator looks at it.
+    </p>
+    <div class="hero-actions">
+      <a class="button primary" href="/browse.html">Browse clips</a>
+      <a class="button" href="/">Start page</a>
+    </div>
+  </div>
+</main>
+<footer th:replace="~{fragments/shell :: footer}"></footer>
+<script src="/assets/app.js"></script>
+</body>
+</html>

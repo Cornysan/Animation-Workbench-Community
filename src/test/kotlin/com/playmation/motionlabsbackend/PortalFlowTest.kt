@@ -277,6 +277,36 @@ class PortalFlowTest {
     }
 
     /**
+     * Eine Adresse, die es nicht gibt, trifft zwei verschiedene Leute.
+     *
+     * Die Schnittstelle bekommt JSON, weil die Workbench nichts anderes lesen
+     * kann. Ein Mensch im Browser bekommt eine Seite - er folgt vielleicht
+     * einem alten Link aus Discord, und `{"error":{"code":"not-found"}}` ist
+     * fuer ihn keine Auskunft, sondern der Eindruck, hier sei etwas kaputt.
+     */
+    @Test
+    fun `an address that does not exist answers the machine and the person differently`() {
+        mvc.get("/nothing-here.html").andExpect {
+            status { isNotFound() }
+            content { contentTypeCompatibleWith(MediaType.TEXT_HTML) }
+        }.andReturn().response.contentAsString.let { page ->
+            assertTrue("That page is not here." in page, "it says what happened")
+            assertTrue("/browse.html" in page, "and offers a way on")
+        }
+
+        //  Unterhalb von /api/ bleibt es bei JSON - auch fuer einen Browser.
+        //  Der Pfad muss einer sein, den die Sicherheitsschicht durchlaesst:
+        //  sonst antwortet sie mit 401, bevor der Handler ueberhaupt drankommt,
+        //  und der Test prueft nicht, was er zu pruefen meint.
+        mvc.get("/api/v1/dev/nope").andExpect {
+            status { isNotFound() }
+            content { contentTypeCompatibleWith(MediaType.APPLICATION_JSON) }
+        }.andReturn().response.contentAsString.let {
+            assertTrue("not-found" in it, "the machine gets a code, not a page")
+        }
+    }
+
+    /**
      * "Alles von dieser Person" - der Weg, ohne den jeder Clip eine Insel ist.
      *
      * Der zweite Teil ist der, der leicht schiefgeht: ein Name, den es nicht

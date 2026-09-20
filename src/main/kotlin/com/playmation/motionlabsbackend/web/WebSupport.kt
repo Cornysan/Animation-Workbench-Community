@@ -7,6 +7,7 @@ import com.playmation.motionlabsbackend.common.PortalException
 import com.playmation.motionlabsbackend.config.PortalProperties
 import com.playmation.motionlabsbackend.format.AwclipSchema
 import com.playmation.motionlabsbackend.system.SystemSettingsService
+import jakarta.servlet.http.HttpServletRequest
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpStatus
@@ -22,6 +23,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException
 import org.springframework.web.multipart.MaxUploadSizeExceededException
 import org.springframework.web.multipart.support.MissingServletRequestPartException
+import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.web.servlet.ModelAndView
 import org.springframework.web.servlet.resource.NoResourceFoundException
 
 /**
@@ -91,7 +94,7 @@ class StatusController(
 }
 
 @RestControllerAdvice
-class ApiExceptionHandler {
+class ApiExceptionHandler(private val shell: ShellModel) {
     private val log = LoggerFactory.getLogger(javaClass)
 
     private fun error(status: HttpStatus, code: String, message: String) =
@@ -114,8 +117,28 @@ class ApiExceptionHandler {
     @ExceptionHandler(HttpRequestMethodNotSupportedException::class)
     fun method(ex: HttpRequestMethodNotSupportedException) = error(HttpStatus.METHOD_NOT_ALLOWED, "method-not-allowed", "Method not allowed.")
 
+    /**
+     * Eine Adresse, die es nicht gibt.
+     *
+     * Bis hierher bekam JEDER dafuer rohes JSON zu sehen - auch jemand, der in
+     * Discord einem alten Link folgt und einen Browser vor sich hat.
+     * `{"error":{"code":"not-found"}}` ist fuer einen Menschen keine Auskunft,
+     * sondern der Eindruck, hier sei etwas kaputt.
+     *
+     * Die Unterscheidung laeuft ueber den Pfad, nicht ueber den Accept-Kopf:
+     * unter `/api/` liegt die Schnittstelle, alles andere ist eine Seite. Das
+     * ist auch dann richtig, wenn ein Werkzeug ohne Accept-Kopf anfragt.
+     */
     @ExceptionHandler(NoResourceFoundException::class)
-    fun notFound(ex: NoResourceFoundException) = error(HttpStatus.NOT_FOUND, "not-found", "Not found.")
+    fun notFound(ex: NoResourceFoundException, request: HttpServletRequest): Any {
+        if (request.requestURI.startsWith("/api/"))
+            return error(HttpStatus.NOT_FOUND, "not-found", "Not found.")
+
+        return ModelAndView("notfound").apply {
+            status = HttpStatus.NOT_FOUND
+            shell.fill(model, SecurityContextHolder.getContext().authentication)
+        }
+    }
 
     @ExceptionHandler(Exception::class)
     fun unexpected(ex: Exception): ResponseEntity<ApiErrorResponse> {
