@@ -33,11 +33,13 @@ class PackageController(private val catalog: CatalogService) {
     fun search(
         @RequestParam(required = false) q: String?,
         @RequestParam(required = false) tag: String?,
+        /** Alles von einer Person, ueber ihren Anzeigenamen. */
+        @RequestParam(required = false) author: String?,
         @RequestParam(required = false, defaultValue = "new") sort: String,
         @RequestParam(required = false, defaultValue = "0") page: Int,
         @RequestParam(required = false, defaultValue = "24") size: Int,
         authentication: Authentication?,
-    ) = catalog.search(q, tag, sort, page, size, authentication.portalPrincipal())
+    ) = catalog.search(q, tag, sort, page, size, authentication.portalPrincipal(), author)
 
     /** Ein Herz setzen (true) oder zurücknehmen (false). */
     data class LikeRequest(val liked: Boolean = true)

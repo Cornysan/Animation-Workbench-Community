@@ -28,7 +28,12 @@
   document.title = clip.title + " - Animation Workbench Community";
   document.getElementById("clip").classList.remove("hidden");
   document.getElementById("title").textContent = clip.title;
-  document.getElementById("author").textContent = clip.author;
+  //  Von hier aus zu allem anderen derselben Person. Ohne diesen Weg ist jeder
+  //  Clip eine Insel, und niemand baut sich einen Namen auf.
+  document.getElementById("author").replaceChildren(el("a", {
+    href: "/browse.html?author=" + encodeURIComponent(clip.author),
+    title: "All clips by " + clip.author,
+  }, clip.author));
   document.getElementById("author-initial").textContent = (clip.author[0] || "?").toUpperCase();
   document.getElementById("description").textContent = clip.description || "No description.";
 

@@ -19,6 +19,7 @@
   const params = new URLSearchParams(location.search);
   const sort = ["popular", "liked"].includes(params.get("sort")) ? params.get("sort") : "new";
   const activeTag = params.get("tag");
+  const activeAuthor = params.get("author");
   const query = params.get("q");
 
   /**
@@ -70,7 +71,7 @@
 
   // ── Ergebnisse ───────────────────────────────────────────────────────
   const request = new URLSearchParams();
-  for (const key of ["q", "tag", "sort", "page"]) if (params.get(key)) request.set(key, params.get(key));
+  for (const key of ["q", "tag", "author", "sort", "page"]) if (params.get(key)) request.set(key, params.get(key));
   request.set("size", "24");
 
   let page;
@@ -86,6 +87,7 @@
   const filters = [];
   if (query) filters.push(["Search: " + query, linkTo({ q: null })]);
   if (activeTag) filters.push(["Tag: " + activeTag, linkTo({ tag: null })]);
+  if (activeAuthor) filters.push(["By " + activeAuthor, linkTo({ author: null })]);
 
   state.replaceChildren(
     ...filters.map(([label, href]) => el("a", { class: "chip removable", href, title: "Remove this filter" },

@@ -54,4 +54,15 @@ class Account(
 
 interface AccountRepository : JpaRepository<Account, UUID> {
     fun findByDiscordId(discordId: String): Account?
+
+    /**
+     * Konten zu einem Anzeigenamen - fuer "alles von dieser Person" im Katalog.
+     *
+     * Eine LISTE, kein einzelnes Konto: der Anzeigename ist nicht eindeutig.
+     * Es gibt (noch) kein Handle, und eine Konto-UUID in einer Adresse waere
+     * weder lesbar noch etwas, das dort zu suchen hat. Zwei Gleichnamige saehen
+     * einander in derselben Liste - unschoen, aber ehrlicher als eine Adresse,
+     * die niemand vorlesen kann. Wenn es Handles gibt, ist das hier die Stelle.
+     */
+    fun findByDisplayName(displayName: String): List<Account>
 }

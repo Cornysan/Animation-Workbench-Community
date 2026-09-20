@@ -235,7 +235,21 @@ const AW = (() => {
 
     const fresh = Date.now() - new Date(item.createdAt).getTime() < WEEK;
 
-    const meta = [el("span", { class: "card-author" }, item.author)];
+    //  Der Autor ist ein Weg, kein Etikett: "mehr von dieser Person" ist die
+    //  zweite Frage nach "was ist das". Ein <span> in einem <a> kann kein
+    //  zweiter Link sein - deshalb traegt die Karte hier einen Klick, der das
+    //  Weiterreichen an die Karte abbricht.
+    const author = el("span", {
+      class: "card-author",
+      title: "All clips by " + item.author,
+      onclick: (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        location.href = "/browse.html?author=" + encodeURIComponent(item.author);
+      },
+    }, item.author);
+
+    const meta = [author];
     const add = (text) => {
       meta.push(el("span", { class: "dot" }, "·"), el("span", {}, text));
     };

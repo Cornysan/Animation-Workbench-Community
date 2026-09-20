@@ -567,7 +567,11 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
 .card:hover .card-title { color: var(--accent-strong); }
 .card-meta { color: var(--text-dim); font-size: 13px; display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
 .card-meta .dot { color: var(--text-faint); }
-.card-author { color: var(--text-dim); font-weight: 500; }
+/* Der Autor auf der Karte fuehrt zu allem anderen derselben Person. Er sieht
+   erst beim Hinsehen wie ein Link aus - sonst konkurriert er mit dem Titel um
+   die Aufmerksamkeit, und der ist das Angebot. */
+.card-author { color: var(--text-dim); font-weight: 500; cursor: pointer; }
+.card-author:hover { color: var(--accent); text-decoration: underline; }
 
 .card-flag, .card-duration {
   position: absolute;

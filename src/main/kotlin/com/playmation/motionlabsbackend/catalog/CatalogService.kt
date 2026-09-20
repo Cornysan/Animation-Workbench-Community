@@ -282,9 +282,16 @@ class CatalogService(
 
     @Transactional(readOnly = true)
     fun search(q: String?, tag: String?, sort: String?, page: Int, size: Int,
-               principal: PortalPrincipal? = null): PageResult<PackageSummary> {
+               principal: PortalPrincipal? = null, author: String? = null): PageResult<PackageSummary> {
         val pageSize = size.coerceIn(1, 50)
         val pageIndex = page.coerceAtLeast(0)
+
+        //  "Alles von dieser Person". Ueber den Anzeigenamen statt ueber eine
+        //  Konto-UUID - siehe [AccountRepository.findByDisplayName]. Gibt es den
+        //  Namen nicht, ist das Ergebnis leer statt unbegrenzt: ein Tippfehler
+        //  darf nicht stillschweigend den ganzen Katalog zurueckgeben.
+        val authorIds = author?.trim()?.takeIf { it.isNotEmpty() }?.take(60)
+            ?.let { name -> accountRepository.findByDisplayName(name).map { it.id }.ifEmpty { listOf(NO_ACCOUNT) } }
 
         val spec = Specification<AnimationPackage> { root, _, cb ->
             val predicates = mutableListOf(
@@ -307,6 +314,8 @@ class CatalogService(
             tag?.trim()?.lowercase()?.takeIf { AwclipSchema.isTag(it) }?.let {
                 predicates += cb.like(root.get("tags"), "%," + escapeLike(it) + ",%", '\\')
             }
+
+            authorIds?.let { predicates += root.get<UUID>("ownerId").`in`(it) }
 
             cb.and(*predicates.toTypedArray())
         }
@@ -496,6 +505,9 @@ class CatalogService(
             isOwner,
         )
     }
+
+    /** Eine Kennung, die keinem Konto gehoert - siehe `authorIds` in [search]. */
+    private val NO_ACCOUNT: UUID = UUID(0, 0)
 
     private fun authorNames(ids: Collection<UUID>): Map<UUID, String> =
         accountRepository.findAllById(ids.toSet()).associate { it.id to it.displayName }

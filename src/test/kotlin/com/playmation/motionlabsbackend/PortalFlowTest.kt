@@ -277,6 +277,33 @@ class PortalFlowTest {
     }
 
     /**
+     * "Alles von dieser Person" - der Weg, ohne den jeder Clip eine Insel ist.
+     *
+     * Der zweite Teil ist der, der leicht schiefgeht: ein Name, den es nicht
+     * gibt, muss NICHTS liefern. Ein leerer Filter, der stillschweigend zum
+     * ganzen Katalog wird, ist schlimmer als eine leere Seite - er behauptet,
+     * jemand habe alles hier gemacht.
+     */
+    @Test
+    fun `the catalog can be narrowed to one person, and an unknown name finds nothing`() {
+        val mine = "author-" + unique()
+        val other = "other-" + unique()
+        val me = login(mine)
+        val them = login(other)
+
+        uploadOk(me, awclip(0.985, "Author one"))
+        uploadOk(me, awclip(0.986, "Author two"))
+        uploadOk(them, awclip(0.987, "Someone else"))
+
+        val ours = mvc.get("/api/v1/packages?author=$mine").andExpect { status { isOk() } }.body()
+        assertEquals(2, ours["total"].asInt(), "both of mine, and only mine")
+        assertTrue(ours["items"].all { it["author"].asString() == mine })
+
+        val nobody = mvc.get("/api/v1/packages?author=nobody-$mine").andExpect { status { isOk() } }.body()
+        assertEquals(0, nobody["total"].asInt(), "an unknown name finds nothing, not everything")
+    }
+
+    /**
      * Ein Link in Discord muss zeigen, wohin er fuehrt.
      *
      * Der zweite Teil ist der wichtigere: ein privater Clip ist "nicht gelistet
