@@ -139,6 +139,25 @@ const AW = (() => {
   }
 
   /**
+   * Wohin "Sign in" fuehrt - oder null, wenn dieses Portal keine Anmeldung hat.
+   *
+   * Der Weg stand an fuenf Stellen fest verdrahtet auf Discord. Auf einem
+   * Server ohne Discord-Zugangsdaten landet das bei `?client_id=unset`, und
+   * Discord antwortet mit "Invalid Form Body" - eine Fehlerseite ohne Ausweg
+   * (Befund B6). Der Server nennt den Weg jetzt im Kopf der Seite.
+   */
+  const signInUrl = document.querySelector('meta[name="aw-signin"]')?.content || null;
+
+  /**
+   * Der Knopf dazu. Ohne Anmeldeweg wird daraus ein Satz statt eines Knopfes,
+   * der nirgendwohin fuehrt.
+   */
+  function signInButton(label, primary) {
+    if (!signInUrl) return el("span", { class: "faint small" }, "Sign-in is not set up on this portal.");
+    return el("a", { class: "button" + (primary ? " primary" : ""), href: signInUrl }, label);
+  }
+
+  /**
    * Abmelden. Der Knopf kommt jetzt fertig aus der Vorlage; hier haengt nur
    * noch die Handlung daran.
    */
@@ -267,6 +286,6 @@ const AW = (() => {
 
   return {
     api, ApiError, ensureCsrf, me, el, notice, formatDuration, formatDate, formatRelative,
-    copyText, param, clipCard, previewObserver,
+    copyText, param, signInUrl, signInButton, clipCard, previewObserver,
   };
 })();

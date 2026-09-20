@@ -259,9 +259,26 @@ a:hover { text-decoration: underline; }
   .account-name > span:last-child { display: none; }
   .account-name { padding: 4px; }
 }
+/* Auf einem Telefon passt die Suche nicht neben Marke, Navigation und Konto -
+   sie wurde vom Anmelde-Knopf ueberschrieben. Also zwei Zeilen: oben, wer und
+   wohin, darunter die Suche ueber die ganze Breite. */
 @media (max-width: 620px) {
+  .header-inner {
+    flex-wrap: wrap;
+    height: auto;
+    padding-block: 10px 12px;
+    row-gap: 10px;
+  }
+  .header-search {
+    order: 3;
+    flex-basis: 100%;
+    max-width: none;
+    margin-inline: 0;
+  }
   .header-search kbd { display: none; }
+  .header-account { margin-left: auto; }
   .site-nav { gap: 0; }
+  .header-account .button { padding: 0 14px; font-size: 14px; }
 }
 
 /* ── Seitengerüst ──────────────────────────────────────────────────────
@@ -947,6 +964,37 @@ table.list tr:hover td { background: rgba(255, 255, 255, 0.02); }
   max-width: 46ch;
 }
 .hero-note strong { color: var(--text-dim); font-weight: 650; }
+
+/* Was hier liegt, in drei Zahlen. Ein Portal, das seinen Umfang nicht nennt,
+   laesst jeden Besucher raten, ob sich das Stoebern lohnt. */
+.hero-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 34px;
+  margin: 30px 0 0;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+.hero-stats .stat { display: flex; flex-direction: column; gap: 1px; }
+.hero-stats dt {
+  font-size: 25px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.hero-stats dd {
+  margin: 0;
+  color: var(--text-faint);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Der Einstieg fuer alle, die keine Frage mitbringen. */
+.browse-by { padding: 52px 0 0; }
+.browse-by .section-title { margin-bottom: 16px; }
+.browse-by .tag { font-size: 14px; padding: 7px 16px; }
 
 .hero-stage .viewer canvas { height: 420px; }
 

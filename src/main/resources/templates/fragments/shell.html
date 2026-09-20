@@ -44,6 +44,17 @@
   <meta name="description" th:attr="content=${meta.description}">
   <meta name="robots" content="noindex, nofollow" th:if="${meta.noindex}">
 
+  <!--
+    WOHIN "Sign in" FUEHRT. Es stand an fuenf Stellen fest verdrahtet auf
+    Discord - und auf einem Server ohne Discord-Zugangsdaten landet das bei
+    `?client_id=unset`, worauf Discord mit "Invalid Form Body" antwortet: eine
+    Fehlerseite ohne Ausweg. Genau das war Befund B6, dort an einer Stelle
+    geheilt. Der Server weiss es ohnehin; hier steht es einmal fuer alle Seiten,
+    und `AW.signInUrl` liest es (app.js). Leer heisst: dieses Portal hat keine
+    Anmeldung, und niemand soll so tun als ob.
+  -->
+  <meta name="aw-signin" th:attr="content=${discordSignIn} ? '/oauth2/authorization/discord' : (${devLogin} ? '/dev.html' : '')">
+
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Animation Workbench Community">
   <meta property="og:title" th:attr="content=${meta.title}">

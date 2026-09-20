@@ -14,7 +14,7 @@
  * keinen ausgegrauten Kasten.
  */
 (async () => {
-  const { api, ensureCsrf, me, el, notice, formatRelative, param } = AW;
+  const { api, ensureCsrf, me, el, notice, formatRelative, param, signInButton } = AW;
 
   const slug = param("p");
   if (!slug) return;
@@ -156,7 +156,7 @@
   } else {
     formBox.replaceChildren(el("div", { class: "comment-signin" },
       el("span", { class: "muted" }, "Sign in to join the conversation."),
-      el("a", { class: "button", href: "/oauth2/authorization/discord" }, "Sign in")));
+      signInButton("Sign in")));
   }
 
   draw();

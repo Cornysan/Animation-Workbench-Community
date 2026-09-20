@@ -9,12 +9,16 @@
 
   Die Adressen der Clips bleiben unveraendert - sie stehen in Discord-Vorschauen,
   in Takedown-Mails und in der Workbench.
+
+  DREI DINGE STEHEN DAZWISCHEN, in dieser Reihenfolge: was hier liegt (Zahlen),
+  wonach man greifen kann (Schlagworte), und was gerade da ist (zwei Reihen).
+  Ein Erstbesucher fragt in genau dieser Folge.
 -->
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{fragments/shell :: head('Animation Workbench Community')}"></head>
 <body th:attr="data-signed-in=${user != null}">
 <header th:replace="~{fragments/shell :: header}"></header>
-<main class="landing">
+<main class="landing wide">
   <div th:replace="~{fragments/shell :: paused}"></div>
 
   <section class="hero">
@@ -29,6 +33,10 @@
         <a class="button primary" href="/browse.html">Browse clips</a>
         <a class="button" href="/rules.html">How sharing works</a>
       </div>
+
+      <!-- Was hier liegt, in drei Zahlen. Leer, solange es nichts zu melden gibt. -->
+      <dl class="hero-stats" id="hero-stats" hidden></dl>
+
       <p class="hero-note small">
         Everything listed here is <strong>CC BY 4.0</strong>: use it, change it, ship it
         commercially - just credit whoever made it.
@@ -41,6 +49,16 @@
       </div>
       <a class="hero-caption" id="hero-caption" hidden></a>
     </div>
+  </section>
+
+  <!--
+    Der Einstieg fuer alle, die keine Frage mitbringen. Ein Suchfeld setzt
+    voraus, dass man ein Wort im Kopf hat; eine Reihe Schlagworte zeigt, welche
+    es gibt.
+  -->
+  <section class="browse-by" id="browse-by" hidden>
+    <h2 class="section-title">Browse by movement</h2>
+    <div class="tag-bar" id="tag-bar"></div>
   </section>
 
   <section class="how">
@@ -74,6 +92,19 @@
     </div>
     <div id="latest" class="grid"></div>
     <div id="latest-state"></div>
+  </section>
+
+  <!--
+    Eine zweite Reihe, und zwar nach einem ANDEREN Mass. "Neu" und "benutzt"
+    zeigen im jungen Katalog fast dieselben Clips; sobald er waechst, laufen sie
+    auseinander - und dann ist die zweite Reihe die interessantere.
+  -->
+  <section class="latest" id="popular-section" hidden>
+    <div class="section-head">
+      <h2 class="section-title">Used most often</h2>
+      <a class="section-link" href="/browse.html?sort=popular">See all</a>
+    </div>
+    <div id="popular" class="grid"></div>
   </section>
 </main>
 <footer th:replace="~{fragments/shell :: footer}"></footer>

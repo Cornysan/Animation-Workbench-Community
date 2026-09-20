@@ -6,7 +6,7 @@
 
   if (!user) {
     notice(state, "Sign in to see your clips.");
-    state.append(el("a", { class: "button primary", href: "/oauth2/authorization/discord" }, "Sign in with Discord"));
+    state.append(AW.signInButton("Sign in", true));
     document.querySelectorAll("h2, table, #revoke, .muted.small").forEach((n) => n.classList.add("hidden"));
     return;
   }

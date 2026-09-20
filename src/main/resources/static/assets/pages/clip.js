@@ -6,7 +6,7 @@
  * Zustand ausser dem Slug in der Adresse.
  */
 (async () => {
-  const { api, ensureCsrf, me, el, notice, formatDuration, formatDate, copyText, param } = AW;
+  const { api, ensureCsrf, me, el, notice, formatDuration, formatDate, copyText, param, signInButton } = AW;
 
   const slug = param("p");
   const state = document.getElementById("state");
@@ -163,7 +163,7 @@
     //  Ein grauer Knopf, der nicht sagt warum, ist die haeufigste Sackgasse
     //  dieses Portals gewesen (B2). Er sagt es jetzt.
     actions.append(
-      el("a", { class: "button primary", href: "/oauth2/authorization/discord" }, "Sign in to download"),
+      signInButton("Sign in to download", true),
       el("p", { class: "faint small" }, "Downloads are tied to an account so the counter means something."));
   } else {
     const download = el("button", { class: "primary" },
