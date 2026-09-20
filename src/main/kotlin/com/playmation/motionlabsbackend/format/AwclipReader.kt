@@ -167,7 +167,7 @@ object AwclipReader {
 
         val curves = readCurves(require(obj, "curves", ""), manifest)
 
-        val preview = obj["preview"]?.let { readPreview(it) }
+        val preview = obj["preview"]?.let { readPreview(it, manifest.rig) }
 
         return AwclipDocument(manifest, origin, curves, settings != null, preview)
     }
@@ -253,8 +253,8 @@ object AwclipReader {
             val obj = requireObject(curveNode, at, CURVE_FIELDS)
 
             val attribute = requireString(obj, "attribute", at)
-            if (attribute !in AwclipSchema.HUMANOID_ATTRIBUTES)
-                throw Reject("unknown-attribute", "$at.attribute", "Not a humanoid curve: '$attribute'")
+            if (!AwclipSchema.isAttribute(attribute, manifest.rig))
+                throw Reject("unknown-attribute", "$at.attribute", "Not a ${manifest.rig} curve: '$attribute'")
             if (!seen.add(attribute)) throw Reject("duplicate-attribute", "$at.attribute", "Curve appears twice")
 
             val keysNode = expectArray(require(obj, "keys", at), "$at.keys")
@@ -306,7 +306,16 @@ object AwclipReader {
         return AwclipKey(time, value, inTangent, outTangent, mode.value.toInt(), inWeight, outWeight)
     }
 
-    private fun readPreview(node: StrictJson.Value): StrictJson.Value.Obj {
+    /**
+     * Die Vorschau, und sie kennt ihr Rig.
+     *
+     * Beim Humanoiden ist jeder Knochenname aus der festen Menge - die
+     * Vorschau LÄUFT dort auf einer fremden Figur, und das geht nur, wenn
+     * beide Seiten dieselben Namen meinen. Generisch läuft sie auf keiner
+     * fremden Figur, sondern auf dem Skelett, das sie selbst mitbringt; dann
+     * ist der Name kein Versprechen mehr, sondern nur noch eine Beschriftung.
+     */
+    private fun readPreview(node: StrictJson.Value, rig: String): StrictJson.Value.Obj {
         val at = "preview"
         val obj = requireObject(node, at, PREVIEW_FIELDS)
 
@@ -315,13 +324,13 @@ object AwclipReader {
             throw Reject("invalid-preview", "$at.frameRate", "Preview frame rate out of range")
 
         val bones = expectArray(require(obj, "bones", at), "$at.bones")
-        if (bones.items.isEmpty() || bones.items.size > AwclipSchema.PREVIEW_BONES.size)
+        if (bones.items.isEmpty() || bones.items.size > AwclipSchema.maxPreviewBones(rig))
             throw Reject("invalid-preview", "$at.bones", "Invalid bone count")
 
         val seen = HashSet<String>()
         bones.items.forEachIndexed { i, v ->
             val bone = expectString(v, "$at.bones[$i]")
-            if (bone !in AwclipSchema.PREVIEW_BONES || !seen.add(bone))
+            if (!AwclipSchema.isPreviewBone(bone, rig) || !seen.add(bone))
                 throw Reject("invalid-preview", "$at.bones[$i]", "Unknown or repeated bone '$bone'")
         }
 

@@ -53,7 +53,7 @@
     el("dt", {}, "Duration"), el("dd", {}, formatDuration(clip.durationSeconds)),
     el("dt", {}, "Frame rate"), el("dd", {}, Math.round(clip.frameRate) + " fps"),
     el("dt", {}, "Curves"), el("dd", {}, clip.curveCount),
-    el("dt", {}, "Rig"), el("dd", {}, "Humanoid"),
+    el("dt", {}, "Rig"), el("dd", {}, clip.rig === "generic" ? "Generic" : "Humanoid"),
     el("dt", {}, "Version"), el("dd", {}, clip.version),
     ...(clip.status ? [el("dt", {}, "Status"), el("dd", {}, el("span", { class: "status " + clip.status }, clip.status))] : []));
 

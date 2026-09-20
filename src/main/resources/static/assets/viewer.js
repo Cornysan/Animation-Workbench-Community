@@ -25,10 +25,18 @@ class SkeletonViewer {
     this.duration = Math.max(1 / this.fps, (this.frameCount - 1) / this.fps);
     this.time = 0;
     this.playing = options.autoplay !== false;
-    this.yaw = options.yaw ?? -0.6;
-    this.pitch = options.pitch ?? 0.25;
+    //  Blickwinkel wie auf der Mannequin-Buehne (stage.js): dieselben Zahlen,
+    //  und seit der Rechnung unten in [draw] auch dieselbe Bedeutung. Wer
+    //  einen Clip erst als Karte sieht und dann oeffnet, sieht ihn zweimal aus
+    //  demselben Winkel.
+    this.yaw = options.yaw ?? Math.PI - 0.55;
+    this.pitch = options.pitch ?? 0.2;
     this.zoom = 1;
     this.lastTimestamp = null;
+
+    //  Eine Karte ausserhalb des Bildes zeichnet nicht. Der Katalog schaltet
+    //  das (app.js), die Clip-Seite laesst es stehen.
+    this.visible = true;
 
     //  Fingerknochen sind 30 der 55 und ergeben in voller Staerke ein Gekrissel
     //  um jede Hand, das die Silhouette auffrisst - die Figur liest sich dann
@@ -124,8 +132,14 @@ class SkeletonViewer {
       //  Bedienung wie in der Mannequin-Buehne (stage.js), wo die Herleitung
       //  steht.
       //
+      //  Dieselbe ZEILE wie dort bedeutet seit dem 2026-09-20 auch dasselbe
+      //  BILD: bis dahin hob ein groesserer Pitch die Kamera in der Buehne und
+      //  senkte sie hier, und beide Dateien trugen trotzdem denselben
+      //  Ausdruck. Abgeglichen worden war die Formel. Die Rechnung steht
+      //  jetzt in [draw].
+      //
       //  Das Vorzeichen der EINGABE mit der
-      //  Workbench zu vergleichen fuehrt in die Irre: dort dreht ein
+      //  Workbench zu vergleichen fuehrt weiterhin in die Irre: dort dreht ein
       //  `Quaternion.Euler` eine echte Kamera, hier projiziert die Methode
       //  unten von Hand, und beide laufen bei gleichem Vorzeichen auf
       //  entgegengesetzte Bilder hinaus. Massstab ist das Bild, nicht die
@@ -137,7 +151,7 @@ class SkeletonViewer {
       //  der den vorigen Fix noch gar nicht enthielt, und die Korrektur drehte
       //  dann gegen die falsche Ausgangslage.
       this.yaw = dragging.yaw - (e.clientX - dragging.x) * 0.01;
-      this.pitch = Math.max(-1.2, Math.min(1.2, dragging.pitch + (e.clientY - dragging.y) * 0.01));
+      this.pitch = Math.max(-0.9, Math.min(1.1, dragging.pitch + (e.clientY - dragging.y) * 0.01));
     });
     this.canvas.addEventListener("pointerup", () => (dragging = null));
     this.canvas.addEventListener("wheel", (e) => {
@@ -157,9 +171,21 @@ class SkeletonViewer {
     this.time = Math.max(0, Math.min(this.duration, t));
   }
 
+  /** Ausserhalb des Bildes wird weder gerechnet noch gezeichnet - die Schleife
+   *  laeuft weiter, damit die Karte sofort wieder anspringt. */
+  setVisible(on) {
+    this.visible = on;
+  }
+
   // ── Zeichnen ──────────────────────────────────────────────────────────
 
   loop(timestamp) {
+    if (!this.visible) {
+      this.lastTimestamp = timestamp;
+      requestAnimationFrame(this.loop);
+      return;
+    }
+
     if (this.lastTimestamp !== null && this.playing) {
       this.time += (timestamp - this.lastTimestamp) / 1000;
       if (this.time > this.duration) this.time = this.time % this.duration;
@@ -188,12 +214,29 @@ class SkeletonViewer {
 
     const cy = Math.cos(this.yaw), sy = Math.sin(this.yaw);
     const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
+
+    //  ERST UM DIE HOCHACHSE DREHEN, DANN KIPPEN, DANN VERKLEINERN. `z2`
+    //  waechst von der Kamera weg.
+    //
+    //  YAW UND PITCH BEDEUTEN HIER DASSELBE WIE IN DER BUEHNE (stage.js) -
+    //  nachgerechnet, nicht abgeschrieben. Dort steht die Kamera bei
+    //  target + (sin(yaw)*cos(pitch), sin(pitch), cos(yaw)*cos(pitch)) mal
+    //  Abstand, in glTF-Koordinaten, also mit umgedrehtem z. In Unitys Raum -
+    //  dem hier - ist das (sin(yaw)*cos(pitch), sin(pitch),
+    //  -cos(yaw)*cos(pitch)), und genau diese Kamera beschreiben die beiden
+    //  Zeilen unten: ein groesserer Pitch HEBT sie.
+    //
+    //  Bis zum 2026-09-20 stand im Kipp-Schritt das andere Vorzeichen. Damit
+    //  schaute dieselbe Zahl von unten herauf statt von oben herab, und eine
+    //  Karte im Katalog zeigte ihren Clip aus einem anderen Winkel als die
+    //  Clip-Seite, die man von ihr aus oeffnet - in der Hoehe gespiegelt und
+    //  um eine halbe Drehung daneben.
     const project = (p) => {
       const x = p[0] - target[0], y = p[1] - target[1], z = p[2] - target[2];
       const x1 = cy * x + sy * z;
       const z1 = -sy * x + cy * z;
-      const y2 = cp * y - sp * z1;
-      const z2 = sp * y + cp * z1;
+      const y2 = cp * y + sp * z1;
+      const z2 = cp * z1 - sp * y;
       const perspective = 3.5 / (3.5 + z2 / this.height);
       return [w / 2 + x1 * scale * perspective, h / 2 - y2 * scale * perspective, z2];
     };

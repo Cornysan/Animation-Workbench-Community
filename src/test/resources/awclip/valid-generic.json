@@ -1,0 +1,125 @@
+{
+ "format": "awclip",
+ "version": 1,
+ "manifest": {
+  "title": "Door Swing",
+  "description": "A door on its hinge - nothing humanoid about it.",
+  "tags": [
+   "prop",
+   "door"
+  ],
+  "license": "CC-BY-4.0",
+  "rig": "generic",
+  "frameRate": 30,
+  "duration": 1
+ },
+ "origin": "own",
+ "curves": [
+  {
+   "attribute": "Hinge/Panel.m_LocalRotation.y",
+   "keys": [
+    [
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     1,
+     0.7071068,
+     0,
+     0
+    ]
+   ]
+  },
+  {
+   "attribute": "Hinge/Panel.m_LocalRotation.w",
+   "keys": [
+    [
+     0,
+     1,
+     0,
+     0
+    ],
+    [
+     1,
+     0.7071068,
+     0,
+     0
+    ]
+   ]
+  }
+ ],
+ "preview": {
+  "frameRate": 30,
+  "bones": [
+   "Hinge",
+   "Panel",
+   "Handle"
+  ],
+  "parents": [
+   -1,
+   0,
+   1
+  ],
+  "rest": [
+   [
+    0,
+    0,
+    0
+   ],
+   [
+    0,
+    0.9,
+    0
+   ],
+   [
+    0.8,
+    0,
+    0
+   ]
+  ],
+  "hips": [
+   [
+    0,
+    0,
+    0
+   ],
+   [
+    0,
+    0,
+    0
+   ]
+  ],
+  "rotations": [
+   [
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    1
+   ],
+   [
+    0,
+    0.3826834,
+    0,
+    0.9238795,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    1
+   ]
+  ]
+ }
+}

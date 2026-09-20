@@ -211,6 +211,63 @@ const DETAIL = /^(Left|Right)(Thumb|Index|Middle|Ring|Little)/;
  */
 const KEEP_BIND_POSE = /Toes$/;
 
+/**
+ * Proportionsvarianten: dieselbe Figur in anderen Massen.
+ *
+ * WARUM UEBERHAUPT. Mixamo laesst eine Figur waehlen, weil Adobe die Figuren
+ * besitzt. Hier geht es nicht um Identitaet, sondern um die Frage, die jemand
+ * an einer Vorschau wirklich hat: traegt die Bewegung auch einen anderen
+ * Koerperbau? Ein Schritt, der auf langen Beinen schleift, ein Arm, der an
+ * einem breiten Rumpf haengenbleibt - das zeigt sich nur, wenn sich die MASSE
+ * aendern, nicht das Gesicht. Also keine zweite Figur, sondern dieselbe in
+ * anderen Massen: kein fremdes Modell, keine Rechtefrage, nichts zu
+ * moderieren.
+ *
+ * WIE. Jede Gruppe skaliert EINEN Wurzelknochen gleichfoermig, und die ganze
+ * Kette darunter haengt daran - `DEF-thigh` groesser heisst laengeres und
+ * dickeres ganzes Bein, in einem Zug. Gleichfoermig ist dabei keine
+ * Bequemlichkeit: eine ungleiche Skalierung schert die Haut, sobald der
+ * Knochen sich dreht, eine gleichfoermige nie.
+ *
+ * `keep` nimmt die Aenderung an einer Stelle wieder zurueck. Der Rumpf traegt
+ * Arme und Kopf; waechst er allein, wachsen sie mit, und es entsteht ein Riese
+ * statt eines schweren Menschen. Die Gegenskalierung am Oberarm laesst den ARM
+ * in seiner Groesse und den WEG dorthin - das Schluesselbein - gewachsen.
+ * Genau das ist ein breiter Koerper.
+ */
+const PROPORTION_GROUPS = {
+  legs: { roots: ['LeftUpperLeg', 'RightUpperLeg'] },
+  arms: { roots: ['LeftUpperArm', 'RightUpperArm'] },
+  torso: { roots: ['Spine'], keep: ['LeftUpperArm', 'RightUpperArm', 'Head'] },
+};
+
+/**
+ * Die Auswahl. Die Beschriftungen stehen so in der Bedienung.
+ *
+ * `default` ist das Mannequin, wie es im Paket liegt, und bleibt die Vorgabe:
+ * der Katalog und das Bild fuer Discord-Vorschauen zeigen immer diese Masse,
+ * sonst zeigten zwei Leute denselben Clip und meinten zwei Figuren.
+ */
+export const PROPORTIONS = {
+  default: { label: 'Default', groups: {} },
+  tall: { label: 'Tall', groups: { legs: 1.14, arms: 1.07 } },
+  short: { label: 'Short', groups: { legs: 0.87, arms: 0.91 } },
+  heavy: { label: 'Heavy', groups: { torso: 1.2, legs: 0.94 } },
+};
+
+/** Eine Auswahl als Faktor je Unity-Knochenname. */
+function proportionFactors(name) {
+  const preset = PROPORTIONS[name] || PROPORTIONS.default;
+  const factors = new Map();
+  const multiply = (bone, f) => factors.set(bone, (factors.get(bone) ?? 1) * f);
+  for (const [group, factor] of Object.entries(preset.groups)) {
+    const { roots, keep = [] } = PROPORTION_GROUPS[group];
+    for (const bone of roots) multiply(bone, factor);
+    for (const bone of keep) multiply(bone, 1 / factor);
+  }
+  return factors;
+}
+
 // ── Unity -> glTF ────────────────────────────────────────────────────────
 //
 // Unity ist linkshaendig mit +Z nach vorn, glTF rechtshaendig mit -Z nach vorn.
@@ -259,9 +316,16 @@ function solvePreview(preview) {
   return { rotations, positions, floorY, frames, count };
 }
 
+let groundTextureCache = null;
+
 /** Den Boden zeichnen wir einmal in eine Leinwand - der Abfall kostet dann pro
- *  Bild nichts, und ein Rand entsteht gar nicht erst. */
+ *  Bild nichts, und ein Rand entsteht gar nicht erst.
+ *
+ *  EINMAL FUER ALLE BUEHNEN, seit der Katalog seine Karten auf der Figur
+ *  zeigt: 24 Karten waeren sonst 24 Leinwaende von 1024 Pixeln - 96 MiB
+ *  Grafikspeicher fuer denselben Boden. */
 function groundTexture(size = 1024) {
+  if (groundTextureCache) return groundTextureCache;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext('2d');
@@ -300,6 +364,7 @@ function groundTexture(size = 1024) {
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
   texture.anisotropy = 4;
+  groundTextureCache = texture;
   return texture;
 }
 
@@ -324,7 +389,7 @@ let modelPromise = null;
 
 /** Das Modell wird einmal geladen und danach geklont - zwei Buehnen auf einer
  *  Seite sollen nicht zweimal 326 KiB holen. */
-function loadModel() {
+export function loadModel() {
   if (!modelPromise) {
     modelPromise = new Promise((resolve, reject) => {
       new GLTFLoader().load(MODEL_URL, (gltf) => resolve(gltf), undefined, reject);
@@ -338,6 +403,12 @@ export class MannequinStage {
     this.canvas = canvas;
     this.preview = preview;
     this.onFrame = options.onFrame || null;
+
+    //  Eine Karte im Katalog bringt ihren Renderer mit, statt einen eigenen zu
+    //  eroeffnen - alle Karten teilen sich einen (card-stage.js). Die Buehne
+    //  zeichnet dann nicht selbst: sie stellt Figur und Kamera, und wer die
+    //  Flaeche haelt, holt sich das Bild ab.
+    this.surface = options.surface || null;
 
     this.solved = solvePreview(preview);
     this.fps = preview.frameRate;
@@ -354,7 +425,10 @@ export class MannequinStage {
     this.zoom = 1;
     this.defaults = { yaw: this.yaw, pitch: this.pitch, zoom: 1 };
 
+    this.proportions = PROPORTIONS[options.proportions] ? options.proportions : 'default';
+
     this.buildScene(gltf);
+    this.applyProportions();
     this.buildSkeletonLines();
     this.bindRetarget();
 
@@ -365,7 +439,7 @@ export class MannequinStage {
 
     this.last = null;
     this.loop = this.loop.bind(this);
-    this.renderer.setAnimationLoop(this.loop);
+    if (!this.surface) this.renderer.setAnimationLoop(this.loop);
   }
 
   /**
@@ -407,11 +481,21 @@ export class MannequinStage {
   // ── Aufbau ─────────────────────────────────────────────────────────────
 
   buildScene(gltf) {
-    this.renderer = new WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: true });
-    this.renderer.setClearAlpha(0);
-    this.renderer.toneMapping = ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.12;
-    this.renderer.shadowMap.enabled = true;
+    //  SCHATTEN NUR, WO DIE BUEHNE ALLEIN STEHT. Er kostet je Bild einen
+    //  zweiten Durchgang durch die ganze Szene, und auf einer Karte von 206
+    //  Pixeln Hoehe ist er ohnehin ein Fleck - der Schein im Boden verankert
+    //  die Figur dort genauso.
+    const shadows = !this.surface;
+
+    if (this.surface) {
+      this.renderer = this.surface.renderer;
+    } else {
+      this.renderer = new WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: true });
+      this.renderer.setClearAlpha(0);
+      this.renderer.toneMapping = ACESFilmicToneMapping;
+      this.renderer.toneMappingExposure = 1.12;
+      this.renderer.shadowMap.enabled = true;
+    }
 
     this.scene = new Scene();
     this.camera = new PerspectiveCamera(32, 1, 0.05, 60);
@@ -420,7 +504,7 @@ export class MannequinStage {
 
     const key = new DirectionalLight(0xfff4e8, 2.5);
     key.position.set(2.1, 4.9, -2.4);
-    key.castShadow = true;
+    key.castShadow = shadows;
     key.shadow.mapSize.set(1024, 1024);
     key.shadow.radius = 4;
     key.shadow.bias = -0.0015;
@@ -452,6 +536,7 @@ export class MannequinStage {
     this.contact = new Mesh(new PlaneGeometry(3.2, 3.2), new ShadowMaterial({ opacity: 0.5 }));
     this.contact.rotation.x = -Math.PI / 2;
     this.contact.position.y = 0.002;
+    this.contact.visible = shadows;
     this.contact.receiveShadow = true;
     this.contact.renderOrder = 1;
     this.scene.add(this.contact);
@@ -471,7 +556,7 @@ export class MannequinStage {
     const model = cloneSkinned(gltf.scene);
     model.traverse((node) => {
       if (node.isMesh || node.isSkinnedMesh) {
-        node.castShadow = true;
+        node.castShadow = shadows;
         node.receiveShadow = false;
         node.frustumCulled = false; // die Haut ist quantisiert, ihr eigener Kasten luegt
         const seam = node.material.name === SEAMS;
@@ -484,6 +569,51 @@ export class MannequinStage {
     this.figure.add(model);
     this.model = model;
     this.scene.updateMatrixWorld(true);
+  }
+
+  /**
+   * Die gewaehlten Masse auf die Knochen legen.
+   *
+   * ERST ZURUECK AUF ANFANG. Eine zweite Wahl darf nicht auf der ersten
+   * aufbauen, und mitten im Clip stehen die Knochen in einer POSE, nicht in
+   * ihrer Ruhe - ohne das Zuruecksetzen fror die naechste Bindung genau diese
+   * Pose als Bindepose ein, und die Figur bliebe schief stehen.
+   */
+  applyProportions() {
+    const bones = this.skinned.skeleton.bones;
+    const byKey = new Map(bones.map((b, i) => [b.name, i]));
+
+    if (!this.boneRestScale) this.boneRestScale = bones.map((b) => b.scale.clone());
+    bones.forEach((b, i) => {
+      b.scale.copy(this.boneRestScale[i]);
+      if (this.bindLocal) b.quaternion.copy(this.bindLocal[i]);
+    });
+
+    this.boneScale = bones.map(() => 1);
+    for (const [srcName, factor] of proportionFactors(this.proportions)) {
+      const ti = byKey.get(boneKey(BONE_MAP[srcName] || ''));
+      if (ti === undefined) continue;
+      bones[ti].scale.multiplyScalar(factor);
+      this.boneScale[ti] = factor;
+    }
+    this.scene.updateMatrixWorld(true);
+  }
+
+  /**
+   * Eine andere Figur derselben Familie.
+   *
+   * BINDET NEU, weil Massstab, Hoehe und Bodenhoehe an den Massen haengen. Die
+   * Schrittweite der Vorschau wird auf die Beinlaenge des Modells gerechnet,
+   * und zu laengeren Beinen gehoeren groessere Schritte - ohne die neue
+   * Bindung liefe eine lange Figur mit den Schritten einer kurzen und
+   * rutschte ueber den Boden.
+   */
+  setProportions(name) {
+    if (!PROPORTIONS[name] || name === this.proportions) return;
+    this.proportions = name;
+    this.applyProportions();
+    this.bindRetarget();
+    this.applyFrame(Math.min(this.solved.frames - 1, Math.round(this.time * this.fps)));
   }
 
   // ── Bindung an die Vorschau ────────────────────────────────────────────
@@ -524,6 +654,42 @@ export class MannequinStage {
     const bindWorld = skeleton.boneInverses.map((m) => m.clone().invert());
     const bindPos = bindWorld.map((m) => new Vector3().setFromMatrixPosition(m));
     const bindRot = bindWorld.map((m) => new Quaternion().setFromRotationMatrix(m));
+
+    //  Reihenfolge: Eltern vor Kindern. Zweimal gebraucht - gleich fuer die
+    //  Proportionen und weiter unten beim Umrechnen ins Lokale.
+    const parentIndex = bones.map((b) => (b.parent ? byKey.get(b.parent.name) ?? -1 : -1));
+    const depth = bones.map((b) => {
+      let d = 0;
+      for (let p = b.parent; p; p = p.parent) d++;
+      return d;
+    });
+    const order = bones.map((_, i) => i).sort((a, b) => depth[a] - depth[b]);
+
+    /**
+     * DIE PROPORTIONEN GEHOEREN IN DIE BINDEPOSE, nicht nur an die Knochen.
+     *
+     * `boneInverses` kennt das Modell nur so, wie es geladen wurde; was danach
+     * skaliert wird, steht dort nicht. Wer es hier auslaesst, rechnet alles
+     * Folgende an der falschen Figur - die Korrektur je Knochen, die
+     * Koerperachsen, und vor allem den Massstab, der die Schrittweite an der
+     * Beinlaenge misst.
+     *
+     * Ein Knochen skaliert den VERSATZ SEINER KINDER, nicht seinen eigenen;
+     * `outer` ist darum die aufgelaufene Skalierung des Elternknochens. Die
+     * RICHTUNG jedes Versatzes bleibt unberuehrt - gleichfoermig skaliert
+     * heisst gleich gerichtet -, und weil die Korrektur unten nur Richtungen
+     * vergleicht, aendert sich an ihr durch die Proportionen nichts.
+     */
+    if (this.boneScale && this.boneScale.some((f) => f !== 1)) {
+      const rest = bindPos.map((p) => p.clone());
+      const accumulated = bones.map(() => 1);
+      for (const i of order) {
+        const p = parentIndex[i];
+        const outer = p < 0 ? 1 : accumulated[p];
+        accumulated[i] = outer * this.boneScale[i];
+        if (p >= 0) bindPos[i].copy(bindPos[p]).add(rest[i].clone().sub(rest[p]).multiplyScalar(outer));
+      }
+    }
 
     /**
      * Die Richtung zum Kind, einmal in der Quelle und einmal im Modell, beide
@@ -760,19 +926,12 @@ export class MannequinStage {
       if (!track.correction) track.correction = new Quaternion();
     }
 
-    // Reihenfolge: Eltern vor Kindern, sonst steht beim Umrechnen ins Lokale
-    // die Weltdrehung des Elternknochens noch nicht fest.
-    const depth = bones.map((b) => {
-      let d = 0;
-      for (let p = b.parent; p; p = p.parent) d++;
-      return d;
-    });
-    this.order = bones.map((_, i) => i).sort((a, b) => depth[a] - depth[b]);
+    this.order = order;
     this.trackOf = new Map(this.tracks.map((t) => [t.bone, t]));
     this.bones = bones;
     this.bindLocal = bones.map((b) => b.quaternion.clone());
     this.worldQuats = bones.map(() => new Quaternion());
-    this.parentIndex = bones.map((b) => (b.parent ? byKey.get(b.parent.name) ?? -1 : -1));
+    this.parentIndex = parentIndex;
 
     // Der oberste Knochen haengt unter einem gewoehnlichen Knoten; dessen
     // Weltdrehung ist die Grundlage und aendert sich nie.
@@ -934,10 +1093,27 @@ export class MannequinStage {
     const rect = this.canvas.getBoundingClientRect();
     const w = Math.max(1, Math.round(rect.width));
     const h = Math.max(1, Math.round(rect.height));
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+
+    if (!this.surface) {
+      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      this.renderer.setSize(w, h, false);
+      return;
+    }
+
+    //  Auf einer Karte ist die eigene Leinwand eine 2D-Leinwand: sie bekommt
+    //  das fertige Bild kopiert. Gezeichnet wird in der gemeinsamen Flaeche,
+    //  und die muss die groesste Karte fassen.
+    //
+    //  Nicht `this.height` - das ist die Groesse der FIGUR, und die steht in
+    //  Metern.
+    const ratio = Math.min(window.devicePixelRatio || 1, 2);
+    this.pixelWidth = Math.round(w * ratio);
+    this.pixelHeight = Math.round(h * ratio);
+    this.canvas.width = this.pixelWidth;
+    this.canvas.height = this.pixelHeight;
+    this.surface.fit(this.pixelWidth, this.pixelHeight);
   }
 
   applyFrame(frame) {
@@ -1029,7 +1205,18 @@ export class MannequinStage {
     this.camera.lookAt(this.target);
   }
 
-  loop(timestamp) {
+  /**
+   * Die Zeit weiterstellen und Figur und Kamera dorthin setzen - ohne zu
+   * zeichnen.
+   *
+   * Getrennt vom Zeichnen, weil eine Karte im Katalog beides nicht zusammen
+   * tun kann: sie teilt sich ihren Renderer mit 23 anderen, und wer ihn haelt,
+   * setzt erst den Ausschnitt und zeichnet dann (card-stage.js).
+   *
+   * Zurueck kommt die Nummer des Bildes, auf dem die Figur jetzt steht - wer
+   * dasselbe Bild schon gezeichnet hat, kann es sich sparen.
+   */
+  step(timestamp) {
     if (this.last !== null && this.playing) {
       this.time += (timestamp - this.last) / 1000;
       if (this.time > this.duration) this.time %= this.duration;
@@ -1037,23 +1224,40 @@ export class MannequinStage {
     this.last = timestamp;
 
     const frame = Math.min(this.solved.frames - 1, Math.round(this.time * this.fps));
-    const hips = this.applyFrame(frame);
-    this.placeCamera(hips);
+    this.placeCamera(this.applyFrame(frame));
+    return frame;
+  }
+
+  loop(timestamp) {
+    this.step(timestamp);
     this.renderer.render(this.scene, this.camera);
     if (this.onFrame) this.onFrame(this.time, this.duration);
   }
 
+  /**
+   * Abbauen - aber nur das Eigene.
+   *
+   * DIE HAUT GEHOERT NICHT DIESER BUEHNE. `cloneSkinned` klont das Skelett und
+   * TEILT die Geometrie mit dem einmal geladenen Modell, also mit jeder
+   * anderen Buehne auf der Seite. Wer sie hier freigibt, nimmt sie den anderen
+   * weg. Dasselbe gilt fuer den Boden, der seit dem Katalog allen gehoert, und
+   * fuer den Renderer, wenn er geliehen ist.
+   */
   dispose() {
-    this.renderer.setAnimationLoop(null);
+    if (!this.surface) this.renderer.setAnimationLoop(null);
     if (this.observer) this.observer.disconnect();
+
+    const shared = new Set();
+    this.model.traverse((node) => { if (node.geometry) shared.add(node.geometry); });
+
     this.scene.traverse((node) => {
-      if (node.geometry) node.geometry.dispose();
+      if (node.geometry && !shared.has(node.geometry)) node.geometry.dispose();
       if (node.material) {
         (Array.isArray(node.material) ? node.material : [node.material]).forEach((m) => m.dispose());
       }
     });
-    this.groundMap.dispose();
-    this.renderer.dispose();
+
+    if (!this.surface) this.renderer.dispose();
   }
 }
 

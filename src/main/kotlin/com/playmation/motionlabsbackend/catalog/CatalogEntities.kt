@@ -1,5 +1,6 @@
 package com.playmation.motionlabsbackend.catalog
 
+import com.playmation.motionlabsbackend.format.AwclipSchema
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
@@ -87,6 +88,16 @@ class PackageVersion(
     var durationSeconds: Float,
     var curveCount: Int,
     var originClass: String,
+
+    /**
+     * Das Rig der Fassung - `humanoid` oder `generic`.
+     *
+     * Es stand bis zur Öffnung für generische Clips nirgends, weil es nur
+     * einen Wert gab und der Viewer ihn raten konnte. Jetzt entscheidet er
+     * daran, OB die Figur überhaupt auftritt: ein generischer Clip läuft auf
+     * seinem eigenen Skelett, nicht auf dem Mannequin.
+     */
+    var rig: String = AwclipSchema.RIG_HUMANOID,
 
     @Enumerated(EnumType.STRING)
     var status: VersionStatus = VersionStatus.PUBLISHED,

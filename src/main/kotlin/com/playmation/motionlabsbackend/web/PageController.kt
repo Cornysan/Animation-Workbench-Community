@@ -93,6 +93,13 @@ class PageController(
     fun clip(@RequestParam(name = "p", required = false) slug: String?, model: Model): String {
         val clip = slug?.let { runCatching { catalog.detail(it, null) }.getOrNull() }
 
+        //  Das Rig gleich mit in die Seite: die Vorschau entscheidet daran, ob
+        //  die Figur auftritt, und sie soll dafuer nicht erst einen zweiten
+        //  Aufruf machen muessen. Ein privater Clip kommt hier ohne Anmeldung
+        //  nicht durch - dann steht `humanoid`, und die Vorschau merkt selbst,
+        //  dass sich das nicht umrechnen laesst.
+        model.addAttribute("clipRig", clip?.rig ?: AwclipSchema.RIG_HUMANOID)
+
         //  Ein privater Clip bekommt keine eigene Vorschau. Wer „nicht gelistet
         //  und nicht auffindbar" waehlt, hat keine Karte bestellt, die seine
         //  Bewegung in jedem Kanal zeigt, in den der Link geraet.

@@ -44,13 +44,74 @@ object AwclipSchema {
 
     val LICENSES = listOf(LICENSE_PUBLIC, LICENSE_PRIVATE)
 
-    val RIGS = listOf("humanoid")
+    /**
+     * Die Rigs.
+     *
+     * `humanoid` ist Unitys Muskelraum: eine feste, kleine Menge von Namen,
+     * die auf JEDER humanoiden Figur dasselbe bedeuten. Darum steht sie unten
+     * als Liste, und die Liste ist die Prüfung.
+     *
+     * `generic` ist alles andere - eine Tür, ein Schwanz, ein Kranarm. So ein
+     * Clip hängt an SEINEM Skelett, mit Namen, die nur kennt, wer das Skelett
+     * gebaut hat. Eine Liste dafür gibt es nicht und kann es nicht geben.
+     *
+     * WARUM DAS TROTZDEM OHNE FIGURENBIBLIOTHEK GEHT, und das ist der Grund,
+     * warum hier überhaupt etwas aufgeht: ein generischer Clip lässt sich
+     * nicht auf eine fremde Figur umrechnen - es gibt keinen gemeinsamen
+     * Muskelraum, auf den man beide abbilden könnte. Er BRAUCHT aber auch
+     * keine. Seine Vorschau bringt ihr Skelett selbst mit (`bones`, `parents`,
+     * `rest`), und das Strichmännchen zeichnet genau das. Die Figur fehlt
+     * nicht - sie wäre an einer Tür schlicht falsch.
+     */
+    const val RIG_HUMANOID = "humanoid"
+    const val RIG_GENERIC = "generic"
+
+    val RIGS = listOf(RIG_HUMANOID, RIG_GENERIC)
     val ORIGINS = listOf("own", "unknown")
+
+    /**
+     * Die Grenzen für die freien Namen eines generischen Rigs.
+     *
+     * An die Stelle der Liste tritt eine REGEL, und eine Regel prüft nur, was
+     * sie prüfen kann: Länge, keine Steuerzeichen, kein Leerraum am Rand. Was
+     * ein Name BEDEUTET, weiß allein das Rig, aus dem er stammt - der Server
+     * reicht ihn durch, er versteht ihn nicht.
+     *
+     * [MAX_PREVIEW_BONES] liegt über den 55 des Humanoiden, aber nicht offen:
+     * die Vorschau trägt je Frame vier Zahlen pro Knochen, und das Produkt aus
+     * Knochen und Frames bleibt so unter [MAX_UNCOMPRESSED_BYTES].
+     */
+    const val MAX_ATTRIBUTE_LENGTH = 255
+    const val MAX_BONE_NAME_LENGTH = 64
+    const val MAX_PREVIEW_BONES = 128
 
     fun isTag(tag: String): Boolean {
         if (tag.isEmpty() || tag.length > MAX_TAG_LENGTH) return false
         return tag.withIndex().all { (i, c) -> c in 'a'..'z' || c in '0'..'9' || (c == '-' && i > 0) }
     }
+
+    /**
+     * Ein freier Name eines generischen Rigs.
+     *
+     * DER RAND AUS LEERRAUM IST KEINE SCHÖNHEITSFRAGE. Zwei Namen, die sich
+     * nur um ein Leerzeichen unterscheiden, sind für einen Menschen derselbe
+     * und für die Duplikatprüfung zwei - damit ließe sich dieselbe Kurve
+     * zweimal in einen Clip legen, und niemand sähe es.
+     */
+    fun isFreeName(name: String, maxLength: Int): Boolean =
+        name.isNotEmpty() && name.length <= maxLength && name == name.trim() && name.none { it.isISOControl() }
+
+    /** Gehört die Kurve zum Rig: humanoid an der Liste, generisch an der Regel. */
+    fun isAttribute(attribute: String, rig: String): Boolean =
+        if (rig == RIG_GENERIC) isFreeName(attribute, MAX_ATTRIBUTE_LENGTH) else attribute in HUMANOID_ATTRIBUTES
+
+    /** Dasselbe für einen Knochen der Vorschau. */
+    fun isPreviewBone(bone: String, rig: String): Boolean =
+        if (rig == RIG_GENERIC) isFreeName(bone, MAX_BONE_NAME_LENGTH) else bone in PREVIEW_BONES
+
+    /** Wie viele Knochen die Vorschau tragen darf. */
+    fun maxPreviewBones(rig: String): Int =
+        if (rig == RIG_GENERIC) MAX_PREVIEW_BONES else PREVIEW_BONES.size
 
     /** Gemessen an 28 humanoiden Clips (134 Namen) plus die TDOF-Familie - siehe AWClipSchema.cs. */
     val HUMANOID_ATTRIBUTES: Set<String> = buildSet {

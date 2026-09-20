@@ -25,6 +25,7 @@ import java.io.ByteArrayOutputStream
 import java.util.Collections
 import java.util.concurrent.TimeUnit
 import javax.imageio.ImageIO
+import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.hypot
@@ -157,10 +158,13 @@ class ClipCardRenderer {
     }
 
     private fun drawFigure(g: java.awt.Graphics2D, points: Array<FloatArray>, bones: List<String>, parents: List<Int>) {
-        //  Blickwinkel wie auf den Katalogkarten - leicht von der Seite und von
-        //  oben, damit ein Schritt als Schritt lesbar ist und nicht als Strich.
-        val yaw = -0.7
-        val pitch = 0.18
+        //  Blickwinkel wie ueberall sonst: dieselben zwei Zahlen wie die
+        //  Buehne im Browser (stage.js) und das Strichmaennchen (viewer.js) -
+        //  leicht von der Seite und von oben, damit ein Schritt als Schritt
+        //  lesbar ist und nicht als Strich. Wer einen Clip in Discord sieht
+        //  und dann oeffnet, sieht zweimal dasselbe Bild.
+        val yaw = PI - 0.55
+        val pitch = 0.2
 
         var minY = Float.MAX_VALUE
         var maxY = -Float.MAX_VALUE
@@ -182,8 +186,10 @@ class ClipCardRenderer {
             val z = (p[2] - target[2]).toDouble()
             val x1 = cy * x + sy * z
             val z1 = -sy * x + cy * z
-            val y2 = cp * y - sp * z1
-            val z2 = sp * y + cp * z1
+            //  Ein groesserer Pitch HEBT die Kamera - dieselbe Bedeutung wie
+            //  in `viewer.js`, wo die Herleitung steht.
+            val y2 = cp * y + sp * z1
+            val z2 = cp * z1 - sp * y
             val perspective = 3.5 / (3.5 + z2 / height)
             return doubleArrayOf(x1 * perspective, -y2 * perspective, z2)
         }

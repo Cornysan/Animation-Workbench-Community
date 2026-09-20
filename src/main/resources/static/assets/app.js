@@ -203,10 +203,11 @@ const AW = (() => {
    * Die Clip-Karte. Sie stand in `pages/browse.js`, und als die Startseite
    * dieselbe Karte brauchte, war die Wahl: zweimal pflegen oder einmal hier.
    *
-   * Die Vorschau ist das Strichmaennchen, nicht die Figur - eine Seite zeigt
-   * bis zu 24 Karten, und so viele WebGL-Kontexte gibt kein Browser her. Die
-   * Figur steht auf der Clip-Seite und im Kopf der Startseite, wo sie einzeln
-   * ist und gross genug, um etwas zu erzaehlen.
+   * Auf der Vorschau steht die FIGUR, dieselbe wie auf der Clip-Seite und aus
+   * demselben Blickwinkel. Dass das geht, obwohl eine Seite bis zu 24 Karten
+   * zeigt, liegt an einem einzigen WebGL-Kontext, den sich alle Karten teilen
+   * (`assets/card-stage.js`) - nicht an 24 Kontexten, die kein Browser
+   * hergibt. Das Strichmaennchen bleibt der Rueckfall.
    */
   /**
    * Wer Bewegung reduziert haben will, bekommt sie reduziert.
@@ -217,22 +218,89 @@ const AW = (() => {
    */
   const stillPreviews = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
 
+  /**
+   * Die Figur fuer die Karten liegt in einem Modul, und three.js liegt darin.
+   * Geholt wird es erst, wenn wirklich eine Karte im Bild ist - wer die Regeln
+   * liest oder sein Konto ansieht, laedt kein 3D.
+   */
+  let cardStageModule = null;
+  function cardStage() {
+    if (!cardStageModule) {
+      cardStageModule = import("/assets/card-stage.js").catch((error) => {
+        console.warn("[cards] no figure, drawing stick figures", error);
+        return null;
+      });
+    }
+    return cardStageModule;
+  }
+
+  let skeletonFallbackWarned = false;
+
+  /**
+   * Die Vorschau einer Karte: Daten holen, Figur aufbauen, und ab dann an- und
+   * abschalten, je nachdem ob die Karte im Bild ist.
+   */
+  function cardPreview(canvas) {
+    let viewer = null;
+    let visible = true;
+
+    api("GET", "/api/v1/packages/" + canvas.dataset.slug + "/preview")
+      .then(async (preview) => {
+        //  Ein generischer Clip bekommt die Figur gar nicht erst zu sehen -
+        //  auf seinem Skelett waere sie erfunden. Die Begruendung steht ganz
+        //  bei `mountViewer` in viewer-ui.js.
+        const stage = canvas.dataset.rig === "generic" ? null : await cardStage();
+        if (stage) {
+          try {
+            viewer = await stage.mountCardStage(canvas, preview, { autoplay: !stillPreviews });
+          } catch (error) {
+            //  Eine Vorschau, die sich nicht auf die Figur umrechnen laesst,
+            //  bekommt ihr Strichmaennchen. Die Konsole bekommt eine Zeile,
+            //  nicht 24.
+            if (!skeletonFallbackWarned) {
+              skeletonFallbackWarned = true;
+              console.warn("[cards] falling back to the skeleton", error);
+            }
+          }
+        }
+
+        if (!viewer) {
+          viewer = new SkeletonViewer(canvas, preview, { interactive: false, autoplay: !stillPreviews });
+        }
+
+        //  Stillgestellt heisst nicht Frame 0: viele Clips fangen in der
+        //  Ruhelage an, und ein Laufzyklus saehe dann aus wie jemand, der
+        //  steht. Ein Viertel hinein steht fast immer eine Pose.
+        if (stillPreviews) viewer.setTime(viewer.duration * 0.25);
+        viewer.setVisible(visible);
+      })
+      .catch(() => canvas.replaceWith(el("div", { class: "viewer-empty" }, "No preview")));
+
+    return {
+      setVisible(on) {
+        visible = on;
+        if (viewer) viewer.setVisible(on);
+      },
+    };
+  }
+
+  /**
+   * WAS IM BILD IST, LAEUFT - der Rest ruht.
+   *
+   * Vorher meldete sich eine Karte beim ersten Erscheinen ab und lief von da
+   * an fuer immer weiter. Wer zwei Seiten weit blaettert, hatte danach zwei
+   * Dutzend Figuren im Ruecken, die fuer niemanden rechnen. Die Beobachtung
+   * bleibt jetzt bestehen und schaltet in beide Richtungen.
+   */
   function previewObserver() {
     return new IntersectionObserver((entries) => {
       for (const entry of entries) {
-        if (!entry.isIntersecting) continue;
-        entry.target.__observer.unobserve(entry.target);
         const canvas = entry.target;
-        api("GET", "/api/v1/packages/" + canvas.dataset.slug + "/preview")
-          .then((preview) => {
-            const viewer = new SkeletonViewer(canvas, preview,
-              { interactive: false, autoplay: !stillPreviews, yaw: -0.7, pitch: 0.18 });
-            //  Stillgestellt heisst nicht Frame 0: viele Clips fangen in der
-            //  Ruhelage an, und ein Laufzyklus saehe dann aus wie jemand, der
-            //  steht. Ein Viertel hinein steht fast immer eine Pose.
-            if (stillPreviews) viewer.setTime(viewer.duration * 0.25);
-          })
-          .catch(() => canvas.replaceWith(el("div", { class: "viewer-empty" }, "No preview")));
+        if (canvas.__preview) {
+          canvas.__preview.setVisible(entry.isIntersecting);
+        } else if (entry.isIntersecting) {
+          canvas.__preview = cardPreview(canvas);
+        }
       }
     }, { rootMargin: "300px" });
   }
@@ -257,11 +325,10 @@ const AW = (() => {
    * gekostet.
    */
   function clipCard(item, observer) {
-    const canvas = el("canvas", { "data-slug": item.slug, width: 560, height: 420 });
-    if (item.hasPreview && observer) {
-      canvas.__observer = observer;
-      observer.observe(canvas);
-    }
+    const canvas = el("canvas", {
+      "data-slug": item.slug, "data-rig": item.rig || "humanoid", width: 560, height: 420,
+    });
+    if (item.hasPreview && observer) observer.observe(canvas);
 
     const fresh = Date.now() - new Date(item.createdAt).getTime() < WEEK;
 

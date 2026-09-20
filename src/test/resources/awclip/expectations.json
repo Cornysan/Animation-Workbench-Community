@@ -119,6 +119,21 @@
    "file": "invalid-json-depth.json",
    "error": "json-depth",
    "hash": null
+  },
+  {
+   "file": "valid-generic.json",
+   "error": null,
+   "hash": "6c0375545ede5346030ba984c3afe1df9bcae535d8de6637844142d801d389f7"
+  },
+  {
+   "file": "invalid-generic-attribute.json",
+   "error": "unknown-attribute",
+   "hash": null
+  },
+  {
+   "file": "invalid-generic-bone.json",
+   "error": "invalid-preview",
+   "hash": null
   }
  ]
 }

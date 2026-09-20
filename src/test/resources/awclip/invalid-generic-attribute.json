@@ -2,16 +2,16 @@
  "format": "awclip",
  "version": 1,
  "manifest": {
-  "title": "Nod",
-  "license": "ARR",
-  "rig": "quadruped",
+  "title": "Door Swing",
+  "license": "CC-BY-4.0",
+  "rig": "generic",
   "frameRate": 30,
   "duration": 1
  },
  "origin": "own",
  "curves": [
   {
-   "attribute": "Head Nod Down-Up",
+   "attribute": " Hinge/Panel.m_LocalRotation.y",
    "keys": [
     [
      0,

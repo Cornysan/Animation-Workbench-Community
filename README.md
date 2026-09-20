@@ -80,14 +80,31 @@ sie sich auch jetzt nicht.
 |---|---|
 | `static/models/aw-mannequin.glb` | Die Figur, 326 KiB. Erzeugt mit `docs-site/tools/unity-mesh-to-glb.py` im Workbench-Repo - hier liegt nur die Kopie. |
 | `static/assets/stage.js` | Die Buehne: laedt das Modell, rechnet die Vorschau auf seine Knochen um, zeichnet Boden, Licht und Schatten. |
+| `static/assets/card-stage.js` | Dieselbe Buehne auf den Karten des Katalogs - ein Renderer fuer alle. |
 | `static/assets/viewer-ui.js` | Wiedergabe, Zeitleiste und die Sichtschalter drumherum. |
-| `static/assets/viewer.js` | Das Strichmaennchen. Bleibt: im Katalog, als Skelettansicht und als Rueckfall ohne WebGL. |
+| `static/assets/viewer.js` | Das Strichmaennchen. Bleibt: als Skelettansicht und als Rueckfall ohne WebGL. |
 | `static/assets/vendor/three.module.js` | three.js r186 plus GLTFLoader und SkeletonUtils, gebuendelt. |
 
-Das Strichmaennchen zeichnet die **Karten** im Katalog, nicht die Figur: eine
-Seite zeigt bis zu 24 Karten, und so viele WebGL-Kontexte gibt kein Browser
-her. Die Figur steht dort, wo sie einzeln ist - auf der Clip-Seite und im Kopf
-der Startseite.
+**Vier Proportionen derselben Figur.** Rechts unten auf der Buehne steht
+`Default / Tall / Short / Heavy` (Taste `P` geht die Reihe durch). Das ist
+keine zweite Figur, sondern dieselbe in anderen Massen: jede Auswahl skaliert
+ein paar Wurzelknochen gleichfoermig, die Kette darunter haengt daran. Damit
+laesst sich die Frage beantworten, fuer die es sonst eine Modellbibliothek
+braeuchte - traegt die Bewegung auch einen anderen Koerperbau? -, ohne ein
+fremdes Modell und damit ohne Rechtefrage. `Default` bleibt die Vorgabe, und
+Katalogkarten wie Discord-Bilder zeigen immer sie. Die Rechnung dazu steht in
+`stage.js` bei `PROPORTIONS`.
+
+Auch die **Karten** im Katalog zeigen die Figur. Eine Seite zeigt bis zu 24
+davon, und so viele WebGL-Kontexte gibt kein Browser her - aber eine Seite
+braucht auch keine 24 Kontexte, sondern 24 Bilder: ein Renderer zeichnet reihum
+fuer jede Karte in eine eigene Kachel, und jede Karte kopiert sich ihr Bild auf
+ihre 2D-Leinwand. Was ausserhalb des Bildes steht, ruht.
+
+Der **Blickwinkel ist ueberall derselbe** (`yaw = PI - 0.55`, `pitch = 0.2`,
+wachsender Pitch hebt die Kamera): Buehne, Strichmaennchen und das Bild fuer
+Discord-Vorschauen (`web/ClipCard.kt`). Wer eine der drei Rechnungen anfasst,
+muss an die anderen denken.
 
 **Warum die Vorschau umgerechnet werden muss.** Die Vorschau im `.awclip` ist
 auf der Figur gebacken, die der Hochladende in der Workbench ausgewaehlt hat,
@@ -95,6 +112,44 @@ und bringt deren Achsenkonvention mit. Die Umrechnung bestimmt pro Knochen eine
 feste Korrektur aus der Richtung zum Kindknochen - in beiden Rigs im lokalen
 Raum bekannt. Bei gleicher Konvention ist sie die Einheit und das Bild exakt.
 Der Kopf von `stage.js` erklaert es im Ganzen.
+
+### Generische Clips
+
+Neben `humanoid` nimmt das Portal `generic` an - eine Tür, ein Schwanz, ein
+Kranarm. Der Unterschied ist nicht die Größe der erlaubten Menge, sondern ihre
+Art:
+
+| | humanoid | generic |
+|---|---|---|
+| Kurvennamen | feste Liste (`HUMANOID_ATTRIBUTES`) | Regel: 1-255 Zeichen, keine Steuerzeichen, kein Leerraum am Rand |
+| Knochen der Vorschau | feste Liste (`PREVIEW_BONES`, 55) | dieselbe Regel, max. 64 Zeichen, bis zu 128 Knochen |
+| Vorschau läuft auf | dem Mannequin, umgerechnet | dem Skelett, das der Clip selbst mitbringt |
+
+**Warum das ohne Figurenbibliothek auskommt.** Ein generischer Clip lässt sich
+nicht auf eine fremde Figur umrechnen - zwischen einem Türscharnier und einem
+Oberschenkel gibt es keine Entsprechung. Er braucht aber auch keine: seine
+Vorschau trägt `bones`, `parents` und `rest` bei sich, und das Strichmännchen
+zeichnet genau das. Für ihn ist es darum nicht der Rückfall, sondern die
+richtige Ansicht. Mixamos Figurenauswahl löst ein Problem, das hier gar nicht
+entsteht.
+
+Das Rig steht seit `V5` an der Fassung (`package_version.rig`) und in beiden
+API-Antworten. Der Viewer entscheidet daran, ob die Figur überhaupt auftritt:
+`clip.html` trägt es als `data-rig`, die Katalogkarte als `data-rig` an ihrer
+Leinwand. Ohne diese Angabe bliebe nur, es am Scheitern der Umrechnung zu
+merken - das fängt zwar, sieht aber aus wie ein Fehler.
+
+> **Der Client muss mit.** `.awclip` ist ein geteiltes Format: `AWClipSchema.cs`
+> und `AWClipReader.cs` in der Workbench brauchen dieselbe Lockerung, sonst
+> lehnt das Werkzeug ab, was der Server annimmt. Dasselbe gilt für die
+> Testdateien - `invalid-rig.json` trägt jetzt `quadruped` statt `generic`
+> (`generic` ist ja gültig geworden), und `valid-generic.json`,
+> `invalid-generic-attribute.json` und `invalid-generic-bone.json` sind neu.
+>
+> Der Inhalts-Hash umfasst weiterhin nur Kurvennamen und Schlüssel, nicht das
+> Rig. Ein generischer Clip, dessen Kurven zufällig genau wie humanoide Muskeln
+> hießen, gälte als dasselbe Werk. Das ist gewollt gelassen: den Hash zu ändern
+> hieße, jeden bestehenden ungültig zu machen.
 
 ### three.js erneuern
 

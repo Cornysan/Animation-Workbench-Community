@@ -38,7 +38,12 @@ function message(text) {
   }
 
   try {
-    await mountViewer(box, preview);
+    //  Das Rig steht als `data-rig` im Markup: der Server hat den Clip fuer
+    //  die Vorschaukarten ohnehin schon geladen, also kostet es keinen
+    //  zweiten Aufruf. Fehlt es - etwa bei einem privaten Clip, den der
+    //  Server ohne Anmeldung nicht sieht -, bleibt es bei `humanoid`, und
+    //  scheitert die Umrechnung, faengt sie das Strichmaennchen auf.
+    await mountViewer(box, preview, { rig: box.dataset.rig });
   } catch (error) {
     console.warn('[clip] no viewer', error);
     message('The preview could not be loaded.');

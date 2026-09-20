@@ -12,7 +12,7 @@
  * Sichtschalter waeren ohne Buehne leere Versprechen und erscheinen gar nicht.
  */
 
-import { createMannequinStage } from './stage.js';
+import { createMannequinStage, PROPORTIONS } from './stage.js';
 
 const ICONS = {
   mesh: '<path d="M12 3.6 20 8v8l-8 4.4L4 16V8z"/><path d="M12 12 20 8M12 12v8.4M12 12 4 8"/>',
@@ -38,6 +38,32 @@ function hudButton(name, label, pressed) {
   if (pressed !== undefined) button.setAttribute('aria-pressed', String(pressed));
   button.innerHTML = icon(name);
   return button;
+}
+
+const PROPORTIONS_KEY = 'aw.viewer.proportions';
+
+/**
+ * Die gewaehlte Figur haelt ueber den Clip hinaus: wer einmal auf der langen
+ * Figur schaut, will beim naechsten Clip nicht wieder umschalten.
+ *
+ * Beides in try/catch, weil `localStorage` nicht nur leer sein, sondern
+ * WERFEN kann - im privaten Fenster und bei gesperrten Seitendaten schon beim
+ * Lesen. Ohne Gedaechtnis steht hier die Vorgabe, und das ist kein Schaden.
+ */
+function rememberedProportions() {
+  try {
+    return localStorage.getItem(PROPORTIONS_KEY) || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function rememberProportions(name) {
+  try {
+    localStorage.setItem(PROPORTIONS_KEY, name);
+  } catch {
+    /* dann eben nur fuer diesen Clip */
+  }
 }
 
 /**
@@ -76,13 +102,37 @@ export async function mountViewer(box, preview, options = {}) {
 
   let stage = null;
   let mode = 'mannequin';
+  let failure = null;
 
-  try {
-    stage = await createMannequinStage(canvas, preview, { onFrame, autoplay: options.autoplay });
-  } catch (error) {
-    // Kein WebGL, kein Modell, kein Drama: das Strichmaennchen kann das auch.
-    if (typeof SkeletonViewer !== 'function') throw error;
-    console.warn('[viewer] mannequin unavailable, falling back to the skeleton', error);
+  /**
+   * DIE FIGUR IST EIN VERSPRECHEN, DAS NUR EIN HUMANOIDER CLIP EINLOESEN KANN.
+   *
+   * Ein generischer Clip haengt an SEINEM Skelett - eine Tuer, ein Schwanz,
+   * ein Kranarm. Ihn auf das Mannequin zu rechnen gaebe kein schlechteres
+   * Bild, sondern ein erfundenes: zwischen einem Tuerscharnier und einem
+   * Oberschenkel gibt es keine Entsprechung, auf die man beide abbilden
+   * koennte.
+   *
+   * Das Strichmaennchen zeichnet dagegen genau das Skelett, das die Vorschau
+   * mitbringt. Fuer einen generischen Clip ist es darum nicht der Rueckfall,
+   * sondern die richtige Ansicht - und es braucht dafuer keine einzige Figur.
+   */
+  const rig = options.rig || 'humanoid';
+
+  if (rig === 'humanoid') {
+    try {
+      stage = await createMannequinStage(canvas, preview, {
+        onFrame, autoplay: options.autoplay, proportions: rememberedProportions(),
+      });
+    } catch (error) {
+      // Kein WebGL, kein Modell, kein Drama: das Strichmaennchen kann das auch.
+      failure = error;
+      console.warn('[viewer] mannequin unavailable, falling back to the skeleton', error);
+    }
+  }
+
+  if (!stage) {
+    if (typeof SkeletonViewer !== 'function') throw failure || new Error('no skeleton viewer');
     stage = new SkeletonViewer(canvas, preview, { onFrame, autoplay: options.autoplay });
     mode = 'skeleton';
   }
@@ -142,6 +192,44 @@ export async function mountViewer(box, preview, options = {}) {
 
     hud.append(meshToggle, gridToggle, followToggle, resetButton);
     wrap.append(hud);
+
+    /**
+     * Die Proportionen stehen rechts unten, getrennt von den Sichtschaltern
+     * links: die schalten die ANSICHT, diese aendern die FIGUR.
+     *
+     * Als Wort statt als Zeichen - fuer "Heavy" gibt es kein Symbol, das
+     * jemand ohne Beschriftung liest.
+     */
+    const figures = document.createElement('div');
+    figures.className = 'stage-figures';
+    const names = Object.keys(PROPORTIONS);
+    const chips = new Map();
+
+    const setProportions = (name) => {
+      stage.setProportions(name);
+      for (const [key, chip] of chips) {
+        chip.setAttribute('aria-pressed', String(key === stage.proportions));
+      }
+      rememberProportions(stage.proportions);
+    };
+
+    for (const name of names) {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'hud-toggle hud-chip';
+      chip.textContent = PROPORTIONS[name].label;
+      chip.title = `Proportions: ${PROPORTIONS[name].label} (P)`;
+      chip.setAttribute('aria-label', chip.title);
+      chip.setAttribute('aria-pressed', String(name === stage.proportions));
+      chip.addEventListener('click', () => setProportions(name));
+      chips.set(name, chip);
+      figures.append(chip);
+    }
+
+    // P geht die Reihe durch, wie T das Mesh umschaltet.
+    keys.set('p', () => setProportions(names[(names.indexOf(stage.proportions) + 1) % names.length]));
+
+    wrap.append(figures);
   }
 
   // Die Tasten gehoeren der Seite, aber nicht, solange jemand tippt - ein "g"

@@ -56,6 +56,8 @@ data class PackageSummary(
     val author: String,
     val durationSeconds: Float,
     val frameRate: Float,
+    /** `humanoid` oder `generic` - die Karte zeigt danach Figur oder Strichmännchen. */
+    val rig: String,
     /** Übernahmen in ein Projekt - siehe [AnimationPackage.takeCount]. */
     val downloads: Long,
     val likes: Long,
@@ -78,6 +80,7 @@ data class PackageDetail(
     val durationSeconds: Float,
     val frameRate: Float,
     val curveCount: Int,
+    val rig: String,
     val downloads: Long,
     val likes: Long,
     val comments: Long,
@@ -201,6 +204,7 @@ class CatalogService(
                 durationSeconds = manifest.duration,
                 curveCount = doc.curves.size,
                 originClass = doc.origin,
+                rig = manifest.rig,
                 createdAt = now,
             )
         )
@@ -346,7 +350,7 @@ class CatalogService(
             result.content.mapNotNull { pkg ->
                 val version = currentVersions[pkg.currentVersionId] ?: return@mapNotNull null
                 PackageSummary(pkg.slug, pkg.title, pkg.tagList(), pkg.license, authors[pkg.ownerId] ?: "unknown",
-                    version.durationSeconds, version.frameRate, pkg.takeCount, pkg.likeCount,
+                    version.durationSeconds, version.frameRate, version.rig, pkg.takeCount, pkg.likeCount,
                     pkg.commentCount, pkg.id in likedByMe, pkg.id in unlockedByMe,
                     version.previewBlobKey != null, pkg.createdAt)
             },
@@ -496,7 +500,7 @@ class CatalogService(
         return PackageDetail(
             pkg.slug, pkg.title, pkg.description, pkg.tagList(), pkg.license,
             authorNames(listOf(pkg.ownerId))[pkg.ownerId] ?: "unknown",
-            version.versionNumber, version.durationSeconds, version.frameRate, version.curveCount,
+            version.versionNumber, version.durationSeconds, version.frameRate, version.curveCount, version.rig,
             pkg.takeCount, pkg.likeCount, pkg.commentCount,
             principal != null && likes.existsByPackageIdAndAccountId(pkg.id, principal.accountId),
             principal != null && (isOwner || economy.hasUnlocked(pkg.id, principal.accountId)),
