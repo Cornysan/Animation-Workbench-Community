@@ -27,9 +27,9 @@
  *   1. die Richtung zum Kindknochen - im lokalen Raum des Knochens (Quelle:
  *      `rest`, Ziel: die Bindepose des Modells). Sie sagt, wo der Knochen
  *      hinzeigt.
- *   2. die Seitwaertsachse durch ein symmetrisches Kinderpaar, etwa die
- *      Beckenbreite von Bein zu Bein. Sie sagt, wie er UM sich selbst gedreht
- *      ist.
+ *   2. die Querachse des Koerpers - Bein zu Bein und Schulter zu Schulter -,
+ *      in den lokalen Raum des Knochens zurueckgerechnet und ueber alle Frames
+ *      gemittelt. Sie sagt, wie er UM sich selbst gedreht ist.
  *
  * Aus beiden entsteht je ein Dreibein, und die Drehung zwischen den Dreibeinen
  * ist die Korrektur. Bei gleicher Konvention ist sie die Einheit.
@@ -43,8 +43,14 @@
  * das. Fuer Becken und Brustkorb nicht, denn ein Rumpf ist breit: gemessen
  * standen Beckenachse und Schulterachse um 87 bzw. 92 Grad verdreht, und die
  * Figur trug den Oberkoerper quer zu den Beinen. Mit der zweiten Richtung sind
- * es 0,0 Grad - bei einem Clip vom Mannequin selbst wie bei einem von fremdem
- * Rig.
+ * es 0,2 bzw. 0,6 Grad.
+ *
+ * WARUM DIE ZWEITE RICHTUNG GEMESSEN UND NICHT GEERBT WIRD, steht unten bei
+ * der Rechnung. Kurz: der erste Anlauf nahm dafuer ein symmetrisches
+ * Kinderpaar am Knochen selbst und liess alle uebrigen Knochen es vom
+ * Vorfahren erben. Das ergab einen Knoten im Bauch - ein Rig dreht den Roll
+ * seiner Wirbelsaeule, und die Vererbung legt den Sprung an die falsche
+ * Stelle.
  */
 
 import {
