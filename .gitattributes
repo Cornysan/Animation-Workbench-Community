@@ -8,3 +8,8 @@
 *.sh text eol=lf
 /server/** text eol=lf
 /Dockerfile text eol=lf
+
+# Das Mannequin ist eine Binaerdatei. Git erkennt das an den Nullbytes, aber
+# eine Zeilenenden-Umschreibung waere hier ein stiller Totalschaden - also
+# steht es da, statt sich auf die Erkennung zu verlassen.
+*.glb binary

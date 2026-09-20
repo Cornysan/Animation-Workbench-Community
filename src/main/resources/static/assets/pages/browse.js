@@ -1,5 +1,5 @@
 (async () => {
-  const { api, el, notice, formatDuration } = AW;
+  const { api, el, notice, clipCard, previewObserver } = AW;
 
   const form = document.getElementById("filters");
   const sortBox = document.getElementById("sort");
@@ -50,7 +50,7 @@
 
   if (params.get("tag")) {
     state.replaceChildren(el("div", { class: "notice" }, "Tag: ", el("strong", {}, params.get("tag")), " · ",
-      el("a", { href: "/" }, "clear")));
+      el("a", { href: "/browse.html" }, "clear")));
   }
 
   if (page.items.length === 0) {
@@ -59,43 +59,8 @@
     return;
   }
 
-  // Vorschau erst laden, wenn die Karte sichtbar wird - eine Seite hat 24 davon.
-  const observer = new IntersectionObserver((entries) => {
-    for (const entry of entries) {
-      if (!entry.isIntersecting) continue;
-      observer.unobserve(entry.target);
-      const canvas = entry.target;
-      api("GET", "/api/v1/packages/" + canvas.dataset.slug + "/preview")
-        .then((preview) => new SkeletonViewer(canvas, preview, { interactive: false, autoplay: true, yaw: -0.7, pitch: 0.18 }))
-        .catch(() => canvas.replaceWith(el("div", { class: "viewer-empty" }, "No preview")));
-    }
-  }, { rootMargin: "300px" });
-
-  const week = 7 * 24 * 60 * 60 * 1000;
-
-  results.replaceChildren(...page.items.map((item) => {
-    const canvas = el("canvas", { "data-slug": item.slug, width: 560, height: 420 });
-    if (item.hasPreview) observer.observe(canvas);
-
-    const fresh = Date.now() - new Date(item.createdAt).getTime() < week;
-
-    return el("a", { class: "card", href: "/clip.html?p=" + encodeURIComponent(item.slug) },
-      item.hasPreview ? canvas : el("div", { class: "viewer-empty" }, "No preview"),
-      fresh ? el("span", { class: "card-flag" }, "New") : null,
-      el("div", { class: "card-body" },
-        el("div", { class: "card-title", title: item.title }, item.title),
-        el("div", { class: "card-meta" },
-          el("span", {}, item.author),
-          el("span", { class: "dot" }, "·"),
-          el("span", {}, formatDuration(item.durationSeconds)),
-          el("span", { class: "dot" }, "·"),
-          // "Used" statt "downloads": gezaehlt wird die Uebernahme in ein
-          // Projekt, nicht der Dateiabruf.
-          el("span", {}, item.downloads === 1 ? "used once" : "used " + item.downloads + " times"),
-          el("span", { class: "dot" }, "·"),
-          el("span", {}, item.likes + " ♥")),
-        el("div", { class: "card-cta" }, "View clip")));
-  }));
+  const observer = previewObserver();
+  results.replaceChildren(...page.items.map((item) => clipCard(item, observer)));
 
   // ── Seiten ───────────────────────────────────────────────────────────
   const current = page.page;

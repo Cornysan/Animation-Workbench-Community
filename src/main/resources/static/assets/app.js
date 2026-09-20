@@ -118,10 +118,65 @@ const AW = (() => {
     }
   }
 
+  /**
+   * Die Clip-Karte. Sie stand in `pages/browse.js`, und als die Startseite
+   * dieselbe Karte brauchte, war die Wahl: zweimal pflegen oder einmal hier.
+   *
+   * Die Vorschau ist das Strichmaennchen, nicht die Figur - eine Seite zeigt
+   * bis zu 24 Karten, und so viele WebGL-Kontexte gibt kein Browser her. Die
+   * Figur steht auf der Clip-Seite und im Kopf der Startseite, wo sie einzeln
+   * ist und gross genug, um etwas zu erzaehlen.
+   */
+  function previewObserver() {
+    return new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        entry.target.__observer.unobserve(entry.target);
+        const canvas = entry.target;
+        api("GET", "/api/v1/packages/" + canvas.dataset.slug + "/preview")
+          .then((preview) => new SkeletonViewer(canvas, preview,
+            { interactive: false, autoplay: true, yaw: -0.7, pitch: 0.18 }))
+          .catch(() => canvas.replaceWith(el("div", { class: "viewer-empty" }, "No preview")));
+      }
+    }, { rootMargin: "300px" });
+  }
+
+  const WEEK = 7 * 24 * 60 * 60 * 1000;
+
+  function clipCard(item, observer) {
+    const canvas = el("canvas", { "data-slug": item.slug, width: 560, height: 420 });
+    if (item.hasPreview && observer) {
+      canvas.__observer = observer;
+      observer.observe(canvas);
+    }
+
+    const fresh = Date.now() - new Date(item.createdAt).getTime() < WEEK;
+
+    return el("a", { class: "card", href: "/clip.html?p=" + encodeURIComponent(item.slug) },
+      item.hasPreview ? canvas : el("div", { class: "viewer-empty" }, "No preview"),
+      fresh ? el("span", { class: "card-flag" }, "New") : null,
+      el("div", { class: "card-body" },
+        el("div", { class: "card-title", title: item.title }, item.title),
+        el("div", { class: "card-meta" },
+          el("span", {}, item.author),
+          el("span", { class: "dot" }, "·"),
+          el("span", {}, formatDuration(item.durationSeconds)),
+          el("span", { class: "dot" }, "·"),
+          // "Used" statt "downloads": gezaehlt wird die Uebernahme in ein
+          // Projekt, nicht der Dateiabruf.
+          el("span", {}, item.downloads === 1 ? "used once" : "used " + item.downloads + " times"),
+          el("span", { class: "dot" }, "·"),
+          el("span", {}, item.likes + " ♥")),
+        el("div", { class: "card-cta" }, "View clip")));
+  }
+
   //  Die Skripte stehen am Ende des <body>, der Rahmen ist also schon da.
   const signOutButton = document.getElementById("sign-out");
   if (signOutButton) signOutButton.addEventListener("click", signOut);
   resumePendingLink();
 
-  return { api, ApiError, ensureCsrf, me, el, notice, formatDuration, formatDate, param };
+  return {
+    api, ApiError, ensureCsrf, me, el, notice, formatDuration, formatDate, param,
+    clipCard, previewObserver,
+  };
 })();

@@ -1,7 +1,7 @@
 # Animation Workbench Community Portal - Backend
 
 Spring Boot (Kotlin) Server für das Community-Portal der Animation Workbench:
-Clips als `.awclip` hochladen, finden, als Strichmännchen ansehen, laden, melden.
+Clips als `.awclip` hochladen, finden, auf dem Mannequin ansehen, laden, melden.
 
 Konzept, Plan und offene Entscheidungen: MotionLabs-Vault,
 `3. Feature Planning/Community-Portal - Plan.md`.
@@ -55,6 +55,57 @@ Swagger UI: http://localhost:8080/swagger-ui.html (nur im `dev`-Profil).
 | `moderation` | Melden → sofort AUTO_HIDDEN, Takedown-Formular ohne Konto, Admin-Entscheidungen, Strikes, Benachrichtigungen |
 | `system` | Kill Switch, Audit-Log, Alarme (Discord-Webhook + Mail), IP-Pseudonymisierung |
 | `storage` | Dateiablage außerhalb der Datenbank, nie öffentlich |
+
+## Die Oberflaeche
+
+Kein Framework, kein Build-Schritt fuer die Seiten: Thymeleaf liefert den
+Rahmen, `static/assets/*.js` sind gewoehnliche Skripte, und die Content
+Security Policy erlaubt nur Skripte von dieser Adresse.
+
+| Adresse | Vorlage | |
+|---|---|---|
+| `/` | `landing.html` | Startseite: ein Clip auf der Figur, drei Schritte, die neuesten Clips. |
+| `/browse.html` | `browse.html` | Der Katalog. Lag bis zur Startseite auf `/`. |
+| `/clip.html?p=<slug>` | `clip.html` | Ein Clip. Diese Adresse steht in Discord-Vorschauen und Takedown-Mails - sie aendert sich nicht. |
+
+### Die Figur im Viewer
+
+Humanoide Clips laufen auf dem **Standard-Mannequin der Workbench** -
+derselben `AW_Default_Mannequin.prefab`, die im Paket liegt. Der Plan hielt
+bewusst kein Modell bereit (O7: "kein Modell, keine Bibliothek"), damit sich
+die Rechtefrage an einer fremden Figur nicht stellt. An unserer eigenen stellt
+sie sich auch jetzt nicht.
+
+| Datei | |
+|---|---|
+| `static/models/aw-mannequin.glb` | Die Figur, 326 KiB. Erzeugt mit `docs-site/tools/unity-mesh-to-glb.py` im Workbench-Repo - hier liegt nur die Kopie. |
+| `static/assets/stage.js` | Die Buehne: laedt das Modell, rechnet die Vorschau auf seine Knochen um, zeichnet Boden, Licht und Schatten. |
+| `static/assets/viewer-ui.js` | Wiedergabe, Zeitleiste und die Sichtschalter drumherum. |
+| `static/assets/viewer.js` | Das Strichmaennchen. Bleibt: im Katalog, als Skelettansicht und als Rueckfall ohne WebGL. |
+| `static/assets/vendor/three.module.js` | three.js r186 plus GLTFLoader und SkeletonUtils, gebuendelt. |
+
+Das Strichmaennchen zeichnet die **Karten** im Katalog, nicht die Figur: eine
+Seite zeigt bis zu 24 Karten, und so viele WebGL-Kontexte gibt kein Browser
+her. Die Figur steht dort, wo sie einzeln ist - auf der Clip-Seite und im Kopf
+der Startseite.
+
+**Warum die Vorschau umgerechnet werden muss.** Die Vorschau im `.awclip` ist
+auf der Figur gebacken, die der Hochladende in der Workbench ausgewaehlt hat,
+und bringt deren Achsenkonvention mit. Die Umrechnung bestimmt pro Knochen eine
+feste Korrektur aus der Richtung zum Kindknochen - in beiden Rigs im lokalen
+Raum bekannt. Bei gleicher Konvention ist sie die Einheit und das Bild exakt.
+Der Kopf von `stage.js` erklaert es im Ganzen.
+
+### three.js erneuern
+
+Der Buendel ist ein erzeugtes Artefakt, kein Fremdcode zum Anfassen. Die
+Einstiegsdatei steht daneben (`static/assets/vendor/entry.js`) und nennt genau
+die Namen, die das Portal benutzt - alles andere faellt beim Buendeln weg.
+
+```bash
+# in einem Verzeichnis mit `three` in node_modules (z. B. dem docs-site-Repo)
+npx esbuild entry.js --bundle --format=esm --minify --legal-comments=none   --target=es2020 --outfile=three.module.js
+```
 
 ## Betrieb
 

@@ -25,7 +25,7 @@
   document.getElementById("description").textContent = clip.description || "No description.";
 
   document.getElementById("tags").replaceChildren(
-    ...clip.tags.map((tag) => el("a", { class: "tag", href: "/?tag=" + encodeURIComponent(tag) }, tag)));
+    ...clip.tags.map((tag) => el("a", { class: "tag", href: "/browse.html?tag=" + encodeURIComponent(tag) }, tag)));
 
   document.getElementById("facts").replaceChildren(
     el("dt", {}, "Duration"), el("dd", {}, formatDuration(clip.durationSeconds)),
@@ -50,42 +50,10 @@
     document.getElementById("license").textContent = clip.license;
   }
 
-  // ── Viewer ───────────────────────────────────────────────────────────
-  const viewerBox = document.getElementById("viewer");
-  if (clip.hasPreview) {
-    try {
-      const preview = await api("GET", "/api/v1/packages/" + encodeURIComponent(slug) + "/preview");
-      const canvas = el("canvas");
-      const play = el("button", {}, "Pause");
-      const scrub = el("input", { type: "range", min: 0, max: 1000, value: 0, "aria-label": "Time" });
-      const time = el("span", { class: "muted small" }, "0.00 s");
-      viewerBox.replaceChildren(canvas, el("div", { class: "viewer-controls" }, play, scrub, time));
-
-      let scrubbing = false;
-      const viewer = new SkeletonViewer(canvas, preview, {
-        onFrame: (t, duration) => {
-          if (!scrubbing) scrub.value = String(Math.round((t / duration) * 1000));
-          time.textContent = t.toFixed(2) + " s";
-        },
-      });
-
-      play.addEventListener("click", () => {
-        viewer.playing = !viewer.playing;
-        play.textContent = viewer.playing ? "Pause" : "Play";
-      });
-      scrub.addEventListener("input", () => {
-        scrubbing = true;
-        viewer.playing = false;
-        play.textContent = "Play";
-        viewer.setTime((Number(scrub.value) / 1000) * viewer.duration);
-      });
-      scrub.addEventListener("change", () => (scrubbing = false));
-    } catch {
-      viewerBox.replaceChildren(el("div", { class: "viewer-empty" }, "The preview could not be loaded."));
-    }
-  } else {
-    viewerBox.replaceChildren(el("div", { class: "viewer-empty" }, "This clip has no preview."));
-  }
+  //  Die Vorschau gehoert `pages/clip-viewer.js` - einem Modul, weil die Buehne
+  //  three.js laedt. Es holt seine Daten selbst und ist der einzige Schreiber
+  //  auf `#viewer`; zwei Stellen, die denselben Kasten fuellen, ueberholen
+  //  einander irgendwann.
 
   // ── Aktionen ─────────────────────────────────────────────────────────
   const actions = document.getElementById("actions");

@@ -1,0 +1,84 @@
+<!doctype html>
+<!--
+  Die Startseite.
+
+  Bis hierher lag der Katalog auf "/" - eine Liste mit einer Ueberschrift, die
+  jedem Erstbesucher zumutete, sich selbst zusammenzureimen, was das Portal
+  ist und warum die Clips ohne Figur und ohne Rig auskommen. Der Katalog ist
+  jetzt /browse.html; "/" beantwortet erst die Frage und zeigt dann die Ware.
+
+  Die Adressen der Clips bleiben unveraendert - sie stehen in Discord-Vorschauen,
+  in Takedown-Mails und in der Workbench.
+-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/shell :: head('Animation Workbench Community')}"></head>
+<body th:attr="data-signed-in=${user != null}">
+<header th:replace="~{fragments/shell :: header}"></header>
+<main class="landing">
+  <div th:replace="~{fragments/shell :: paused}"></div>
+
+  <section class="hero">
+    <div class="hero-copy">
+      <h1>Humanoid clips,<br>free to use.</h1>
+      <p class="lead">
+        Animation made in the Animation Workbench and shared as plain motion data -
+        no FBX, no rig, no model. Watch it on the mannequin, then import it into any
+        Unity project.
+      </p>
+      <div class="hero-actions">
+        <a class="button primary" href="/browse.html">Browse clips</a>
+        <a class="button" href="/rules.html">How sharing works</a>
+      </div>
+      <p class="hero-note small">
+        Everything listed here is <strong>CC BY 4.0</strong>: use it, change it, ship it
+        commercially - just credit whoever made it.
+      </p>
+    </div>
+
+    <div class="hero-stage">
+      <div class="viewer" id="hero-viewer">
+        <div class="viewer-empty">Loading a clip…</div>
+      </div>
+      <a class="hero-caption" id="hero-caption" hidden></a>
+    </div>
+  </section>
+
+  <section class="how">
+    <h2 class="section-title">Three steps, no export pipeline</h2>
+    <ol class="steps">
+      <li>
+        <span class="step-nr">1</span>
+        <h3>Animate in Unity</h3>
+        <p>Pose, key and layer a humanoid clip in the Animation Workbench - on your own
+          character, in your own project.</p>
+      </li>
+      <li>
+        <span class="step-nr">2</span>
+        <h3>Share the motion</h3>
+        <p>One <code>.awclip</code> file leaves your project: curves and a preview
+          skeleton. Your character, your mesh and your rig stay where they are.</p>
+      </li>
+      <li>
+        <span class="step-nr">3</span>
+        <h3>Import anywhere</h3>
+        <p>The clip lands on any humanoid avatar, because it was never bound to one.
+          Unity retargets it the way it retargets every humanoid clip.</p>
+      </li>
+    </ol>
+  </section>
+
+  <section class="latest">
+    <div class="section-head">
+      <h2 class="section-title">Newest clips</h2>
+      <a class="section-link" href="/browse.html">All clips</a>
+    </div>
+    <div id="latest" class="grid"></div>
+    <div id="latest-state"></div>
+  </section>
+</main>
+<footer th:replace="~{fragments/shell :: footer}"></footer>
+<script src="/assets/app.js"></script>
+<script src="/assets/viewer.js"></script>
+<script type="module" src="/assets/pages/landing.js"></script>
+</body>
+</html>

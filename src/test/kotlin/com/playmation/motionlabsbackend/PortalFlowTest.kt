@@ -164,7 +164,7 @@ class PortalFlowTest {
     @Test
     fun `every page url renders`() {
         val pages = listOf(
-            "/", "/index.html", "/clip.html", "/me.html", "/licenses.html", "/admin.html",
+            "/", "/index.html", "/browse.html", "/clip.html", "/me.html", "/licenses.html", "/admin.html",
             "/dev.html", "/link.html", "/rules.html", "/terms.html", "/privacy.html",
             "/impressum.html", "/takedown.html",
         )
@@ -186,7 +186,13 @@ class PortalFlowTest {
     fun `the page frame is in the html, and moderation only for moderators`() {
         val anonymous = mvc.get("/").andReturn().response.contentAsString
 
-        assertTrue(anonymous.contains("Community clips"), "Seiteninhalt fehlt")
+        assertTrue(anonymous.contains("free to use"), "Seiteninhalt der Startseite fehlt")
+
+        //  Der Katalog liegt seit der Startseite auf /browse.html. Beide
+        //  Adressen muessen ihren eigenen Inhalt tragen, sonst faellt ein
+        //  vertauschtes Ziel erst im Betrieb auf.
+        val catalog = mvc.get("/browse.html").andReturn().response.contentAsString
+        assertTrue(catalog.contains("Community clips"), "Katalog fehlt unter /browse.html")
         assertTrue(anonymous.contains("/licenses.html"), "Navigation fehlt im HTML")
         assertTrue(anonymous.contains("Report a rights violation"), "Fuss fehlt im HTML")
 

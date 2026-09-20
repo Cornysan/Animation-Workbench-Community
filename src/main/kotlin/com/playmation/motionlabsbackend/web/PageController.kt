@@ -88,6 +88,14 @@ class PageController(
     //  von oben nach unten.
 
     @GetMapping("/", "/index.html")
+    fun landing(model: Model) = view(model, "landing", active = "home")
+
+    /**
+     * Der Katalog lag bis zur Startseite auf „/". Er zieht um, nicht weg: „/"
+     * gibt es weiter, also bricht kein Link - nur steht dort jetzt zuerst,
+     * was das Portal ueberhaupt ist.
+     */
+    @GetMapping("/browse.html")
     fun browse(model: Model) = view(model, "browse", active = "browse")
 
     /** Der Clip liegt unter „Browse" - man kommt aus dem Katalog hierher. */
