@@ -52,10 +52,25 @@ const AW = (() => {
     if (!cookie("XSRF-TOKEN")) await fetch("/api/v1/status", { credentials: "same-origin" });
   }
 
+  /**
+   * Wer hier ist - oder null.
+   *
+   * OB jemand angemeldet ist, steht schon im Dokument: der Server setzt
+   * `data-signed-in` am <body>, weil er es ohnehin weiss. Abgemeldet wird
+   * deshalb gar nicht erst gefragt. Das spart nicht nur einen Rundweg je
+   * Seitenaufruf - es nimmt auch den roten 401-Eintrag aus der Konsole, den
+   * bis hierher JEDER Besucher auf JEDER Seite zu sehen bekam, sobald er sie
+   * oeffnete. Ein abgefangener Fehler bleibt ein Fehler im Protokoll des
+   * Browsers, und wer die Konsole aufmacht, liest ihn als Stoerung.
+   *
+   * WAS jemand heisst, steht dort nicht - dafuer bleibt der Aufruf.
+   */
   let mePromise = null;
   function me() {
     if (!mePromise) {
-      mePromise = api("GET", "/api/v1/me").catch((e) => (e.status === 401 ? null : Promise.reject(e)));
+      mePromise = document.body.dataset.signedIn === "true"
+        ? api("GET", "/api/v1/me").catch((e) => (e.status === 401 ? null : Promise.reject(e)))
+        : Promise.resolve(null);
     }
     return mePromise;
   }
