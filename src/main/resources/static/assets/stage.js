@@ -629,30 +629,6 @@ export class MannequinStage {
       return new Quaternion().setFromRotationMatrix(new Matrix4().makeBasis(u, v, w));
     };
 
-    /**
-     * Ein Endknochen - Zehe, Fingerspitze - hat kein Kind und damit keine
-     * eigene Richtung. Bis hierher erbte er die Korrektur seines
-     * Elternknochens; an den Zehen sah man das, sie knickten nach unten.
-     *
-     * Er braucht sie nicht zu erben: die Achsen seines Geruests gibt es auch
-     * fuer ihn, und ZWEI davon bestimmen eine Orientierung vollstaendig.
-     * Genommen werden die beiden, die am weitesten auseinanderliegen.
-     */
-    const endBoneFrame = (ti, si) => {
-      const axes = dstAxes[groupOfBone[si]];
-      if (!axes) return null;
-      let bi = 0, bj = 1, bestDot = 1;
-      for (let k = 0; k < 3; k++) {
-        for (let l = k + 1; l < 3; l++) {
-          const dot = Math.abs(srcAxes[si][k].dot(srcAxes[si][l]));
-          if (dot < bestDot) { bestDot = dot; bi = k; bj = l; }
-        }
-      }
-      const inverse = bindRot[ti].clone().invert();
-      const qSrc = frame(srcAxes[si][bi], srcAxes[si][bj]);
-      const qDst = frame(axes[bi].clone().applyQuaternion(inverse), axes[bj].clone().applyQuaternion(inverse));
-      return qSrc && qDst ? qSrc.multiply(qDst.invert()) : null;
-    };
 
     this.tracks = [];
     const corrections = new Map();
@@ -691,14 +667,46 @@ export class MannequinStage {
       if (correction) corrections.set(srcName, correction);
     }
 
-    // Endknochen (Zehen, Fingerspitzen) haben kein Kind und damit keine eigene
-    // Richtung. Sie bekommen ihr Dreibein aus zwei Koerperachsen - siehe
-    // [endBoneFrame]. Erst wenn auch das nicht geht, erben sie vom
-    // Elternknochen; die Zehen knickten genau davon nach unten.
+    /**
+     * FINGER RECHNEN NICHT SELBST, sie nehmen die Korrektur ihrer Hand.
+     *
+     * Eine eigene je Fingerglied klingt genauer und ist es nicht. Ein
+     * Fingerglied ist kurz und bewegt sich viel; die gemessene Achse streut
+     * dort staerker als am Rumpf, und schon kleine Unterschiede zwischen
+     * benachbarten Gliedern summieren sich zu einer sichtbaren Rolle - die
+     * Finger standen gespreizt und verdreht, wo eine Faust sein sollte.
+     *
+     * Tragen alle Glieder DIESELBE Korrektur C, wird aus der Umrechnung eine
+     * Konjugation - C hoch -1 mal lokale Drehung mal C -, und die erhaelt den
+     * Winkel. Die Fingerbewegung kommt damit unveraendert an, nur in den Raum
+     * des Modells gedreht. Gemessen, Quelle gegen Modell:
+     *
+     *                                   eigene Achse   Hand geerbt
+     *   Hand -> IndexProximal    51,2       97,0          51,2
+     *   Proximal -> Intermediate 71,3       71,2          71,3
+     *   Intermediate -> Distal   63,3      128,7          63,3
+     *
+     * Das gilt, weil ein Rig seine Konvention innerhalb einer Hand nicht
+     * wechselt. An der Wirbelsaeule tut es das sehr wohl - dort waere Erben
+     * falsch, und genau daran ist ein frueherer Anlauf gescheitert.
+     */
     for (const track of this.tracks) {
-      if (track.correction) continue;
+      if (!DETAIL.test(track.srcName)) continue;
+      const hand = corrections.get(track.srcName.startsWith('Left') ? 'LeftHand' : 'RightHand');
+      if (hand) track.correction = hand;
+    }
 
-      track.correction = endBoneFrame(track.bone, track.src);
+    //  Endknochen - Zehen, Fingerspitzen - haben kein Kind und damit keine
+    //  eigene Richtung. Sie erben die Korrektur ihres Elternknochens.
+    //
+    //  EIN UMWEG, DEN ICH GEGANGEN BIN: die Zehen knickten einmal nach unten,
+    //  und ich habe daraufhin versucht, ihnen aus zwei Koerperachsen ein
+    //  eigenes Dreibein zu bauen. Das war die falsche Stelle - geknickt hatte
+    //  sie die damals noch falsche FUSSKORREKTUR, die sie erbten. Gemessen ist
+    //  die Vererbung exakt (Fuss zu Zehe: 121,6 Grad in der Quelle, 121,6 im
+    //  Modell), das eigene Dreibein lag bei 176,2. Ein Rig wechselt seine
+    //  Konvention am letzten Glied einer Kette nicht.
+    for (const track of this.tracks) {
       if (track.correction) continue;
 
       let p = this.preview.parents[track.src];
