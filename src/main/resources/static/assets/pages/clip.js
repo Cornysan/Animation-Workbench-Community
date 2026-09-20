@@ -1,5 +1,12 @@
+/**
+ * Die Seite einer Animation: Kopf, Aktionen, Zahlen, Nachbarschaft.
+ *
+ * Das Gespraech darunter gehoert `clip-comments.js`, die Buehne
+ * `clip-viewer.js` - drei Dateien, drei Zustaendigkeiten, kein gemeinsamer
+ * Zustand ausser dem Slug in der Adresse.
+ */
 (async () => {
-  const { api, ensureCsrf, me, el, notice, formatDuration, formatDate, param } = AW;
+  const { api, ensureCsrf, me, el, notice, formatDuration, formatDate, copyText, param } = AW;
 
   const slug = param("p");
   const state = document.getElementById("state");
@@ -22,19 +29,27 @@
   document.getElementById("clip").classList.remove("hidden");
   document.getElementById("title").textContent = clip.title;
   document.getElementById("author").textContent = clip.author;
+  document.getElementById("author-initial").textContent = (clip.author[0] || "?").toUpperCase();
   document.getElementById("description").textContent = clip.description || "No description.";
+
+  //  Eine Zeile statt vier Tabellenzeilen: was hier steht, liest man im
+  //  Vorbeigehen. Nullen bleiben weg - ein frischer Clip ist nicht unbeliebt.
+  const sub = ["Shared " + formatDate(clip.createdAt)];
+  if (clip.downloads > 0) sub.push(clip.downloads === 1 ? "used once" : "used " + clip.downloads + "×");
+  document.getElementById("clip-sub").textContent = sub.join("  ·  ");
 
   document.getElementById("tags").replaceChildren(
     ...clip.tags.map((tag) => el("a", { class: "tag", href: "/browse.html?tag=" + encodeURIComponent(tag) }, tag)));
 
+  //  "Used in projects" und "Likes" stehen nicht mehr hier: die eine Zahl steht
+  //  in der Zeile unter dem Titel, die andere IM Herz-Knopf. Eine Zahl, die man
+  //  anfassen kann, gehoert nicht in eine Tabelle daneben.
   document.getElementById("facts").replaceChildren(
     el("dt", {}, "Duration"), el("dd", {}, formatDuration(clip.durationSeconds)),
     el("dt", {}, "Frame rate"), el("dd", {}, Math.round(clip.frameRate) + " fps"),
     el("dt", {}, "Curves"), el("dd", {}, clip.curveCount),
+    el("dt", {}, "Rig"), el("dd", {}, "Humanoid"),
     el("dt", {}, "Version"), el("dd", {}, clip.version),
-    el("dt", {}, "Used in projects"), el("dd", {}, clip.downloads),
-    el("dt", {}, "Likes"), el("dd", {}, clip.likes),
-    el("dt", {}, "Shared"), el("dd", {}, formatDate(clip.createdAt)),
     ...(clip.status ? [el("dt", {}, "Status"), el("dd", {}, el("span", { class: "status " + clip.status }, clip.status))] : []));
 
   try {
@@ -55,37 +70,53 @@
   //  auf `#viewer`; zwei Stellen, die denselben Kasten fuellen, ueberholen
   //  einander irgendwann.
 
-  // ── Aktionen ─────────────────────────────────────────────────────────
-  const actions = document.getElementById("actions");
   const user = await me().catch(() => null);
 
-  //  Seit der Muenzwirtschaft ist Herunterladen Freischalten, und das kostet
-  //  unter Umstaenden. Der Knopf muss das sagen, BEVOR er es tut - "Download"
-  //  auf einem Knopf, der zehn Muenzen abbucht, waere eine Falle.
-  const status = await fetch("/api/v1/status", { credentials: "same-origin" })
-    .then((r) => r.json())
-    .catch(() => ({}));
+  // ── Herz, Link, Meldung ──────────────────────────────────────────────
+  //  Die drei Dinge, die man an einer fremden Animation tun kann, stehen
+  //  nebeneinander unter dem Titel - nicht verstreut zwischen Tabelle und
+  //  Seitenspalte.
+  const bar = document.getElementById("clip-actions");
 
-  const costs = status.economyEnabled && !clip.unlockedByMe && clip.license === "CC-BY-4.0";
-  const download = el("button", { class: "primary" },
-    costs ? "Unlock for " + status.unlockCost + " coins" : "Download .awclip");
+  const likeCount = el("span", { class: "count" }, String(clip.likes));
+  const like = el("button", {
+    class: "pill-button" + (clip.likedByMe ? " on" : ""),
+    title: user ? "Like this clip" : "Sign in to like this clip",
+  }, el("span", { class: "heart" }, "♥"), likeCount);
 
-  download.addEventListener("click", async () => {
+  like.addEventListener("click", async () => {
+    if (!user) {
+      notice(actionState, "Sign in to like a clip.", "");
+      return;
+    }
+    const liked = !like.classList.contains("on");
+    like.disabled = true;
     try {
-      const link = await api("POST", "/api/v1/packages/" + encodeURIComponent(slug) + "/unlock");
-      const a = el("a", { href: link.url, download: link.fileName });
-      document.body.append(a);
-      a.click();
-      a.remove();
-      notice(actionState, "Import it in Unity with Tools > Animation Workbench > Community > Import .awclip File. License: " + link.license + ".", "ok");
+      await ensureCsrf();
+      const result = await api("POST", "/api/v1/packages/" + encodeURIComponent(slug) + "/like", { liked });
+      like.classList.toggle("on", liked);
+      likeCount.textContent = String(result.likes);
     } catch (e) {
       notice(actionState, e.message, "error");
+    } finally {
+      like.disabled = false;
     }
   });
-  actions.append(download);
+  bar.append(like);
+
+  //  Ein Portal, das von Links lebt, braucht einen Knopf dafuer. Die Adresse
+  //  aus der Leiste zu fischen ist eine Huerde, die niemand nehmen muss.
+  const share = el("button", { class: "pill-button", title: "Copy a link to this clip" },
+    el("span", {}, "Copy link"));
+  share.addEventListener("click", async () => {
+    const ok = await copyText(location.origin + "/clip.html?p=" + encodeURIComponent(slug));
+    share.replaceChildren(el("span", {}, ok ? "Link copied" : "Could not copy"));
+    setTimeout(() => share.replaceChildren(el("span", {}, "Copy link")), 2000);
+  });
+  bar.append(share);
 
   if (clip.isOwner) {
-    const withdraw = el("button", { class: "danger" }, "Withdraw this clip");
+    const withdraw = el("button", { class: "pill-button danger" }, "Withdraw");
     withdraw.addEventListener("click", async () => {
       if (!confirm("Withdraw '" + clip.title + "'? It disappears from the community.")) return;
       try {
@@ -95,11 +126,11 @@
         notice(actionState, e.message, "error");
       }
     });
-    actions.append(withdraw);
+    bar.append(withdraw);
   } else if (user) {
     const dialog = document.getElementById("report-dialog");
     const form = document.getElementById("report-form");
-    const report = el("button", { class: "danger" }, "Report");
+    const report = el("button", { class: "pill-button" }, "Report");
     report.addEventListener("click", () => dialog.showModal());
 
     dialog.addEventListener("close", async () => {
@@ -116,8 +147,83 @@
         notice(actionState, e.message, "error");
       }
     });
-    actions.append(report);
-  } else {
-    actions.append(el("a", { class: "button", href: "/oauth2/authorization/discord" }, "Sign in to report"));
+    bar.append(report);
   }
+
+  // ── Mitnehmen ────────────────────────────────────────────────────────
+  //  Seit der Muenzwirtschaft ist Herunterladen Freischalten, und das kostet
+  //  unter Umstaenden. Der Knopf muss das sagen, BEVOR er es tut - "Download"
+  //  auf einem Knopf, der zehn Muenzen abbucht, waere eine Falle.
+  const actions = document.getElementById("actions");
+  const status = await api("GET", "/api/v1/status").catch(() => ({}));
+
+  const costs = status.economyEnabled && !clip.unlockedByMe && clip.license === "CC-BY-4.0";
+
+  if (!user) {
+    //  Ein grauer Knopf, der nicht sagt warum, ist die haeufigste Sackgasse
+    //  dieses Portals gewesen (B2). Er sagt es jetzt.
+    actions.append(
+      el("a", { class: "button primary", href: "/oauth2/authorization/discord" }, "Sign in to download"),
+      el("p", { class: "faint small" }, "Downloads are tied to an account so the counter means something."));
+  } else {
+    const download = el("button", { class: "primary" },
+      costs ? "Unlock for " + status.unlockCost + " coins" : "Download .awclip");
+
+    download.addEventListener("click", async () => {
+      download.disabled = true;
+      try {
+        await ensureCsrf();
+        const link = await api("POST", "/api/v1/packages/" + encodeURIComponent(slug) + "/unlock");
+        const a = el("a", { href: link.url, download: link.fileName });
+        document.body.append(a);
+        a.click();
+        a.remove();
+        notice(actionState, "Downloaded. In Unity: Tools > Animation Workbench > Community > Import .awclip File. License: " + link.license + ".", "ok");
+        download.replaceChildren(document.createTextNode("Download .awclip"));
+      } catch (e) {
+        notice(actionState, e.message, "error");
+      } finally {
+        download.disabled = false;
+      }
+    });
+    actions.append(download);
+  }
+
+  // ── Nachbarschaft ────────────────────────────────────────────────────
+  //  Wer einen Laufzyklus ansieht, will meistens Laufzyklen sehen. Das erste
+  //  Schlagwort traegt den Clip am besten - es steht beim Hochladen vorn, weil
+  //  der Hochladende es zuerst eingetippt hat.
+  //
+  //  Das ist bewusst KEIN eigener Endpunkt: die Suche nach einem Schlagwort
+  //  kann der Katalog schon, und "aehnlich" heisst hier genau das.
+  const related = document.getElementById("related");
+  const relatedList = document.getElementById("related-list");
+  const relatedTag = clip.tags[0];
+
+  try {
+    const fetchSome = async (query) => {
+      const page = await api("GET", "/api/v1/packages?" + query + "&size=7");
+      return page.items.filter((item) => item.slug !== slug).slice(0, 6);
+    };
+
+    //  Beim Schlagwort anfangen, aber nicht dabei stehenbleiben: ein Clip mit
+    //  einem seltenen Schlagwort haette sonst eine leere Spalte, und gerade er
+    //  braucht den Weg weiter.
+    let others = relatedTag ? await fetchSome("tag=" + encodeURIComponent(relatedTag) + "&sort=popular") : [];
+    let byTag = others.length > 0;
+    if (!byTag) others = await fetchSome("sort=popular");
+
+    if (others.length) {
+      document.getElementById("related-title").textContent =
+        byTag ? "More “" + relatedTag + "”" : "Popular right now";
+      related.hidden = false;
+      relatedList.replaceChildren(...others.map((item) => el("a", {
+        class: "related-item",
+        href: "/clip.html?p=" + encodeURIComponent(item.slug),
+      },
+        el("span", { class: "related-title" }, item.title),
+        el("span", { class: "related-meta" },
+          item.author, " · ", formatDuration(item.durationSeconds)))));
+    }
+  } catch { /* Nachbarschaft ist Zugabe. */ }
 })();

@@ -1,21 +1,37 @@
 <!doctype html>
+<!--
+  Der Katalog.
+
+  Er ist die einzige Ansicht, bei der jede gesparte Breite unmittelbar eine
+  Karte mehr pro Reihe bedeutet - deshalb `wide` am <main>.
+
+  DAS SUCHFELD STEHT NICHT MEHR HIER. Es steht im Kopf, auf jeder Seite. Zwei
+  Suchfelder auf derselben Seite sind eine Frage ("welches gilt?") ohne Gewinn:
+  es ist dieselbe Suche, und der Katalog liest `q` ohnehin aus der Adresse. Was
+  hier bleibt, ist das Verfeinern - Sortierung und Schlagworte.
+-->
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{fragments/shell :: head('Browse clips')}"></head>
 <body th:attr="data-signed-in=${user != null}">
 <header th:replace="~{fragments/shell :: header}"></header>
-<main>
+<main class="wide">
   <div th:replace="~{fragments/shell :: paused}"></div>
+
   <h1>Community clips</h1>
   <p class="lead">Humanoid animations made in the Animation Workbench, shared under CC BY 4.0.</p>
-  <form class="filters" id="filters">
+
+  <div class="filters">
     <div class="segmented" id="sort" role="group" aria-label="Sort"></div>
-    <input type="search" name="q" placeholder="Search titles, descriptions, tags" aria-label="Search">
-    <button class="primary" type="submit">Search</button>
-  </form>
+    <div class="filter-state" id="state"></div>
+  </div>
+
+  <!-- Die Schlagworte, die es hier wirklich gibt - gefuellt aus /api/v1/overview. -->
+  <div class="tag-bar" id="tag-bar" hidden></div>
+
   <div id="results" class="grid"></div>
-  <div id="state"></div>
+  <div id="empty"></div>
   <div class="pager" id="pager"></div>
-  </main>
+</main>
 <footer th:replace="~{fragments/shell :: footer}"></footer>
 <script src="/assets/app.js"></script>
 <script src="/assets/viewer.js"></script>

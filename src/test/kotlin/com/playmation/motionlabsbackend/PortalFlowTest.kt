@@ -27,6 +27,7 @@ import java.util.zip.GZIPOutputStream
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -273,6 +274,40 @@ class PortalFlowTest {
             status { isOk() }
             jsonPath("$.license") { value(AwclipSchema.LICENSE_PRIVATE) }
         }
+    }
+
+    /**
+     * Der Ueberblick zaehlt, was im Katalog STEHT - nicht, was in der Datenbank
+     * liegt. Ein privater Clip ist da, aber ungelistet; er darf weder den
+     * Umfang aufblaehen noch sein Schlagwort in die Leiste bringen, sonst fuehrt
+     * eine Pille auf eine leere Seite.
+     *
+     * Der zweite Teil prueft den Cache. Er haelt eine Minute - in einem Test
+     * also ewig -, und ohne die Entwertung beim Zurueckziehen wuerde die
+     * Startseite noch Clips zaehlen, die es nicht mehr gibt.
+     */
+    @Test
+    fun `the overview counts what is listed, and forgets what was withdrawn`() {
+        val owner = login("overview-${unique()}")
+        val listed = uploadOk(owner, awclip(0.97, "Overview walk", tags = "\"overviewwalk\",\"shared\""))
+        uploadOk(owner, awclip(0.98, "Overview secret",
+            license = AwclipSchema.LICENSE_PRIVATE, tags = "\"overviewsecret\""))
+
+        fun overview() = mvc.get("/api/v1/overview").andExpect { status { isOk() } }.body()
+        fun tagsOf(node: JsonNode) = node["tags"].associate { it["tag"].asString() to it["count"].asInt() }
+
+        val before = overview()
+        assertEquals(1, tagsOf(before)["overviewwalk"], "the listed clip carries its tag into the bar")
+        assertNull(tagsOf(before)["overviewsecret"], "a private clip must not put its tag in the bar")
+
+        val clipsBefore = before["clips"].asInt()
+
+        mvc.delete("/api/v1/packages/$listed") { header("Authorization", "Bearer $owner") }
+            .andExpect { status { isOk() } }
+
+        val after = overview()
+        assertEquals(clipsBefore - 1, after["clips"].asInt(), "withdrawing lowers the count right away")
+        assertNull(tagsOf(after)["overviewwalk"], "and takes the tag out of the bar with it")
     }
 
     /**

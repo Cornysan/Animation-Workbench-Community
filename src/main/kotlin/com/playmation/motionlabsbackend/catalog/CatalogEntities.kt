@@ -117,6 +117,9 @@ class UploadDeclaration(
 interface AnimationPackageRepository : JpaRepository<AnimationPackage, UUID>, JpaSpecificationExecutor<AnimationPackage> {
     fun findBySlug(slug: String): AnimationPackage?
     fun findByOwnerIdOrderByCreatedAtDesc(ownerId: UUID): List<AnimationPackage>
+
+    /** Alles, was oeffentlich im Katalog steht - fuer [CatalogOverviewService]. */
+    fun findAllByStatusAndLicense(status: PackageStatus, license: String): List<AnimationPackage>
 }
 
 /**

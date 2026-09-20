@@ -53,8 +53,11 @@
   --radius-pill: 999px;
 
   --shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
-  --page: 1180px;
-  --sidebar: 244px;
+  /* Breite des Inhalts. Der Katalog hebt sie fuer sich an - ein Gitter darf
+     breiter stehen als ein Absatz, den jemand lesen soll. */
+  --page: 1280px;
+  --page-wide: 1640px;
+  --gutter: 28px;
 
   color-scheme: dark;
 }
@@ -80,150 +83,226 @@ a:hover { text-decoration: underline; }
 
 .hidden { display: none !important; }
 
-/* ── Seitenleiste ──────────────────────────────────────────────────────
-   Wie in der ElevenLabs-App: feste Spalte links, Navigation mit Symbolen,
-   Konto unten. Die Seiten selbst wissen davon nichts - das Grid auf <body>
-   ordnet Kopf (= Leiste), Inhalt und Fuß.
+/* ── Kopfleiste ────────────────────────────────────────────────────────
+   Oben statt links. Die feste Spalte links war das Muster einer App; das
+   Portal ist aber das Schaufenster vor der App, und der Katalog ist die
+   Ansicht, bei der jede gesparte Breite unmittelbar eine Karte mehr pro
+   Reihe bedeutet. Meshy Creative Lab und Mixamo tragen ihre Navigation
+   beide oben.
+
+   Vier Blöcke in einer Zeile: Marke, Navigation, Suche, Konto. Die Suche
+   nimmt den Platz, der übrig bleibt, und ist als einzige elastisch - bei
+   wenig Raum schrumpft sie, statt dass etwas umbricht.
 --------------------------------------------------------------------------- */
 
-body {
-  display: grid;
-  grid-template-columns: var(--sidebar) minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr) auto;
-}
-
 .site-header {
-  grid-column: 1;
-  grid-row: 1 / 3;
   position: sticky;
   top: 0;
-  align-self: start;
-  height: 100vh;
+  z-index: 30;
+  background: rgba(14, 13, 18, 0.86);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--line);
+}
+
+.header-inner {
+  max-width: var(--page);
+  margin-inline: auto;
+  padding: 0 var(--gutter);
+  height: 60px;
   display: flex;
-  flex-direction: column;
-  gap: 18px;
-  padding: 20px 14px;
-  background: var(--bg-soft);
-  border-right: 1px solid var(--line);
-  z-index: 20;
+  align-items: center;
+  gap: 8px;
 }
 
 .brand {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 6px 8px 2px;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  margin-right: 12px;
   color: var(--text);
 }
 .brand:hover { text-decoration: none; }
 
 /* Das Lockup haelt seinen Freiraum: ein Viertel der eigenen Hoehe ringsum. */
-.brand-lockup { width: 178px; height: auto; display: block; }
-.brand-mark { width: 30px; height: 30px; display: none; }
+.brand-lockup { width: 150px; height: auto; display: block; }
+.brand-mark { width: 28px; height: 28px; display: none; }
 .brand small {
   color: var(--text-faint);
   font-weight: 600;
-  font-size: 11px;
+  font-size: 10.5px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  padding-left: 2px;
+  border-left: 1px solid var(--line-strong);
+  padding-left: 8px;
 }
 
-.site-nav { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+.site-nav { display: flex; align-items: center; gap: 2px; flex: none; }
 
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 11px;
-  padding: 9px 12px;
+  gap: 8px;
+  padding: 8px 12px;
   border-radius: var(--radius-sm);
   color: var(--text-dim);
-  font-size: 15px;
+  font-size: 14.5px;
   font-weight: 500;
+  white-space: nowrap;
 }
 .nav-item:hover { background: var(--surface); color: var(--text); text-decoration: none; }
 .nav-item.active { background: var(--surface-2); color: var(--text); }
 .nav-item.active .nav-icon { color: var(--accent); }
-.nav-icon { width: 20px; height: 20px; flex: none; color: var(--text-faint); }
+.nav-icon { width: 18px; height: 18px; flex: none; color: var(--text-faint); }
 
-.sidebar-foot { display: flex; flex-direction: column; gap: 12px; }
+/* ── Suche im Kopf ─────────────────────────────────────────────────────
+   Ein gewöhnliches GET-Formular auf den Katalog. Das `kbd` nennt die Taste,
+   die hierher springt, und verschwindet, sobald das Feld den Fokus hat -
+   dann ist die Auskunft erledigt.
+--------------------------------------------------------------------------- */
 
-.sidebar-hint {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 12px 14px;
-  font-size: 12.5px;
-  line-height: 1.45;
-  color: var(--text-faint);
+.header-search {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 460px;
+  margin-inline: auto;
+  position: relative;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
 }
-.sidebar-hint strong { color: var(--text-dim); font-size: 13px; }
+.header-search svg {
+  position: absolute;
+  left: 13px;
+  width: 17px;
+  height: 17px;
+  color: var(--text-faint);
+  pointer-events: none;
+}
+.header-search input {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 38px 0 38px;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  font-size: 14.5px;
+}
+.header-search input:focus { background: var(--bg-soft); }
+.header-search kbd {
+  position: absolute;
+  right: 12px;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--text-faint);
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  padding: 3px 6px;
+  pointer-events: none;
+}
+.header-search input:focus ~ kbd,
+.header-search input:not(:placeholder-shown) ~ kbd { display: none; }
 
-.account { display: flex; align-items: center; gap: 10px; min-height: 44px; }
-.account .button { width: 100%; }
+.header-account { flex: none; display: flex; align-items: center; gap: 8px; margin-left: 4px; }
 
-/* Der angemeldete Zustand ist eine Zeile (Avatar, Name, Abmelden), der
-   unkonfigurierte Zustand ein Block aus Hinweis und Ersatzweg. */
-.account:has(.sidebar-hint) { flex-direction: column; align-items: stretch; gap: 8px; }
+.account { display: flex; align-items: center; gap: 8px; }
+
+.account-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 190px;
+  padding: 4px 10px 4px 4px;
+  border-radius: var(--radius-pill);
+  color: var(--text);
+  font-size: 14px;
+}
+.account-name:hover { background: var(--surface); text-decoration: none; }
+.account-name > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .avatar {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   flex: none;
   border-radius: var(--radius-pill);
   background: var(--accent-soft);
   border: 1px solid var(--accent-line);
   color: var(--accent);
   font-weight: 700;
+  font-size: 13px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.account-name { display: flex; flex-direction: column; min-width: 0; flex: 1; line-height: 1.25; }
-.account-name > span:first-child { font-size: 14px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
 .badge {
-  align-self: flex-start;
   background: var(--accent-soft);
   color: var(--accent);
   border-radius: var(--radius-pill);
-  padding: 0 8px;
-  font-size: 11px;
+  padding: 3px 10px;
+  font-size: 11.5px;
   font-weight: 600;
+  white-space: nowrap;
 }
 .badge:hover { text-decoration: none; background: rgba(142, 119, 255, 0.26); }
 
 .icon-button { min-height: 32px; padding: 0 10px; font-size: 14px; }
 
-main {
-  grid-column: 2;
-  grid-row: 1;
-  width: 100%;
-  max-width: var(--page);
-  margin-inline: auto;
-  padding: 40px 40px 72px;
+/* Schmale Fenster: die Wortmarke weicht der Bildmarke, die Beschriftungen der
+   Navigation weichen ihren Symbolen. Die Suche bleibt - sie ist der Grund,
+   warum die Leiste oben liegt. */
+@media (max-width: 1080px) {
+  .brand-lockup, .brand small { display: none; }
+  .brand-mark { display: block; }
+  .nav-item span { display: none; }
+  .nav-item { padding: 8px 10px; }
+  .nav-icon { width: 20px; height: 20px; }
+  .account-name > span:last-child { display: none; }
+  .account-name { padding: 4px; }
+}
+@media (max-width: 620px) {
+  .header-search kbd { display: none; }
+  .site-nav { gap: 0; }
 }
 
-.site-footer {
-  grid-column: 2;
-  grid-row: 2;
-  border-top: 1px solid var(--line);
-  padding: 22px 40px;
-  margin-inline: auto;
+/* ── Seitengerüst ──────────────────────────────────────────────────────
+   `--page` ist die Breite des Inhalts, `--gutter` sein Rand. Der Katalog
+   setzt `--page` auf seinen eigenen Wert hoch: ein Gitter darf breiter
+   stehen als ein Absatz, den man lesen soll.
+--------------------------------------------------------------------------- */
+
+main {
   width: 100%;
   max-width: var(--page);
+  margin-inline: auto;
+  padding: 36px var(--gutter) 80px;
+  flex: 1;
+}
+
+/* Der Katalog und die Startseite stellen Ware aus, keinen Fliesstext: dort
+   bedeutet jede zusaetzliche Breite eine Karte mehr pro Reihe. */
+main.wide { max-width: var(--page-wide); }
+
+.site-footer {
+  border-top: 1px solid var(--line);
   color: var(--text-faint);
   font-size: 13px;
+}
+.footer-inner {
+  max-width: var(--page);
+  margin-inline: auto;
+  padding: 24px var(--gutter);
   display: flex;
   flex-wrap: wrap;
-  gap: 20px;
+  align-items: center;
+  gap: 10px 22px;
 }
+.footer-share { margin: 0; flex: 1 1 320px; }
+.footer-share strong { color: var(--text-dim); }
+.footer-share em { color: var(--text-dim); font-style: normal; }
+.footer-links { display: flex; flex-wrap: wrap; gap: 6px 18px; }
 .site-footer a { color: var(--text-faint); }
 .site-footer a:hover { color: var(--text-dim); }
+.site-footer .build { color: var(--text-faint); opacity: 0.7; }
 
 /* ── Typografie ────────────────────────────────────────────────────────── */
 
@@ -349,29 +428,53 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
   background: var(--surface-2);
   color: var(--text-dim);
   border-radius: var(--radius-pill);
-  padding: 3px 12px;
+  padding: 4px 13px;
   font-size: 13px;
+  border: 1px solid transparent;
+  white-space: nowrap;
 }
 .tag:hover { color: var(--text); background: #2a2836; text-decoration: none; }
+.tag.active {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+  color: var(--accent);
+}
+.tag-count { color: var(--text-faint); margin-left: 7px; font-size: 12px; font-variant-numeric: tabular-nums; }
+.tag.active .tag-count { color: var(--accent); opacity: 0.7; }
 
-/* ── Filterleiste ──────────────────────────────────────────────────────── */
+/* ── Filter- und Schlagwortleiste ──────────────────────────────────────
+   Die Sortierung links, was gerade gilt rechts daneben. Das Suchfeld ist
+   hier weg - es steht im Kopf und gilt auf jeder Seite.
+--------------------------------------------------------------------------- */
 
 .filters {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 10px 14px;
   align-items: center;
-  margin: 0 0 26px;
+  margin: 0 0 14px;
 }
-.filters input[type=search] { flex: 1; min-width: 240px; border-radius: var(--radius-pill); padding-left: 18px; }
-.filters select { border-radius: var(--radius-pill); padding-left: 16px; }
-.filters .button, .filters button { border-radius: var(--radius-pill); }
+.filter-state { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 
-/* Schmal fiel der Suchknopf allein in eine zweite Zeile - das Suchfeld gibt
-   die 60 px her, die der Leiste zum Zusammenbleiben fehlen. */
-@media (max-width: 900px) {
-  .filters input[type=search] { min-width: 180px; }
+/* Was gerade einschraenkt, mit dem Weg heraus daran. Eine Einschraenkung, die
+   man nicht sieht, liest sich als leerer Katalog. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  color: var(--accent);
+  border-radius: var(--radius-pill);
+  padding: 3px 12px;
+  font-size: 13px;
+  max-width: 320px;
 }
+.chip:hover { text-decoration: none; background: rgba(142, 119, 255, 0.26); }
+.chip-x { color: var(--text-faint); font-size: 15px; line-height: 1; }
+.chip:hover .chip-x { color: var(--accent); }
+
+.tag-bar { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 26px; }
 
 .segmented {
   display: inline-flex;
@@ -381,7 +484,7 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
   border: 1px solid var(--line);
   border-radius: var(--radius-pill);
 }
-.segmented button {
+.segmented a, .segmented button {
   border: none;
   background: transparent;
   color: var(--text-dim);
@@ -389,16 +492,20 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
   min-height: 32px;
   padding: 0 16px;
   font-size: 14px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
 }
-.segmented button:hover { background: var(--surface); color: var(--text); }
-.segmented button.active { background: var(--surface-2); color: var(--text); }
+.segmented a:hover, .segmented button:hover { background: var(--surface); color: var(--text); text-decoration: none; }
+.segmented a.active, .segmented button.active { background: var(--surface-2); color: var(--text); }
 
 /* ── Katalog ───────────────────────────────────────────────────────────── */
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(284px, 1fr));
-  gap: 22px;
+  grid-template-columns: repeat(auto-fill, minmax(276px, 1fr));
+  gap: 20px;
 }
 
 .card {
@@ -414,47 +521,40 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
 }
 .card:hover {
   transform: translateY(-3px);
-  border-color: var(--line-strong);
+  border-color: var(--accent-line);
   box-shadow: var(--shadow);
   text-decoration: none;
 }
+
+/* Die Buehne traegt die Vorschau und was auf ihr liegt - Neu-Marke und Dauer.
+   Vorher hingen beide am .card selbst, was sie an den Kartenrand band statt
+   an das Bild. */
+.card-stage { position: relative; }
 .card canvas, .card .viewer-empty {
   width: 100%;
-  height: 208px;
+  height: 206px;
   background: radial-gradient(120% 90% at 50% 20%, #1e1c28 0%, #100f15 70%);
   display: block;
 }
 .card .viewer-empty { display: flex; align-items: center; justify-content: center; color: var(--text-faint); font-size: 13px; }
 
-.card-body { padding: 14px 16px 18px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.card-body { padding: 13px 15px 16px; display: flex; flex-direction: column; gap: 5px; flex: 1; }
 .card-title {
   font-weight: 650;
-  font-size: 16px;
+  font-size: 15.5px;
   letter-spacing: -0.01em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.card-meta { color: var(--text-dim); font-size: 13px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.card:hover .card-title { color: var(--accent-strong); }
+.card-meta { color: var(--text-dim); font-size: 13px; display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
 .card-meta .dot { color: var(--text-faint); }
-.card-cta {
-  margin-top: 12px;
-  min-height: 38px;
-  border-radius: var(--radius-sm);
-  background: var(--accent);
-  color: var(--accent-ink);
-  font-weight: 600;
-  font-size: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.card:hover .card-cta { background: var(--accent-strong); }
+.card-author { color: var(--text-dim); font-weight: 500; }
 
-.card-flag {
+.card-flag, .card-duration {
   position: absolute;
-  top: 12px;
-  left: 12px;
+  top: 11px;
   background: rgba(14, 13, 18, 0.84);
   border: 1px solid var(--line-strong);
   color: var(--text);
@@ -464,18 +564,158 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
   font-weight: 600;
   backdrop-filter: blur(6px);
 }
+.card-flag { left: 11px; }
+/* Wie die Laufzeit auf einem Video: unten rechts, auf dem Bild. */
+.card-duration {
+  top: auto;
+  bottom: 11px;
+  right: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+}
 
-.pager { display: flex; justify-content: center; align-items: center; gap: 12px; margin: 32px 0 0; }
-.empty { text-align: center; color: var(--text-dim); padding: 64px 0; }
+.pager { display: flex; justify-content: center; align-items: center; gap: 12px; margin: 36px 0 0; }
+.empty { text-align: center; color: var(--text-dim); padding: 56px 0; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+.empty p { margin: 0; }
 
-/* ── Clip-Seite ────────────────────────────────────────────────────────── */
+/* ── Clip-Seite ────────────────────────────────────────────────────────
+   Links die Bewegung und das Gespräch darunter, rechts was man mitnimmt.
+   Die rechte Spalte klebt beim Scrollen: durch ein langes Gespräch zu
+   scrollen darf den Weg ins eigene Projekt nicht aus dem Bild schieben.
+--------------------------------------------------------------------------- */
 
-.clip-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 28px; align-items: start; }
-@media (max-width: 900px) { .clip-layout { grid-template-columns: 1fr; } }
+.clip-layout { display: grid; grid-template-columns: minmax(0, 1fr) 352px; gap: 32px; align-items: start; }
+@media (max-width: 960px) { .clip-layout { grid-template-columns: 1fr; } }
 
-.clip-layout aside { position: sticky; top: 24px; }
-.clip-layout h1 { font-size: 26px; margin-bottom: 4px; }
+.clip-main { min-width: 0; }
+.clip-side { position: sticky; top: 76px; display: flex; flex-direction: column; gap: 20px; }
+@media (max-width: 960px) { .clip-side { position: static; } }
+
+.clip-layout h1 { font-size: 27px; margin: 18px 0 0; }
 .clip-layout h1::after { content: none; }
+
+/* Wer, wann, und was man tun kann - eine Zeile unter dem Titel. */
+.clip-byline {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin: 12px 0 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line);
+}
+.clip-author { font-weight: 600; font-size: 15px; }
+.clip-actions { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px; }
+
+.clip-description { color: var(--text-dim); margin: 14px 0 0; white-space: pre-wrap; max-width: 72ch; }
+
+/* Ein Knopf, der eine Zahl trägt: das Herz zählt, was es zählt, an Ort und
+   Stelle - statt in einer Tabellenzeile daneben. */
+.pill-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 15px;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--text-dim);
+  font-size: 14px;
+  font-weight: 500;
+}
+.pill-button:hover { background: var(--surface-2); color: var(--text); border-color: var(--line-strong); }
+.pill-button .heart { font-size: 14px; }
+.pill-button .count { font-variant-numeric: tabular-nums; }
+.pill-button.on { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); }
+.pill-button.danger { color: var(--danger); border-color: rgba(242, 112, 107, 0.34); }
+.pill-button.danger:hover { background: rgba(242, 112, 107, 0.12); color: var(--danger); }
+
+.get-panel { display: flex; flex-direction: column; gap: 14px; }
+.get-panel .actions { display: flex; flex-direction: column; gap: 8px; margin: 0; }
+.get-panel .actions .button, .get-panel .actions button { width: 100%; justify-content: center; }
+.get-panel .actions p { margin: 0; }
+.license-note {
+  background: var(--bg-soft);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-size: 14px;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+.license-note strong { color: var(--text); }
+.import-hint { margin: 0; line-height: 1.5; }
+.import-hint strong { color: var(--text-dim); font-weight: 600; }
+
+/* ── Nachbarschaft ─────────────────────────────────────────────────────
+   Wer einen Laufzyklus ansieht, will meistens Laufzyklen sehen. Zeilen, keine
+   Karten: die Spalte ist 352 px breit, und eine Vorschau je Nachbar wäre ein
+   weiterer WebGL-Kontext für eine Nebensache.
+--------------------------------------------------------------------------- */
+
+.related h2 { font-size: 15px; margin: 0 0 10px; }
+.related-list { display: flex; flex-direction: column; gap: 2px; }
+.related-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+}
+.related-item:hover { background: var(--surface); text-decoration: none; }
+.related-title { font-size: 14.5px; font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.related-meta { color: var(--text-faint); font-size: 12.5px; }
+
+/* ── Das Gespräch ──────────────────────────────────────────────────────
+   Flach, älteste zuerst. Der Avatar trägt die Spalte links, damit mehrere
+   Kommentare als Gespräch lesbar bleiben und nicht als Liste von Abschnitten.
+--------------------------------------------------------------------------- */
+
+.comments { margin-top: 40px; max-width: 76ch; }
+.comments h2 { margin: 0 0 16px; }
+
+.comment-compose, .comment { display: flex; gap: 12px; }
+.comment-compose { margin-bottom: 26px; }
+.compose-body { flex: 1; min-width: 0; }
+.compose-body textarea { min-height: 78px; margin: 0; }
+.compose-foot { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 8px; }
+
+.comment-signin {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 26px;
+}
+
+.comment-list { display: flex; flex-direction: column; gap: 20px; }
+.comment-body { flex: 1; min-width: 0; }
+.comment-head { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.comment-head strong { font-size: 14.5px; }
+.comment-text { margin: 4px 0 0; color: var(--text-dim); white-space: pre-wrap; overflow-wrap: anywhere; }
+.comment-empty { margin: 0; }
+
+/* Die eigenen Handlungen erscheinen erst beim Hinsehen - sie sind sonst so
+   auffällig wie der Name darüber. */
+.link-button {
+  border: none;
+  background: none;
+  color: var(--text-faint);
+  padding: 0;
+  min-height: 0;
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0;
+}
+.comment:hover .link-button, .link-button:focus-visible { opacity: 1; }
+.link-button:hover { background: none; color: var(--text); text-decoration: underline; transform: none; }
+@media (hover: none) { .link-button { opacity: 1; } }
 
 .viewer {
   background: radial-gradient(120% 90% at 50% 15%, #1e1c28 0%, #0f0e14 70%);

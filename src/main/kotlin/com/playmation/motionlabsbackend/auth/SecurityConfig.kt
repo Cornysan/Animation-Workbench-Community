@@ -77,6 +77,9 @@ class SecurityConfig {
                 authorize("/api/v1/admin/**", hasRole("ADMIN"))
                 authorize(HttpMethod.GET, "/api/v1/status", permitAll)
                 authorize(HttpMethod.GET, "/api/v1/licenses", permitAll)
+                //  Umfang und Schlagworte des Katalogs - dieselbe Auskunft, die
+                //  jede Karte im Katalog ohnehin traegt, nur zusammengezaehlt.
+                authorize(HttpMethod.GET, "/api/v1/overview", permitAll)
                 authorize(HttpMethod.GET, "/api/v1/packages", permitAll)
                 authorize(HttpMethod.GET, "/api/v1/packages/*", permitAll)
                 authorize(HttpMethod.GET, "/api/v1/packages/*/preview", permitAll)

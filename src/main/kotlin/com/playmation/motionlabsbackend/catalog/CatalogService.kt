@@ -109,6 +109,8 @@ class CatalogService(
     private val settings: SystemSettingsService,
     private val rateLimiter: RateLimiter,
     private val audit: AuditService,
+    /** Zaehlt Clips und Schlagworte - und muss es neu tun, wenn sich der Katalog aendert. */
+    private val overview: CatalogOverviewService,
     private val properties: PortalProperties,
     private val clock: Clock,
 ) {
@@ -228,6 +230,10 @@ class CatalogService(
         if (existing == null && manifest.license == AwclipSchema.LICENSE_PUBLIC)
             quests.onClipShared(account.id)
 
+        //  Ein frischer Clip darf nicht eine Minute darauf warten, dass die
+        //  Startseite ihn mitzaehlt und seine Schlagworte in der Leiste stehen.
+        overview.invalidate()
+
         return detail(pkg, version, principal)
     }
 
@@ -267,6 +273,7 @@ class CatalogService(
         if (pkg.status == PackageStatus.PUBLISHED) pkg.status = PackageStatus.WITHDRAWN
         pkg.updatedAt = clock.instant()
         audit.record(principal.accountId, "package.withdrawn", "package", slug, null, ip)
+        overview.invalidate()
     }
 
     // ════════════════════════════════════════════════════════════════════

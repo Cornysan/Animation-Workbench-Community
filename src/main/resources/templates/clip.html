@@ -1,27 +1,71 @@
 <!doctype html>
+<!--
+  Die Seite einer Animation.
+
+  AUFBAU WIE BEI EINEM VIDEO: die Bewegung zuerst, darunter ihr Name, wer sie
+  gemacht hat und was man mit ihr tun kann - und darunter das Gespraech. Der
+  Titel stand vorher in der rechten Spalte, neben der Buehne statt unter ihr;
+  das las sich als Beschriftung eines Kastens, nicht als Name der Sache.
+
+  RECHTS STEHT, WAS MAN MITNIMMT: Lizenz, Zahlen, der Knopf. Die Spalte klebt
+  beim Scrollen, damit der Weg ins eigene Projekt nie aus dem Bild geht.
+-->
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{fragments/shell :: head('Clip')}"></head>
 <body th:attr="data-signed-in=${user != null}">
 <header th:replace="~{fragments/shell :: header}"></header>
-<main>
+<main class="wide">
   <div th:replace="~{fragments/shell :: paused}"></div>
   <div id="state"></div>
+
   <div id="clip" class="clip-layout hidden">
-    <section>
+    <section class="clip-main">
       <div class="viewer" id="viewer"></div>
-      <h2>About</h2>
-      <p id="description" class="muted"></p>
-    </section>
-    <aside class="panel">
+
       <h1 id="title"></h1>
-      <div class="muted small">by <span id="author"></span></div>
-      <div class="tags" id="tags"></div>
-      <dl class="facts" id="facts"></dl>
-      <div id="license" class="notice"></div>
-      <div class="actions" id="actions"></div>
+      <div class="clip-byline">
+        <span class="avatar" id="author-initial">?</span>
+        <div>
+          <div id="author" class="clip-author"></div>
+          <div class="faint small" id="clip-sub"></div>
+        </div>
+        <div class="clip-actions" id="clip-actions"></div>
+      </div>
       <div id="action-state"></div>
+
+      <div class="tags" id="tags"></div>
+      <p id="description" class="clip-description"></p>
+
+      <!-- E10: unter jeder Animation steht ein Gespraech. Flach, ohne Antworten
+           auf Antworten - die Endpunkte gibt es seit dem 20.09., im Web fehlte
+           bis hierher nur die Oberflaeche dazu. -->
+      <section class="comments" id="comments" hidden>
+        <h2 id="comments-title">Comments</h2>
+        <div id="comment-form"></div>
+        <div id="comment-list" class="comment-list"></div>
+        <div id="comment-state"></div>
+      </section>
+    </section>
+
+    <aside class="clip-side">
+      <div class="panel get-panel">
+        <div id="license" class="license-note"></div>
+        <div class="actions" id="actions"></div>
+        <p class="faint small import-hint">
+          In Unity: <strong>Tools &rsaquo; Animation Workbench &rsaquo; Community</strong> -
+          or subscribe to it straight from the Community view.
+        </p>
+      </div>
+
+      <dl class="facts" id="facts"></dl>
+
+      <div class="related" id="related" hidden>
+        <h2 id="related-title">More like this</h2>
+        <div class="related-list" id="related-list"></div>
+      </div>
     </aside>
   </div>
+
   <dialog id="report-dialog">
     <form method="dialog" id="report-form">
       <h2>Report this clip</h2>
@@ -38,11 +82,12 @@
       <div class="actions"><button class="danger" value="send">Report</button><button value="cancel">Cancel</button></div>
     </form>
   </dialog>
-  </main>
+</main>
 <footer th:replace="~{fragments/shell :: footer}"></footer>
 <script src="/assets/app.js"></script>
 <script src="/assets/viewer.js"></script>
 <script src="/assets/pages/clip.js"></script>
+<script src="/assets/pages/clip-comments.js"></script>
 <script type="module" src="/assets/pages/clip-viewer.js"></script>
 </body>
 </html>

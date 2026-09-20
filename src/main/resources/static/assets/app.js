@@ -87,6 +87,53 @@ const AW = (() => {
     return new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
   }
 
+  /**
+   * "3 days ago" statt "17. Sept. 2026".
+   *
+   * An einem Kommentar zaehlt der Abstand, nicht das Datum - "gestern" sagt,
+   * ob das Gespraech laeuft, ein Datum sagt es nicht. Ab einem Monat kippt es
+   * zurueck aufs Datum: dann ist "vor 43 Tagen" eine Rechenaufgabe.
+   */
+  function formatRelative(iso) {
+    const then = new Date(iso);
+    const seconds = Math.round((Date.now() - then.getTime()) / 1000);
+    if (seconds < 45) return "just now";
+
+    const units = [
+      ["minute", 60], ["hour", 3600], ["day", 86400], ["week", 604800],
+    ];
+    let label = null;
+    for (const [unit, size] of units) {
+      const value = Math.floor(seconds / size);
+      if (value < 1) break;
+      if (unit === "week" && value > 4) break;
+      label = [unit, value];
+    }
+    if (!label) return formatDate(iso);
+    const [unit, value] = label;
+    return value === 1 ? "1 " + unit + " ago" : value + " " + unit + "s ago";
+  }
+
+  /**
+   * Text in die Zwischenablage. Der Rueckweg ueber ein Hilfs-<textarea> ist
+   * fuer Browser da, die `navigator.clipboard` nur auf https anbieten - die
+   * Entwicklung laeuft auf http://localhost.
+   */
+  async function copyText(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      const field = el("textarea", { style: "position:fixed;opacity:0" });
+      field.value = text;
+      document.body.append(field);
+      field.select();
+      const ok = document.execCommand("copy");
+      field.remove();
+      return ok;
+    }
+  }
+
   function param(name) {
     return new URLSearchParams(location.search).get(name);
   }
@@ -143,6 +190,23 @@ const AW = (() => {
 
   const WEEK = 7 * 24 * 60 * 60 * 1000;
 
+  /**
+   * Die Clip-Karte.
+   *
+   * NULLEN WERDEN WEGGELASSEN. Vorher stand auf jeder Karte "used 0 times · 0 ♥".
+   * Ein junger Katalog besteht fast nur aus solchen Karten, und eine Reihe aus
+   * Nullen liest sich als "hier benutzt niemand etwas" - dabei sagt sie bloss
+   * "dieser Clip ist neu". Was null ist, steht nicht da; was zaehlt, faellt
+   * dann auf.
+   *
+   * DIE DAUER LIEGT AUF DER VORSCHAU, wie die Laufzeit auf einem Video. Sie
+   * gehoert zum Bild ("wie lang ist diese Bewegung"), nicht zur Zeile mit
+   * Autor und Beliebtheit.
+   *
+   * DER KNOPF "View clip" IST WEG. Die ganze Karte war schon der Link; der
+   * Knopf war ein zweiter Weg zum selben Ziel und hat auf jeder Karte 50 px
+   * gekostet.
+   */
   function clipCard(item, observer) {
     const canvas = el("canvas", { "data-slug": item.slug, width: 560, height: 420 });
     if (item.hasPreview && observer) {
@@ -152,31 +216,57 @@ const AW = (() => {
 
     const fresh = Date.now() - new Date(item.createdAt).getTime() < WEEK;
 
+    const meta = [el("span", { class: "card-author" }, item.author)];
+    const add = (text) => {
+      meta.push(el("span", { class: "dot" }, "·"), el("span", {}, text));
+    };
+    // "Used" statt "downloads": gezaehlt wird die Uebernahme in ein Projekt,
+    // nicht der Dateiabruf.
+    if (item.downloads > 0) add(item.downloads === 1 ? "used once" : "used " + item.downloads + "×");
+    if (item.likes > 0) add(item.likes + " ♥");
+    if (item.comments > 0) add(item.comments === 1 ? "1 comment" : item.comments + " comments");
+
     return el("a", { class: "card", href: "/clip.html?p=" + encodeURIComponent(item.slug) },
-      item.hasPreview ? canvas : el("div", { class: "viewer-empty" }, "No preview"),
-      fresh ? el("span", { class: "card-flag" }, "New") : null,
+      el("div", { class: "card-stage" },
+        item.hasPreview ? canvas : el("div", { class: "viewer-empty" }, "No preview"),
+        fresh ? el("span", { class: "card-flag" }, "New") : null,
+        el("span", { class: "card-duration" }, formatDuration(item.durationSeconds))),
       el("div", { class: "card-body" },
         el("div", { class: "card-title", title: item.title }, item.title),
-        el("div", { class: "card-meta" },
-          el("span", {}, item.author),
-          el("span", { class: "dot" }, "·"),
-          el("span", {}, formatDuration(item.durationSeconds)),
-          el("span", { class: "dot" }, "·"),
-          // "Used" statt "downloads": gezaehlt wird die Uebernahme in ein
-          // Projekt, nicht der Dateiabruf.
-          el("span", {}, item.downloads === 1 ? "used once" : "used " + item.downloads + " times"),
-          el("span", { class: "dot" }, "·"),
-          el("span", {}, item.likes + " ♥")),
-        el("div", { class: "card-cta" }, "View clip")));
+        el("div", { class: "card-meta" }, meta)));
+  }
+
+  /**
+   * "/" springt in die Suche - das Kuerzel, das jeder Katalog hat.
+   *
+   * Nicht, waehrend schon getippt wird: sonst kann in keinem Textfeld der
+   * Seite ein Schraegstrich stehen, und der Kommentar unter einer Animation ist
+   * genau die Stelle, an der jemand "hoch/runter" schreiben will.
+   */
+  function bindSearchShortcut() {
+    const field = document.getElementById("site-search");
+    if (!field) return;
+
+    field.value = param("q") || "";
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "/" || event.ctrlKey || event.metaKey || event.altKey) return;
+      const active = document.activeElement;
+      if (active && (active.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName))) return;
+      event.preventDefault();
+      field.focus();
+      field.select();
+    });
   }
 
   //  Die Skripte stehen am Ende des <body>, der Rahmen ist also schon da.
   const signOutButton = document.getElementById("sign-out");
   if (signOutButton) signOutButton.addEventListener("click", signOut);
+  bindSearchShortcut();
   resumePendingLink();
 
   return {
-    api, ApiError, ensureCsrf, me, el, notice, formatDuration, formatDate, param,
-    clipCard, previewObserver,
+    api, ApiError, ensureCsrf, me, el, notice, formatDuration, formatDate, formatRelative,
+    copyText, param, clipCard, previewObserver,
   };
 })();
