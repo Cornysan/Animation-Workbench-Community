@@ -177,8 +177,14 @@ class PageController(
         return view(model, "collection", active = "browse")
     }
 
+    /**
+     * Das private Fach. KEIN `active`-Eintrag mehr: seit es Profile gibt,
+     * steht es nicht in der Navigation - man kommt ueber das eigene Profil
+     * hierher, und was nicht in der Leiste steht, kann dort auch nichts
+     * hervorheben.
+     */
     @GetMapping("/me.html")
-    fun me(model: Model) = view(model, "me", active = "me")
+    fun me(model: Model) = view(model, "me")
 
     @GetMapping("/licenses.html")
     fun licenses(model: Model) = view(model, "licenses", active = "licenses")

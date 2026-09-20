@@ -1,28 +1,44 @@
 <!doctype html>
+<!--
+  Das private Fach.
+
+  Es hiess "My clips" und stand als dritter Eintrag in der Navigation. Mit den
+  Profilen ist beides falsch geworden: die oeffentliche Seite einer Person ist
+  ihr Profil, und diese hier ist das, was NUR sie sieht - Meldungen, der
+  Zustand jedes eigenen Clips (auch der zurueckgezogenen), die Anmeldungen der
+  Workbench und der Weg hinaus. Ein Navigationspunkt daneben haette dieselbe
+  Person an zwei Adressen gezeigt.
+
+  Der Weg hierher: der eigene Name im Kopf fuehrt aufs Profil, dort der Stift,
+  und im Dialog steht der Link. Wartet eine Nachricht, fuehrt die Sprechblase
+  im Kopf direkt hierher.
+-->
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments/shell :: head('My clips')}"></head>
+<head th:replace="~{fragments/shell :: head('Your account')}"></head>
 <body th:attr="data-signed-in=${user != null}">
 <header th:replace="~{fragments/shell :: header}"></header>
 <main>
   <div th:replace="~{fragments/shell :: paused}"></div>
-  <h1>My clips</h1>
-  <p class="lead">Share clips from the Animation Workbench: right-click a clip, Export Clip, Share as .awclip.</p>
+  <h1>Your account</h1>
+  <p class="lead">Only you see this page: your messages, what each of your clips is doing, and the
+    account itself. What everyone else sees is your profile.</p>
 
-  <!--
-    Diese Seite ist das PRIVATE Fach: Meldungen, Status, Anmeldungen. Wie die
-    anderen einen sehen, steht auf dem Profil - und der Weg dorthin gehoert
-    hierher, sonst findet ihn nur, wer auf seinen eigenen Namen im Kopf klickt.
-  -->
   <p th:if="${user != null and user.handle != null}">
     <a class="button" th:href="${'/u.html?u=' + user.handle}">View my public profile</a>
   </p>
 
   <div id="state"></div>
+
   <h2>Notifications</h2>
   <div id="notifications"></div>
-  <h2>Clips</h2>
+
+  <h2>Your clips</h2>
+  <p class="muted small">Every clip of yours, whatever state it is in - withdrawn and hidden ones
+    included, which is why they are here and not on your profile. New ones come from the Animation
+    Workbench: right-click a clip, Export Clip, Share as .awclip.</p>
   <table class="list" id="clips"><thead><tr><th>Title</th><th>Status</th><th>Version</th><th>Downloads</th><th></th></tr></thead><tbody></tbody></table>
-  <h2>Your account</h2>
+
+  <h2>Closing your account</h2>
   <p class="muted small">Closing it takes your name, your profile, your collections and your likes
     with it, and withdraws your clips from the catalogue. Comments stay without your name so the
     conversations under other people's clips stay readable, and copies of your clips that others

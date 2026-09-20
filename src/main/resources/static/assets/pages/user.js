@@ -190,6 +190,16 @@
         "Your address is /u.html?u=", el("b", {}, profile.handle),
         ". Changing it breaks links you already shared."),
       el("label", { class: "field" }, el("span", {}, "About you"), bioField),
+
+      //  Der Weg ins private Fach. Er steht HIER, weil dies die Stelle ist, an
+      //  der jemand ohnehin an seinem Konto arbeitet - und weil ein zweiter
+      //  Eintrag in der Navigation dieselbe Person an zwei Adressen gezeigt
+      //  haette. Was dort liegt, steht dabei, sonst ist es ein Link ins Dunkle.
+      el("p", { class: "faint small dialog-aside" },
+        el("a", { href: "/me.html" }, "Notifications, clip statuses and your account"),
+        " - messages, what each of your clips is doing (including withdrawn ones), " +
+        "Workbench sign-ins, and closing the account."),
+
       error,
       el("div", { class: "dialog-actions" },
         el("button", { value: "cancel", type: "button", class: "ghost" }, "Cancel"),

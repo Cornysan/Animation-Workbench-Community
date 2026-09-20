@@ -105,19 +105,17 @@
       </a>
 
       <!--
-        "My clips" fuehrt abgemeldet nur zu einer Aufforderung, sich anzumelden.
-        Ein Eintrag, der fuer die Haelfte der Besucher eine Sackgasse ist,
-        gehoert nicht in die Navigation - der Anmelde-Knopf steht daneben.
+        HIER STAND "My clips". Es ist weg, seit es Profile gibt: dieselbe Person
+        hatte damit zwei Adressen in derselben Leiste - den eigenen Namen rechts
+        (das Profil, die oeffentliche Seite) und diesen Eintrag (das private
+        Fach). Wer beides sieht, muss jedes Mal raten, welches von beiden er
+        gerade meint.
+
+        Das private Fach gibt es weiter, nur nicht mehr als dritten
+        Navigationspunkt: es haengt am eigenen Profil, dort wo man es
+        bearbeitet. Und wenn eine Nachricht wartet, fuehrt die Sprechblase
+        rechts direkt hinein.
       -->
-      <a href="/me.html" title="My clips" class="nav-item"
-         th:if="${user != null}"
-         th:classappend="${active == 'me'} ? ' active'">
-        <svg viewBox="0 0 24 24" class="nav-icon" aria-hidden="true" fill="none" stroke="currentColor"
-             stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
-          <path d="M4 5h11l2 2h3v12H4z"></path>
-        </svg>
-        <span>My clips</span>
-      </a>
 
       <!--
         Der Moderations-Eintrag wird weggelassen statt versteckt. Vorher stand er
@@ -159,8 +157,9 @@
         <!--
           Der eigene Name fuehrt aufs eigene PROFIL, nicht ins private Fach:
           "wie sehen mich die anderen" ist die Frage, die man sich beim Klick
-          auf den eigenen Namen stellt. Das private Fach (Meldungen, Status,
-          Anmeldungen) bleibt der Eintrag "My clips" in der Navigation.
+          auf den eigenen Namen stellt. Ins private Fach geht es von dort
+          weiter - Stift, dann der Link im Dialog. Die Sprechblase links
+          daneben springt direkt hinein, aber nur wenn dort etwas wartet.
         -->
         <a class="account-name" th:href="${user.handle != null} ? ${'/u.html?u=' + user.handle} : '/me.html'"
            th:title="${user.roleLabel}">

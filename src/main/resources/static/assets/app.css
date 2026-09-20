@@ -1363,6 +1363,15 @@ dialog.sheet .counter { float: right; }
 
 .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
 
+/* Ein Nebensatz im Dialog: der Weg woanders hin, abgesetzt von dem, was der
+   Dialog selbst tut. */
+.dialog-aside {
+  margin: 0 0 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  line-height: 1.5;
+}
+
 /* ── Das Profil ────────────────────────────────────────────────────────
    Kopf, Zahlen, Reiter - in dieser Reihenfolge: erst WER das ist, dann WIE
    VIEL, dann die Sachen selbst.
