@@ -141,7 +141,14 @@ const AIM_CHILD = {
  * Es sind bewusst GLOBALE Paare, keine Kinderpaare je Knochen: ein Knochen
  * braucht die Breite nicht an sich selbst zu tragen, um zu wissen, wo links
  * ist. Siehe die Rechnung weiter unten.
+ *
+ * [BODY_UP] gibt die zweite Achse - von der Huefte zum Brustkorb. Aus beiden
+ * folgt die dritte. Drei braucht es, weil ein Schluesselbein selbst nach der
+ * Seite zeigt und mit der Querachse zusammenfaellt; es greift dann zur
+ * Hochachse.
  */
+const BODY_UP = ['Hips', 'UpperChest'];
+
 const BODY_WIDTH_PAIRS = [
   ['LeftUpperLeg', 'RightUpperLeg'],
   ['LeftShoulder', 'RightShoulder'],
@@ -468,74 +475,119 @@ export class MannequinStage {
 
 
     /**
-     * Die Seitwaertsachse je Knochen - das, was die Richtung zum Kind offen
+     * Die Referenzachse je Knochen - das, was die Richtung zum Kind offen
      * laesst: wie der Knochen UM seine eigene Achse gedreht ist.
      *
      * ERSTER VERSUCH WAR: ein symmetrisches Kinderpaar am Knochen selbst
      * (Beckenbreite, Schulterbreite), und wer keins hat, erbt vom Vorfahren.
      * Das ergab einen Knoten im Bauch. Der Grund: ein Rig dreht den Roll
-     * seiner Wirbelsaeulenknochen, und zwar gemessen um 180 Grad zwischen
-     * Becken und Spine. Wer die Beckenkonvention an Spine und Chest
-     * weitergibt, legt den Sprung an die falsche Stelle - zwischen Chest und
-     * UpperChest - und verdrillt den Rumpf dazwischen.
+     * seiner Wirbelsaeulenknochen, gemessen um 180 Grad zwischen Becken und
+     * Spine. Wer die Beckenkonvention weitergibt, legt den Sprung an die
+     * falsche Stelle - zwischen Chest und UpperChest - und verdrillt den Rumpf
+     * dazwischen.
      *
-     * JETZT WIRD SIE GEMESSEN STATT VERERBT. Die Koerperbreite ist in jedem
-     * Frame bekannt: die Strecke von Bein zu Bein und von Schulter zu
-     * Schulter, in Weltkoordinaten. Rechnet man sie in den lokalen Raum eines
-     * Knochens zurueck, ist sie ueber die Frames fast konstant - dreht sich
-     * der ganze Koerper, dreht sich die Weltrotation des Knochens mit und hebt
-     * die Drehung auf. Nur eine echte Verdrehung DIESES Knochens gegen den
-     * Koerper bewegt sie, und die mittelt sich ueber einen Clip heraus.
+     * JETZT WIRD SIE GEMESSEN STATT VERERBT. Der Koerper hat drei Achsen, und
+     * alle drei sind in jedem Frame aus der Geometrie bekannt: quer (Bein zu
+     * Bein, Schulter zu Schulter), hoch (Huefte zum Brustkorb) und vor (das
+     * Kreuzprodukt). Rechnet man sie in den lokalen Raum eines Knochens
+     * zurueck, stehen sie ueber die Frames fast still - dreht sich der ganze
+     * Koerper, dreht sich die Weltrotation des Knochens mit und hebt die
+     * Drehung auf. Nur eine echte Verdrehung DIESES Knochens gegen den Koerper
+     * bewegt sie, und die mittelt sich ueber einen Clip heraus. Gemessen an
+     * einem Clip mit 56 Frames: Stabilitaet 0,97 bis 1,00.
      *
-     * Gemessen an einem Clip mit 56 Frames: die Achse liegt bei 0,97 bis 1,00
-     * (1 = ueber alle Frames identisch). Sie zeigt fuer Hips nach -Z und fuer
-     * Spine, Chest und UpperChest nach +Z - der Kipppunkt des Rigs, den keine
-     * Vererbung erraten haette.
+     * WARUM DREI UND NICHT NUR DIE QUERACHSE. Ein Dreibein braucht zwei
+     * Richtungen, die nicht parallel sind. Fuer Rumpf und Beine steht die
+     * Querachse schoen quer - aber ein Schluesselbein zeigt selbst nach der
+     * Seite, und damit faellt es mit ihr zusammen: gemessen 10,9 Grad an der
+     * linken Schulter, 17,4 an der rechten. Aus so einem Paar wird kein
+     * Dreibein, sondern Rauschen, und das Rauschen sass sichtbar im
+     * Oberkoerper. Jeder Knochen nimmt deshalb die Achse, die am weitesten von
+     * seiner eigenen Richtung wegzeigt - die Schultern greifen zur Hochachse
+     * und stehen damit bei 85 Grad.
      *
-     * Damit braucht jeder Knochen eine eigene Achse, und keiner muss raten.
+     * Die Wahl faellt an der QUELLE und gilt fuer beide Seiten. Zwei
+     * verschiedene Achsen zu vergleichen waere schlimmer als eine schlechte.
      */
-    const bodyWidthAt = (positions) => {
-      const axis = new Vector3();
+    const bodyAxesAt = (positions) => {
+      const across = new Vector3();
       for (const [leftName, rightName] of BODY_WIDTH_PAIRS) {
         const li = srcIndex.get(leftName), ri = srcIndex.get(rightName);
         if (li === undefined || ri === undefined) continue;
         const d = positions[li].clone().sub(positions[ri]);
-        if (d.lengthSq() > 1e-12) axis.add(d.normalize());
+        if (d.lengthSq() > 1e-12) across.add(d.normalize());
       }
-      return axis.lengthSq() > 1e-12 ? axis.normalize() : null;
+      const hi = srcIndex.get(BODY_UP[0]), ti = srcIndex.get(BODY_UP[1]);
+      if (across.lengthSq() < 1e-12 || hi === undefined || ti === undefined) return null;
+      across.normalize();
+
+      const up = positions[ti].clone().sub(positions[hi]);
+      if (up.lengthSq() < 1e-12) return null;
+      up.normalize();
+
+      const forward = new Vector3().crossVectors(across, up);
+      if (forward.lengthSq() < 1e-12) return null;
+      return [across, up, forward.normalize()];
     };
 
-    //  Quelle: ueber alle Frames mitteln.
-    const sideSrc = this.preview.bones.map(() => new Vector3());
+    //  Quelle: je Knochen und Achse ueber alle Frames mitteln.
+    const srcAxes = this.preview.bones.map(() => [new Vector3(), new Vector3(), new Vector3()]);
+    let haveAxes = false;
     for (let f = 0; f < this.solved.frames; f++) {
-      const width = bodyWidthAt(this.solved.positions[f]);
-      if (!width) break;
+      const axes = bodyAxesAt(this.solved.positions[f]);
+      if (!axes) break;
+      haveAxes = true;
       const rotations = this.solved.rotations[f];
-      for (let i = 0; i < sideSrc.length; i++) {
-        sideSrc[i].add(width.clone().applyQuaternion(rotations[i].clone().invert()));
+      for (let i = 0; i < srcAxes.length; i++) {
+        const inverse = rotations[i].clone().invert();
+        for (let k = 0; k < 3; k++) srcAxes[i][k].add(axes[k].clone().applyQuaternion(inverse));
       }
     }
-    sideSrc.forEach((v) => { if (v.lengthSq() > 1e-12) v.normalize(); });
+    srcAxes.forEach((set) => set.forEach((v) => { if (v.lengthSq() > 1e-12) v.normalize(); }));
 
-    //  Ziel: dieselbe Strecke in der Bindepose des Modells, je Knochen lokal.
-    const widthDst = (() => {
-      const axis = new Vector3();
+    //  Ziel: dieselben drei aus der Bindepose des Modells, in Weltkoordinaten.
+    const dstAxes = (() => {
+      if (!haveAxes) return null;
+      const across = new Vector3();
       for (const [leftName, rightName] of BODY_WIDTH_PAIRS) {
         const tl = byKey.get(boneKey(BONE_MAP[leftName] || ''));
         const tr = byKey.get(boneKey(BONE_MAP[rightName] || ''));
         if (tl === undefined || tr === undefined) continue;
         const d = bindPos[tl].clone().sub(bindPos[tr]);
-        if (d.lengthSq() > 1e-12) axis.add(d.normalize());
+        if (d.lengthSq() > 1e-12) across.add(d.normalize());
       }
-      return axis.lengthSq() > 1e-12 ? axis.normalize() : null;
+      const th = byKey.get(boneKey(BONE_MAP[BODY_UP[0]] || ''));
+      const tt = byKey.get(boneKey(BONE_MAP[BODY_UP[1]] || ''));
+      if (across.lengthSq() < 1e-12 || th === undefined || tt === undefined) return null;
+      across.normalize();
+      const up = bindPos[tt].clone().sub(bindPos[th]);
+      if (up.lengthSq() < 1e-12) return null;
+      up.normalize();
+      const forward = new Vector3().crossVectors(across, up);
+      if (forward.lengthSq() < 1e-12) return null;
+      return [across, up, forward.normalize()];
     })();
 
-    const sideOf = (ti, srcName) => {
-      const si = srcIndex.get(srcName);
-      if (si === undefined || !widthDst) return null;
-      const src = sideSrc[si];
-      if (src.lengthSq() < 1e-12) return null;
-      return { src, dst: widthDst.clone().applyQuaternion(bindRot[ti].clone().invert()) };
+    /**
+     * Welche der drei Achsen dieser Knochen als Referenz nimmt: die, die am
+     * weitesten von seiner eigenen Richtung wegzeigt.
+     */
+    const pickAxis = (si, aimSrc) => {
+      let best = -1, bestDot = 1;
+      for (let k = 0; k < 3; k++) {
+        const axis = srcAxes[si][k];
+        if (axis.lengthSq() < 1e-12) continue;
+        const dot = Math.abs(aimSrc.dot(axis));
+        if (dot < bestDot) { bestDot = dot; best = k; }
+      }
+      return best;
+    };
+
+    const referenceOf = (ti, si, aimSrc) => {
+      if (!dstAxes) return null;
+      const k = pickAxis(si, aimSrc);
+      if (k < 0) return null;
+      return { src: srcAxes[si][k], dst: dstAxes[k].clone().applyQuaternion(bindRot[ti].clone().invert()) };
     };
 
     /** Rechtshaendiges Dreibein aus einer Haupt- und einer Hilfsrichtung. */
@@ -546,6 +598,30 @@ export class MannequinStage {
       w.normalize();
       const v = new Vector3().crossVectors(w, u).normalize();
       return new Quaternion().setFromRotationMatrix(new Matrix4().makeBasis(u, v, w));
+    };
+
+    /**
+     * Ein Endknochen - Zehen, Fingerspitzen, Kopf - hat kein Kind und damit
+     * keine eigene Richtung. Bis hierher erbte er die Korrektur seines
+     * Elternknochens; an den Zehen sah man das, sie knickten nach unten.
+     *
+     * Er braucht sie nicht zu erben: die drei Koerperachsen gibt es auch fuer
+     * ihn, und ZWEI davon bestimmen eine Orientierung vollstaendig. Genommen
+     * werden die beiden, die am weitesten auseinanderliegen.
+     */
+    const endBoneFrame = (ti, si) => {
+      if (!dstAxes) return null;
+      let bi = 0, bj = 1, bestDot = 1;
+      for (let k = 0; k < 3; k++) {
+        for (let l = k + 1; l < 3; l++) {
+          const dot = Math.abs(srcAxes[si][k].dot(srcAxes[si][l]));
+          if (dot < bestDot) { bestDot = dot; bi = k; bj = l; }
+        }
+      }
+      const inverse = bindRot[ti].clone().invert();
+      const qSrc = frame(srcAxes[si][bi], srcAxes[si][bj]);
+      const qDst = frame(dstAxes[bi].clone().applyQuaternion(inverse), dstAxes[bj].clone().applyQuaternion(inverse));
+      return qSrc && qDst ? qSrc.multiply(qDst.invert()) : null;
     };
 
     this.tracks = [];
@@ -561,26 +637,23 @@ export class MannequinStage {
       let correction = null;
 
       if (aim) {
-        //  DIE SEITWAERTSACHSE IST DER GRUND, WARUM HIER EIN DREIBEIN STEHT UND
+        //  DIE REFERENZACHSE IST DER GRUND, WARUM HIER EIN DREIBEIN STEHT UND
         //  NICHT DIE KUERZESTE DREHUNG. `setFromUnitVectors` bildet eine
         //  Richtung auf eine andere ab und laesst die Drehung UM diese Richtung
         //  offen; sie waehlt die kuerzeste, und das ist eine willkuerliche
         //  Wahl. An einem Oberschenkel sieht das niemand - der ist rund. Am
         //  Becken und am Brustkorb sieht es jeder, denn ein Rumpf ist breit:
         //  die Figur stand mit dem Oberkoerper quer zu den Beinen.
-        //
-        //  Mit einer zweiten Richtung ist die Drehung vollstaendig bestimmt.
-        //  Die Seitwaertsachse eignet sich dafuer, weil sie quer zum Knochen
-        //  liegt und in beiden Skeletten dieselbe Strecke meint.
-        const side = sideOf(ti, srcName);
-        if (side) {
-          const qSrc = frame(aim.src, side.src);
-          const qDst = frame(aim.dst, side.dst);
+        const reference = referenceOf(ti, si, aim.src);
+        if (reference) {
+          const qSrc = frame(aim.src, reference.src);
+          const qDst = frame(aim.dst, reference.dst);
           if (qSrc && qDst) correction = qSrc.multiply(qDst.invert());
         }
-        //  Ohne brauchbare Seitwaertsachse bleibt die alte Naeherung: die
-        //  Richtung stimmt, die Rolle ist geraten. Das betrifft nur Knochen
-        //  ohne jeden Vorfahren mit Paar - im menschlichen Skelett keinen.
+        //  Ohne brauchbare Referenz bleibt die alte Naeherung: die Richtung
+        //  stimmt, die Rolle ist geraten. Dazu kommt es nur, wenn die
+        //  Koerperachsen selbst fehlen - also bei einer Vorschau ohne Beine
+        //  oder ohne Schultern.
         if (!correction) correction = new Quaternion().setFromUnitVectors(aim.dst, aim.src);
       }
 
@@ -588,11 +661,16 @@ export class MannequinStage {
       if (correction) corrections.set(srcName, correction);
     }
 
-    // Endknochen (Kopf, Zehen, Fingerspitzen) haben kein Kind und damit keine
-    // eigene Richtung - sie erben die Korrektur ihres Elternknochens, weil ein
-    // Rig seine Achsenkonvention innerhalb einer Kette nicht wechselt.
+    // Endknochen (Zehen, Fingerspitzen) haben kein Kind und damit keine eigene
+    // Richtung. Sie bekommen ihr Dreibein aus zwei Koerperachsen - siehe
+    // [endBoneFrame]. Erst wenn auch das nicht geht, erben sie vom
+    // Elternknochen; die Zehen knickten genau davon nach unten.
     for (const track of this.tracks) {
       if (track.correction) continue;
+
+      track.correction = endBoneFrame(track.bone, track.src);
+      if (track.correction) continue;
+
       let p = this.preview.parents[track.src];
       while (p >= 0) {
         const parentName = this.preview.bones[p];
