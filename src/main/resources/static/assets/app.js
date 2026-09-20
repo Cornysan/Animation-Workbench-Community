@@ -193,6 +193,15 @@ const AW = (() => {
    * Figur steht auf der Clip-Seite und im Kopf der Startseite, wo sie einzeln
    * ist und gross genug, um etwas zu erzaehlen.
    */
+  /**
+   * Wer Bewegung reduziert haben will, bekommt sie reduziert.
+   *
+   * Eine Katalogseite sind bis zu 24 gleichzeitig laufende Figuren. Fuer
+   * manche Menschen ist das keine Kleinigkeit, und das Betriebssystem sagt es
+   * laengst - man muss nur hinhoeren.
+   */
+  const stillPreviews = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+
   function previewObserver() {
     return new IntersectionObserver((entries) => {
       for (const entry of entries) {
@@ -200,8 +209,14 @@ const AW = (() => {
         entry.target.__observer.unobserve(entry.target);
         const canvas = entry.target;
         api("GET", "/api/v1/packages/" + canvas.dataset.slug + "/preview")
-          .then((preview) => new SkeletonViewer(canvas, preview,
-            { interactive: false, autoplay: true, yaw: -0.7, pitch: 0.18 }))
+          .then((preview) => {
+            const viewer = new SkeletonViewer(canvas, preview,
+              { interactive: false, autoplay: !stillPreviews, yaw: -0.7, pitch: 0.18 });
+            //  Stillgestellt heisst nicht Frame 0: viele Clips fangen in der
+            //  Ruhelage an, und ein Laufzyklus saehe dann aus wie jemand, der
+            //  steht. Ein Viertel hinein steht fast immer eine Pose.
+            if (stillPreviews) viewer.setTime(viewer.duration * 0.25);
+          })
           .catch(() => canvas.replaceWith(el("div", { class: "viewer-empty" }, "No preview")));
       }
     }, { rootMargin: "300px" });
@@ -236,17 +251,11 @@ const AW = (() => {
     const fresh = Date.now() - new Date(item.createdAt).getTime() < WEEK;
 
     //  Der Autor ist ein Weg, kein Etikett: "mehr von dieser Person" ist die
-    //  zweite Frage nach "was ist das". Ein <span> in einem <a> kann kein
-    //  zweiter Link sein - deshalb traegt die Karte hier einen Klick, der das
-    //  Weiterreichen an die Karte abbricht.
-    const author = el("span", {
+    //  zweite Frage nach "was ist das".
+    const author = el("a", {
       class: "card-author",
+      href: "/browse.html?author=" + encodeURIComponent(item.author),
       title: "All clips by " + item.author,
-      onclick: (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        location.href = "/browse.html?author=" + encodeURIComponent(item.author);
-      },
     }, item.author);
 
     const meta = [author];
@@ -259,13 +268,27 @@ const AW = (() => {
     if (item.likes > 0) add(item.likes + " ♥");
     if (item.comments > 0) add(item.comments === 1 ? "1 comment" : item.comments + " comments");
 
-    return el("a", { class: "card", href: "/clip.html?p=" + encodeURIComponent(item.slug) },
+    //  ZWEI ZIELE AUF EINER KARTE, und HTML erlaubt keinen Link im Link.
+    //  Der erste Entwurf loeste das mit einem Klick-Handler auf einem <span> -
+    //  der mit der Maus funktioniert und mit der Tastatur nicht: kein Fokus,
+    //  kein Enter, fuer einen Screenreader gar kein Ziel.
+    //
+    //  Also andersherum: die Karte ist ein <article>, der TITEL ist der Link,
+    //  und sein `::after` deckt die ganze Karte ab. Damit bleibt die ganze
+    //  Flaeche anklickbar, und der Autor daneben ist ein gewoehnlicher Link,
+    //  der ueber dieser Flaeche liegt. Beide sind anfassbar, ertastbar und
+    //  vorlesbar.
+    return el("article", { class: "card" },
       el("div", { class: "card-stage" },
         item.hasPreview ? canvas : el("div", { class: "viewer-empty" }, "No preview"),
         fresh ? el("span", { class: "card-flag" }, "New") : null,
         el("span", { class: "card-duration" }, formatDuration(item.durationSeconds))),
       el("div", { class: "card-body" },
-        el("div", { class: "card-title", title: item.title }, item.title),
+        el("a", {
+          class: "card-title",
+          href: "/clip.html?p=" + encodeURIComponent(item.slug),
+          title: item.title,
+        }, item.title),
         el("div", { class: "card-meta" }, meta)));
   }
 

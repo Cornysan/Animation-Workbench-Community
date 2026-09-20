@@ -556,6 +556,10 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
 .card .viewer-empty { display: flex; align-items: center; justify-content: center; color: var(--text-faint); font-size: 13px; }
 
 .card-body { padding: 13px 15px 16px; display: flex; flex-direction: column; gap: 5px; flex: 1; }
+
+/* Der Titel ist der Link auf den Clip, und sein ::after deckt die ganze Karte
+   ab - so bleibt die Flaeche anklickbar, ohne dass ein Link im Link stehen
+   muss (was HTML nicht erlaubt). Der Autor daneben liegt darueber. */
 .card-title {
   font-weight: 650;
   font-size: 15.5px;
@@ -563,14 +567,28 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--text);
 }
+.card-title::after { content: ""; position: absolute; inset: 0; }
+.card-title:hover { text-decoration: none; }
 .card:hover .card-title { color: var(--accent-strong); }
+
+/* Ein Fokus, den man sieht: ohne ihn ist die Karte per Tastatur zwar
+   erreichbar, aber nicht auffindbar. */
+.card:focus-within { border-color: var(--accent-line); }
+.card-title:focus-visible, .card-author:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
 .card-meta { color: var(--text-dim); font-size: 13px; display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
 .card-meta .dot { color: var(--text-faint); }
 /* Der Autor auf der Karte fuehrt zu allem anderen derselben Person. Er sieht
    erst beim Hinsehen wie ein Link aus - sonst konkurriert er mit dem Titel um
    die Aufmerksamkeit, und der ist das Angebot. */
-.card-author { color: var(--text-dim); font-weight: 500; cursor: pointer; }
+/* Liegt ueber der Flaeche, die der Titel abdeckt - sonst waere er nicht zu
+   treffen. */
+.card-author { color: var(--text-dim); font-weight: 500; position: relative; z-index: 1; }
 .card-author:hover { color: var(--accent); text-decoration: underline; }
 
 .card-flag, .card-duration {
