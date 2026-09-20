@@ -10,9 +10,14 @@
   Die Adressen der Clips bleiben unveraendert - sie stehen in Discord-Vorschauen,
   in Takedown-Mails und in der Workbench.
 
-  DREI DINGE STEHEN DAZWISCHEN, in dieser Reihenfolge: was hier liegt (Zahlen),
-  wonach man greifen kann (Schlagworte), und was gerade da ist (zwei Reihen).
-  Ein Erstbesucher fragt in genau dieser Folge.
+  ZUERST DIE WARE, DANN DIE ERKLAERUNG. Der erste Entwurf stellte einen
+  Absatz, eine Lizenzzeile und drei Schritt-Karten vor die Clips - zusammen
+  ueber hundert Woerter, bevor der zweite Clip zu sehen war. Auf einer Seite
+  ueber Bewegung liest das niemand. Jetzt steht die Figur im Kopf, gleich
+  darunter das Gitter, und der Weg (drei Schritte) ist ein Streifen am Ende.
+
+  Was an Erklaerung bleibt, ist kurz genug, um im Vorbeigehen gelesen zu
+  werden: eine Zeile unter der Ueberschrift, drei Marken, drei Zahlen.
 -->
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{fragments/shell :: head('Animation Workbench Community')}"></head>
@@ -24,23 +29,22 @@
   <section class="hero">
     <div class="hero-copy">
       <h1>Humanoid clips,<br>free to use.</h1>
-      <p class="lead">
-        Animation made in the Animation Workbench and shared as plain motion data -
-        no FBX, no rig, no model. Watch it on the mannequin, then import it into any
-        Unity project.
-      </p>
+      <p class="lead">Motion only - no FBX, no rig, no model.</p>
+
       <div class="hero-actions">
         <a class="button primary" href="/browse.html">Browse clips</a>
         <a class="button" href="/rules.html">How sharing works</a>
       </div>
 
+      <!-- Drei Marken statt dreier Saetze. Die Lizenz fuehrt zu ihrer Seite. -->
+      <ul class="badge-row">
+        <li><a href="/licenses.html" title="What CC BY 4.0 allows"><span class="badge-dot"></span>CC BY 4.0</a></li>
+        <li><span>Any humanoid avatar</span></li>
+        <li><span>One <code>.awclip</code> file</span></li>
+      </ul>
+
       <!-- Was hier liegt, in drei Zahlen. Leer, solange es nichts zu melden gibt. -->
       <dl class="hero-stats" id="hero-stats" hidden></dl>
-
-      <p class="hero-note small">
-        Everything listed here is <strong>CC BY 4.0</strong>: use it, change it, ship it
-        commercially - just credit whoever made it.
-      </p>
     </div>
 
     <div class="hero-stage">
@@ -51,60 +55,60 @@
     </div>
   </section>
 
-  <!--
-    Der Einstieg fuer alle, die keine Frage mitbringen. Ein Suchfeld setzt
-    voraus, dass man ein Wort im Kopf hat; eine Reihe Schlagworte zeigt, welche
-    es gibt.
-  -->
-  <section class="browse-by" id="browse-by" hidden>
-    <h2 class="section-title">Browse by movement</h2>
-    <div class="tag-bar" id="tag-bar"></div>
-  </section>
-
-  <section class="how">
-    <h2 class="section-title">Three steps, no export pipeline</h2>
-    <ol class="steps">
-      <li>
-        <span class="step-nr">1</span>
-        <h3>Animate in Unity</h3>
-        <p>Pose, key and layer a humanoid clip in the Animation Workbench - on your own
-          character, in your own project.</p>
-      </li>
-      <li>
-        <span class="step-nr">2</span>
-        <h3>Share the motion</h3>
-        <p>One <code>.awclip</code> file leaves your project: curves and a preview
-          skeleton. Your character, your mesh and your rig stay where they are.</p>
-      </li>
-      <li>
-        <span class="step-nr">3</span>
-        <h3>Import anywhere</h3>
-        <p>The clip lands on any humanoid avatar, because it was never bound to one.
-          Unity retargets it the way it retargets every humanoid clip.</p>
-      </li>
-    </ol>
-  </section>
-
   <section class="latest">
     <div class="section-head">
       <h2 class="section-title">Newest clips</h2>
       <a class="section-link" href="/browse.html">All clips</a>
     </div>
+
+    <!--
+      Die Schlagworte stehen ueber dem Gitter, nicht in einem eigenen Abschnitt
+      weiter unten: sie sind ein Filter fuer das, was direkt darunter liegt.
+    -->
+    <div class="tag-bar" id="tag-bar" hidden></div>
+
     <div id="latest" class="grid"></div>
     <div id="latest-state"></div>
   </section>
 
-  <!--
-    Eine zweite Reihe, und zwar nach einem ANDEREN Mass. "Neu" und "benutzt"
-    zeigen im jungen Katalog fast dieselben Clips; sobald er waechst, laufen sie
-    auseinander - und dann ist die zweite Reihe die interessantere.
-  -->
   <section class="latest" id="popular-section" hidden>
     <div class="section-head">
       <h2 class="section-title">Used most often</h2>
       <a class="section-link" href="/browse.html?sort=popular">See all</a>
     </div>
     <div id="popular" class="grid"></div>
+  </section>
+
+  <!--
+    Der Weg, in drei Zeilen. Er stand vorher als Kapitel VOR den Clips; wer
+    Bewegungen sucht, braucht keine Anleitung, bevor er die erste gesehen hat.
+  -->
+  <section class="how">
+    <ol class="steps">
+      <li>
+        <svg class="step-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
+             stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M4 12h4l3-7 3 14 3-7h3"></path>
+        </svg>
+        <span><b>Animate</b> in the Workbench</span>
+      </li>
+      <li aria-hidden="true" class="step-arrow">→</li>
+      <li>
+        <svg class="step-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
+             stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M12 16V4"></path><path d="M8 8l4-4 4 4"></path><path d="M5 16v4h14v-4"></path>
+        </svg>
+        <span><b>Share</b> one <code>.awclip</code></span>
+      </li>
+      <li aria-hidden="true" class="step-arrow">→</li>
+      <li>
+        <svg class="step-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
+             stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M12 4v12"></path><path d="M8 12l4 4 4-4"></path><path d="M5 16v4h14v-4"></path>
+        </svg>
+        <span><b>Import</b> into any Unity project</span>
+      </li>
+    </ol>
   </section>
 </main>
 <footer th:replace="~{fragments/shell :: footer}"></footer>

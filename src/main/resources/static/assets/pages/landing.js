@@ -77,8 +77,9 @@ async function mountOverview() {
   }
 
   if (overview.tags.length) {
-    document.getElementById('browse-by').hidden = false;
-    document.getElementById('tag-bar').replaceChildren(
+    const bar = document.getElementById('tag-bar');
+    bar.hidden = false;
+    bar.replaceChildren(
       ...overview.tags.slice(0, 14).map((entry) => el('a', {
         class: 'tag',
         href: '/browse.html?tag=' + encodeURIComponent(entry.tag),

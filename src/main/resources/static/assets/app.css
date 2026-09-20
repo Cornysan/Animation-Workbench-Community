@@ -104,9 +104,13 @@ a:hover { text-decoration: underline; }
   border-bottom: 1px solid var(--line);
 }
 
+/* KEINE Seitenbreite hier. Der Kopf ist ein Band ueber die volle Breite, und
+   die Marke sitzt an seinem linken Rand. Vorher galt fuer ihn dieselbe
+   `--page`-Breite wie fuer einen Absatz: auf einem 1600er Schirm stand die
+   Marke damit 160 px eingerueckt und wirkte verrutscht - auf dem Katalog, der
+   `--page-wide` nutzt, sogar gegenueber dem Inhalt DARUNTER. Ein Absatz
+   braucht sein Lesemass, ein Band nicht. */
 .header-inner {
-  max-width: var(--page);
-  margin-inline: auto;
   padding: 0 var(--gutter);
   height: 60px;
   display: flex;
@@ -960,33 +964,17 @@ table.list tr:hover td { background: rgba(255, 255, 255, 0.02); }
   font-size: 14px;
 }
 
+/* Hier stand bis hierher ein Rest aus der Zeit der SEITENLEISTE: ein
+   Grid-Raster fuer `body` (der laengst `flex` ist), eine Kopfzeile, die sich
+   von senkrecht auf waagerecht drehte, und Regeln fuer `.sidebar-hint` und
+   `.sidebar-foot` - Klassen, die es seit dem Umzug der Navigation nach oben
+   nicht mehr gibt. Wirksam war davon nur zweierlei: ein zweiter Innenabstand
+   am Kopf (neben dem des Bands) und `overflow-x: auto`, das aus dem Kopf bei
+   Bedarf einen Schiebestreifen machte. Beides ist weg; wie der Kopf schmal
+   wird, sagen die Bloecke bei 1080 und 620 Punkten. */
 @media (max-width: 900px) {
-  body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; }
-
-  .site-header {
-    grid-column: 1;
-    grid-row: 1;
-    flex-direction: row;
-    align-items: center;
-    gap: 10px;
-    height: auto;
-    padding: 10px 16px;
-    border-right: none;
-    border-bottom: 1px solid var(--line);
-    overflow-x: auto;
-  }
-  .brand { flex-direction: row; align-items: center; gap: 8px; padding: 0 4px; }
-  .brand-lockup { display: none; }
-  .brand-mark { display: block; }
-  .brand small { display: none; }
-  .site-nav { flex-direction: row; flex: 1; }
-  .nav-item span { display: none; }
-  .nav-item { padding: 9px 11px; }
-  .sidebar-hint { display: none; }
-  .sidebar-foot { flex-direction: row; }
-
-  main { grid-column: 1; grid-row: 2; padding: 26px 18px 56px; }
-  .site-footer { grid-column: 1; grid-row: 3; padding: 20px 18px; justify-content: center; }
+  main { padding: 26px 18px 56px; }
+  .site-footer { padding: 20px 18px; justify-content: center; }
   h1 { font-size: 30px; }
 }
 
@@ -1021,12 +1009,41 @@ table.list tr:hover td { background: rgba(255, 255, 255, 0.02); }
 .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .hero-actions .button { padding: 11px 20px; }
 
-.hero-note {
-  color: var(--text-faint);
+/* Drei kurze Marken statt eines Satzes.
+   Hier stand die Lizenz als Prosa: "Everything listed here is CC BY 4.0: use
+   it, change it, ship it commercially - just credit whoever made it." Achtzehn
+   Woerter neben einer Figur, die sich bewegt - gelesen hat sie niemand. Wer es
+   genau wissen will, klickt auf die Marke; die anderen sehen weiter die Figur. */
+.badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
   margin: 22px 0 0;
-  max-width: 46ch;
+  padding: 0;
 }
-.hero-note strong { color: var(--text-dim); font-weight: 650; }
+.badge-row li { display: flex; }
+.badge-row li > * {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--bg-soft);
+  color: var(--text-dim);
+  font-size: 12.5px;
+  font-weight: 550;
+  white-space: nowrap;
+}
+.badge-row a:hover { color: var(--text); border-color: var(--line-strong); text-decoration: none; }
+.badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex: none;
+}
 
 /* Was hier liegt, in drei Zahlen. Ein Portal, das seinen Umfang nicht nennt,
    laesst jeden Besucher raten, ob sich das Stoebern lohnt. */
@@ -1054,10 +1071,11 @@ table.list tr:hover td { background: rgba(255, 255, 255, 0.02); }
   text-transform: uppercase;
 }
 
-/* Der Einstieg fuer alle, die keine Frage mitbringen. */
-.browse-by { padding: 52px 0 0; }
-.browse-by .section-title { margin-bottom: 16px; }
-.browse-by .tag { font-size: 14px; padding: 7px 16px; }
+/* Der Einstieg fuer alle, die keine Frage mitbringen: die Schlagworte stehen
+   ueber dem Gitter, nicht in einem eigenen Abschnitt weiter unten. Ein
+   Suchfeld beantwortet nur Fragen, die jemand schon hat. */
+.latest .tag-bar { margin: -4px 0 18px; }
+.latest .tag { font-size: 13.5px; padding: 6px 14px; }
 
 .hero-stage .viewer canvas { height: 420px; }
 
@@ -1080,40 +1098,46 @@ table.list tr:hover td { background: rgba(255, 255, 255, 0.02); }
 
 .section-title { font-size: 22px; letter-spacing: -0.015em; margin: 0; }
 
-.how { padding: 56px 0 8px; }
-.how .section-title { margin-bottom: 22px; }
+/* Vorher: eine Ueberschrift ("Three steps, no export pipeline") und drei
+   Karten mit je zwei Zeilen Prosa, zusammen ueber siebzig Woerter - eine
+   Anleitung auf einer Seite, auf der jemand Bewegungen sehen will. Die
+   Erklaerung gehoert in die Doku und in /rules.html.
+
+   Geblieben ist die REIHENFOLGE, als Streifen unter den Karten: drei Symbole,
+   drei kurze Zeilen. Wer den Weg schon kennt, ueberliest ihn in einer Sekunde;
+   wer nicht, weiss danach, dass es drei Schritte sind und keine Pipeline. */
+.how {
+  margin-top: 58px;
+  padding: 24px 0 4px;
+  border-top: 1px solid var(--line);
+}
 
 .steps {
   list-style: none;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 30px;
   margin: 0;
   padding: 0;
 }
 
 .steps li {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
-  padding: 20px 20px 22px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-dim);
+  font-size: 14.5px;
 }
-
-.step-nr {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-pill);
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.steps h3 { margin: 14px 0 6px; font-size: 16px; font-weight: 650; }
-.steps p { margin: 0; color: var(--text-dim); font-size: 14px; line-height: 1.6; }
+.steps b { color: var(--text); font-weight: 650; }
 .steps code { font-size: 13px; }
+
+.step-icon { width: 19px; height: 19px; flex: none; color: var(--accent); }
+
+/* Der Pfeil steht zwischen den Schritten, nicht in ihnen - auf schmalen
+   Fenstern bricht die Reihe um, und dann zeigt er ins Leere. */
+.step-arrow { color: var(--text-faint); flex: none; }
+@media (max-width: 860px) { .step-arrow { display: none; } }
 
 /* ── Neueste Clips ─────────────────────────────────────────────────────── */
 
@@ -1130,6 +1154,6 @@ table.list tr:hover td { background: rgba(255, 255, 255, 0.02); }
 @media (max-width: 900px) {
   .hero { grid-template-columns: minmax(0, 1fr); gap: 28px; padding-top: 4px; }
   .hero-stage .viewer canvas { height: 340px; }
-  .how { padding-top: 40px; }
+  .how { margin-top: 40px; }
   .latest { padding-top: 36px; }
 }
