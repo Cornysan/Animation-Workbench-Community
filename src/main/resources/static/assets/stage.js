@@ -443,6 +443,24 @@ export class MannequinStage {
     this.own = !!options.own;
     this.boneMap = options.boneMap || BONE_MAP;
 
+    /**
+     * METER JE ZAHLENSCHRITT DER DATEI - und der Grund, warum das hier
+     * ueberhaupt steht.
+     *
+     * Ein FBX rechnet in Zentimetern, und `parseFigure` setzt darum die
+     * Wurzel auf 0,01. Die BINDEPOSE wird davon nicht beruehrt: die
+     * `boneInverses` haben die Haeute schon beim Laden bekommen, also aus
+     * der Zeit VOR der Skalierung. Von da an stehen zwei Raeume
+     * nebeneinander - `bone.matrixWorld` in Metern, die Bindepose in
+     * Zentimetern -, und `bindRetarget` misst in beiden.
+     *
+     * Gemessen an einer .fbx von 2,02 m: `dstLeg` kam als 89,07 heraus statt
+     * als 0,8907, der Massstab wurde 110 statt 1,1, und die Huefte landete
+     * 84 m ueber dem Boden. Sichtbar war davon nichts - keine Warnung, kein
+     * Fehler, nur eine leere Buehne.
+     */
+    this.unitScale = options.unitScale || 1;
+
     this.buildScene(gltf);
     this.applyProportions();
     this.buildSkeletonLines();
@@ -702,9 +720,24 @@ export class MannequinStage {
       });
     }
 
+    //  DIE BINDEPOSE IN DEN HEUTIGEN WELTRAUM HEBEN.
+    //
+    //  `boneInverses` stehen im Raum von damals - dem Stand beim Laden, als
+    //  die Wurzel noch 1 war. Seither hat `parseFigure` sie auf `unitScale`
+    //  gesetzt, und genau diese Differenz fehlt hier. Eine reine Skalierung
+    //  ist die ganze Differenz: `parseFigure` fasst nichts anderes an.
+    //
+    //  Der Rueckfall unten (`bone.matrixWorld`) braucht sie NICHT - der steht
+    //  schon im Weltraum.
+    const unit = this.unitScale !== 1
+      ? new Matrix4().makeScale(this.unitScale, this.unitScale, this.unitScale)
+      : null;
+
     const bindWorld = bones.map((bone) => {
       const inverse = inverses.get(bone.uuid);
-      return inverse ? inverse.clone().invert() : bone.matrixWorld.clone();
+      if (!inverse) return bone.matrixWorld.clone();
+      const bind = inverse.clone().invert();
+      return unit ? bind.premultiply(unit) : bind;
     });
     const bindPos = bindWorld.map((m) => new Vector3().setFromMatrixPosition(m));
     const bindRot = bindWorld.map((m) => new Quaternion().setFromRotationMatrix(m));
@@ -1365,6 +1398,6 @@ export async function createMannequinStage(canvas, preview, options = {}) {
   const gltf = own ? await parseFigure(own.buffer, own.kind, own.scale) : await loadModel();
 
   return new MannequinStage(canvas, preview, gltf, own
-    ? { ...options, own: true, boneMap: own.humanoid }
+    ? { ...options, own: true, boneMap: own.humanoid, unitScale: own.scale || 1 }
     : options);
 }
