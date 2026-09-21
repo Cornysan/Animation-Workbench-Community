@@ -1545,3 +1545,66 @@ dialog.sheet .counter { float: right; }
 .figure-empty p { margin: 0 0 4px; }
 
 .figure-how { margin-top: 30px; }
+
+/* Eine geratene Zuordnung ist ein Vorschlag, und ein Vorschlag darf nicht
+   aussehen wie eine Tatsache. Gelb: angesehen werden. Rot: geht so nicht. */
+.figure-card.figure-unsure { border-color: rgba(251, 146, 60, 0.45); }
+.figure-card.figure-broken { border-color: rgba(242, 112, 107, 0.5); }
+
+.figure-flag {
+  margin-top: 6px;
+  padding-left: 9px;
+  border-left: 2px solid var(--warn);
+  color: var(--text-dim);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.figure-flag.bad { border-left-color: var(--danger); }
+
+/* ── Welcher Knochen welcher ist ──────────────────────────────────────────
+   Die Maske zu einer geratenen Zuordnung. Sie kann 55 Zeilen lang werden,
+   also darf sie scrollen - und Finger und Gesicht liegen zugeklappt, weil
+   dort fast nie etwas zu korrigieren ist. */
+dialog.bone-sheet { width: min(620px, calc(100vw - 32px)); }
+dialog.bone-sheet form { display: flex; flex-direction: column; max-height: min(78vh, 760px); }
+dialog.bone-sheet > form > .notice { margin: 14px 0 6px; flex: none; }
+dialog.bone-sheet .dialog-actions {
+  flex: none;
+  padding-top: 14px;
+  margin-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.bone-group {
+  flex: none;
+  padding: 12px 0 4px;
+  border-top: 1px solid var(--line);
+}
+.bone-group:first-of-type { border-top: 0; }
+.bone-group h3 { margin: 0 0 8px; font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-dim); }
+.bone-group summary { cursor: pointer; font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-dim); }
+.bone-group summary::marker { color: var(--text-dim); }
+
+/* Der scrollende Teil ist die Liste, nicht der Dialog: Kopfzeile, Zaehlung
+   und die Knoepfe sollen stehen bleiben, waehrend man 55 Zeilen durchgeht. */
+dialog.bone-sheet > form { overflow: hidden; }
+dialog.bone-sheet .bone-scroll { overflow-y: auto; flex: 1 1 auto; padding-right: 4px; }
+
+.bone-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(0, 1.4fr);
+  align-items: center;
+  gap: 10px;
+  padding: 3px 8px;
+  margin: 0 -8px;
+  border-radius: var(--radius-sm);
+}
+.bone-name { font-size: 13.5px; color: var(--text-dim); }
+.bone-must { color: var(--accent); margin-left: 3px; }
+.bone-pick { width: 100%; min-height: 30px; font-size: 13px; }
+
+.bone-row.was-guessed .bone-name { color: var(--text); }
+.bone-row.bone-gap { background: rgba(242, 112, 107, 0.10); }
+.bone-row.bone-gap .bone-pick { border-color: rgba(242, 112, 107, 0.55); }
+.bone-row.bone-clash { background: rgba(251, 146, 60, 0.10); }
+.bone-row.bone-clash .bone-pick { border-color: rgba(251, 146, 60, 0.55); }

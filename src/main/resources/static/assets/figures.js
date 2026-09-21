@@ -25,6 +25,14 @@
  * `humanoid` ist der Teil, ohne den nichts geht: eine Vorschau nennt ihre
  * Knochen `LeftUpperArm`, das Skelett in der Datei heisst vielleicht
  * `B_UpperArm_L`. Nur der Exporteur kennt beide Namen.
+ *
+ * ── Und fremde Dateien ───────────────────────────────────────────────────
+ *
+ * Eine `.fbx` von Mixamo oder eine `.glb` aus Blender bringt diesen Block
+ * nicht mit. Die kommt trotzdem herein: dann werden die Knochennamen gelesen
+ * und die Zuordnung GERATEN (`skeleton.js`, `humanoid.js`). Was dabei
+ * herauskommt, ist ein Vorschlag - `checked: false` -, und die Seite legt ihn
+ * vor, statt ihn zu verschweigen.
  */
 
 const DB = 'aw-figures';
@@ -145,40 +153,110 @@ function facts(header) {
 }
 
 /**
+ * Die Zuordnung aus einer Workbench-Datei lesen - oder merken, dass keine
+ * drinsteht. Wirft nicht: eine fremde Datei ist kein Fehler mehr, sondern der
+ * zweite Weg.
+ */
+function awExtras(buffer) {
+  let header;
+  try {
+    header = readHeader(buffer);
+  } catch {
+    return null; // keine .glb, also erst recht keine Workbench-Datei
+  }
+
+  const extras = (header.extras && header.extras.aw) ? header.extras : null;
+  if (!extras || extras.rig !== 'humanoid') return null;
+  if (!extras.humanoid || !Object.keys(extras.humanoid).length) return null;
+  return { header, extras };
+}
+
+const put = async (entry) => {
+  await run('readwrite', (store) => store.put(entry));
+  return entry;
+};
+
+/**
  * Eine Datei ablegen. Gibt den Eintrag zurueck, unter dem sie danach steht.
  *
  * Gleicher Name, gleiche Figur: ein zweiter Export derselben Figur ERSETZT
  * den ersten, statt daneben zu liegen. Wer in Unity etwas an seiner Figur
  * aendert und neu exportiert, will sie ersetzt haben, nicht doppelt.
+ *
+ * ── Zwei Tueren ──────────────────────────────────────────────────────────
+ *
+ * Kommt die Datei aus der Workbench, steht die Knochenzuordnung drin, und der
+ * Weg ist kurz: Kopf lesen, ablegen, fertig. Das Mesh wird dafuer gar nicht
+ * erst geladen.
+ *
+ * Kommt sie von woanders - eine .fbx von Mixamo, eine .glb aus Blender -,
+ * dann traegt sie Knochennamen, aber keine Zuordnung. Die muss geraten
+ * werden, und dafuer muss die Datei wirklich aufgemacht werden.
+ *
+ * DER TEURE WEG WIRD ERST GEHOLT, WENN ER GEBRAUCHT WIRD. `skeleton.js` zieht
+ * three.js mit herein; wer nur Workbench-Figuren ablegt, zahlt das nie.
+ *
+ * `checked` trennt beides danach: eine Zuordnung aus der Workbench ist
+ * richtig, eine geratene ist ein Vorschlag, bis jemand sie angesehen hat.
  */
 export async function addFigure(file) {
   const buffer = await file.arrayBuffer();
-  const header = readHeader(buffer);
-  const extras = (header.extras && header.extras.aw) ? header.extras : null;
+  const aw = awExtras(buffer);
 
-  if (!extras) {
-    throw new Error('This .glb did not come from the Animation Workbench.');
-  }
-
-  if (extras.rig !== 'humanoid' || !extras.humanoid || !Object.keys(extras.humanoid).length) {
-    throw new Error('Only humanoid figures can carry a clip.');
-  }
-
-  const name = String(extras.name || file.name.replace(/\.glb$/i, '')).slice(0, 64);
-  const entry = {
-    id: name.toLowerCase(),
-    name,
-    height: Number(extras.height) || 0,
-    bones: extras.bones || {},
-    humanoid: extras.humanoid,
+  const base = {
     bytes: buffer.byteLength,
     added: Date.now(),
-    ...facts(header),
-    blob: new Blob([buffer], { type: 'model/gltf-binary' }),
+    blob: new Blob([buffer], { type: aw ? 'model/gltf-binary' : 'application/octet-stream' }),
   };
 
-  await run('readwrite', (store) => store.put(entry));
-  return entry;
+  if (aw) {
+    const name = String(aw.extras.name || file.name.replace(/\.glb$/i, '')).slice(0, 64);
+    return put({
+      ...base,
+      id: name.toLowerCase(),
+      name,
+      kind: 'glb',
+      scale: 1,
+      checked: true,
+      height: Number(aw.extras.height) || 0,
+      bones: aw.extras.bones || {},
+      humanoid: aw.extras.humanoid,
+      ...facts(aw.header),
+    });
+  }
+
+  const { readForeign } = await import('./skeleton.js');
+  const read = await readForeign(buffer, file.name);
+  const name = file.name.replace(/\.(glb|fbx)$/i, '').slice(0, 64) || 'Figure';
+
+  return put({
+    ...base,
+    id: name.toLowerCase(),
+    name,
+    kind: read.kind,
+    scale: read.scale,
+    checked: false,
+    height: read.height,
+    bones: {},
+    humanoid: read.map,
+    skeleton: read.joints,
+    missing: read.missing,
+    notes: read.notes,
+    ...read.facts,
+  });
+}
+
+/**
+ * Eine von Hand nachgebesserte Zuordnung festhalten.
+ *
+ * Ab hier gilt die Figur als angesehen, auch wenn noch Knochen fehlen: wer
+ * eine Figur ohne Zehen ablegt, soll nicht bei jedem Besuch daran erinnert
+ * werden.
+ */
+export async function saveMapping(id, humanoid) {
+  const entry = await getFigure(id);
+  if (!entry) return null;
+  return put({ ...entry, humanoid, checked: true });
 }
 
 /** Die Figur, wie die Buehne sie braucht. */
@@ -190,6 +268,10 @@ export async function figureForStage(id) {
     buffer: await entry.blob.arrayBuffer(),
     humanoid: entry.humanoid,
     name: entry.name,
+    //  Aeltere Eintraege kennen beide Felder nicht: die lagen alle als .glb
+    //  aus der Workbench da, und die ist in Metern.
+    kind: entry.kind || 'glb',
+    scale: entry.scale || 1,
   };
 }
 

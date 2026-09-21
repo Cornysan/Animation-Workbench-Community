@@ -1002,11 +1002,23 @@ export class MannequinStage {
     };
     const srcLeg = legOf('LeftUpperLeg', 'LeftLowerLeg', 'LeftFoot')
       || legOf('RightUpperLeg', 'RightLowerLeg', 'RightFoot');
-    const tThigh = byKey.get(boneKey('DEF-thigh.L'));
-    const tShin = byKey.get(boneKey('DEF-shin.L'));
-    const tFoot = byKey.get(boneKey('DEF-foot.L'));
-    const dstLeg = (tThigh !== undefined && tShin !== undefined && tFoot !== undefined)
-      ? bindPos[tShin].distanceTo(bindPos[tThigh]) + bindPos[tFoot].distanceTo(bindPos[tShin])
+
+    //  DAS BEIN DES ZIELS, UEBER DIE ZUORDNUNG GESUCHT - nicht ueber die
+    //  Namen des Mannequins. Hier standen `DEF-thigh.L` und seine zwei
+    //  Geschwister fest verdrahtet: fuer unser Hausmodell richtig, fuer jede
+    //  eigene Figur ins Leere. `dstLeg` blieb dann 0, der Massstab 1, und die
+    //  Vorschau schob die Huefte um die Schrittweite des Mannequins.
+    //
+    //  Bei einer Workbench-Figur faellt das kaum auf - die ist auch ungefaehr
+    //  1,7 m gross. Bei einer .fbx in Zentimetern waere es ein Faktor 100
+    //  gewesen: die Figur haette auf der Stelle gerutscht.
+    const legBone = (part) => byKey.get(boneKey(this.boneMap[part] || ''));
+    const tLeg = ['UpperLeg', 'LowerLeg', 'Foot'].map((part) => legBone('Left' + part));
+    const tRight = ['UpperLeg', 'LowerLeg', 'Foot'].map((part) => legBone('Right' + part));
+    const chain = tLeg.every((i) => i !== undefined) ? tLeg
+      : tRight.every((i) => i !== undefined) ? tRight : null;
+    const dstLeg = chain
+      ? bindPos[chain[1]].distanceTo(bindPos[chain[0]]) + bindPos[chain[2]].distanceTo(bindPos[chain[1]])
       : 0;
     this.scale = (srcLeg > 1e-4 && dstLeg > 1e-4) ? dstLeg / srcLeg : 1;
 
@@ -1024,6 +1036,7 @@ export class MannequinStage {
       for (const p of frame) { if (p.y < lo) lo = p.y; if (p.y > hi) hi = p.y; }
       this.height = Math.max(this.height, (hi - lo) * this.scale);
     }
+
     this.target = new Vector3(0, this.height * 0.5, 0);
 
     this.offsetY = 0;
@@ -1328,23 +1341,28 @@ export class MannequinStage {
  * geschrieben und der Nutzer hier abgelegt hat. Sie geht nie an den Server:
  * ein gekauftes Modell gehoert seinem Kaeufer, und im eigenen Browser ist es
  * dieselbe Ansicht, die Unity zwei Fenster weiter auch zeigt.
+ *
+ * `kind` ist `glb` oder `fbx`, `scale` die Anzahl Meter je Zahlenschritt der
+ * Datei - beides kommt aus der Ablage. Ein FBX rechnet fast immer in
+ * Zentimetern, und ohne die Umrechnung stuende hier eine Figur von 96 Metern.
  */
-export function parseFigure(buffer) {
-  return new Promise((resolve, reject) => {
-    new GLTFLoader().parse(buffer, '', resolve, reject);
-  });
+export async function parseFigure(buffer, kind = 'glb', scale = 1) {
+  const { parseModel } = await import('./skeleton.js');
+  const model = await parseModel(buffer, kind);
+  if (scale && scale !== 1) model.scene.scale.setScalar(scale);
+  return model;
 }
 
 /**
  * Baut eine Buehne. Wirft, wenn WebGL fehlt oder das Modell nicht kommt - der
  * Aufrufer faellt dann auf das Strichmaennchen zurueck.
  *
- * `options.figure` ist eine eigene Figur: `{ buffer, humanoid }`, beides aus
- * der abgelegten Datei. Ohne sie steht das Mannequin des Hauses da.
+ * `options.figure` ist eine eigene Figur: `{ buffer, humanoid, kind, scale }`,
+ * alles aus der abgelegten Datei. Ohne sie steht das Mannequin des Hauses da.
  */
 export async function createMannequinStage(canvas, preview, options = {}) {
   const own = options.figure || null;
-  const gltf = own ? await parseFigure(own.buffer) : await loadModel();
+  const gltf = own ? await parseFigure(own.buffer, own.kind, own.scale) : await loadModel();
 
   return new MannequinStage(canvas, preview, gltf, own
     ? { ...options, own: true, boneMap: own.humanoid }
