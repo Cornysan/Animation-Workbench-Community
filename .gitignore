@@ -45,3 +45,7 @@ out/
 ### Portal ###
 /data/
 /server/.env
+
+### Probe-Modelle: fremde .fbx/.glb zum Testen des Figuren-Imports.
+### Gehoeren niemandem von uns und duerfen nirgends ausgeliefert werden.
+.probe/
