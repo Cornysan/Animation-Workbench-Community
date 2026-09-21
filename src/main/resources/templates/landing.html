@@ -16,11 +16,23 @@
   ueber Bewegung liest das niemand. Der Kopf ist deshalb kurz, gleich darunter
   steht das Gitter, und der Weg (drei Schritte) ist ein Streifen am Ende.
 
-  IM KOPF LIEF EINE FIGUR - jetzt nicht mehr. Ein einzelner herausgegriffener
-  Clip neben der Ueberschrift beantwortete eine Frage, die das Gitter zwei
-  Zeilen weiter unten besser beantwortet: dort laufen ALLE, und keiner davon
-  ist willkuerlich ausgewaehlt. Dazu kostete die Buehne den ersten WebGL-Kontext
-  der Seite, bevor ueberhaupt eine Karte zu sehen war.
+  IM KOPF STEHT WIEDER EINE FIGUR - eine ANDERE als die, die hier einmal
+  weggenommen wurde, und aus genau den Gruenden, die sie damals gekostet
+  haben. Der alte Kopf spielte einen herausgegriffenen Clip aus dem Katalog:
+  das beantwortete eine Frage, die das Gitter zwei Zeilen weiter unten besser
+  beantwortet - dort laufen ALLE, und keiner davon ist willkuerlich gewaehlt.
+  Und die Buehne nahm sich den ersten WebGL-Kontext der Seite, bevor
+  ueberhaupt eine Karte zu sehen war.
+
+  Was jetzt dort steht, ist das MANNEQUIN aus der Doku-Site, prozedural: es
+  atmet und verlagert das Gewicht, es spielt nichts ab. Damit faellt der erste
+  Einwand weg - es ist kein ausgewaehlter Clip, sondern die Figur, auf der die
+  Clips laufen, und diese Frage beantwortet kein Kachelgitter. Der zweite
+  Einwand galt einer Buehne, die den Aufbau der Seite aufhielt: diese hier
+  wird im Leerlauf nachgeholt, und ein IntersectionObserver stellt sie still,
+  sobald sie aus dem Bild ist. Auf schmalen Seiten faellt sie ganz aus - dort
+  heisst "zuerst die Ware", dass die Karten oben stehen -, und sie wird dann
+  auch nicht geladen. Das Genauere steht in pages/landing.js.
 
   Was an Erklaerung bleibt, ist kurz genug, um im Vorbeigehen gelesen zu
   werden: eine Zeile unter der Ueberschrift, drei Marken, drei Zahlen.
@@ -51,6 +63,21 @@
 
       <!-- Was hier liegt, in drei Zahlen. Leer, solange es nichts zu melden gibt. -->
       <dl class="hero-stats" id="hero-stats" hidden></dl>
+    </div>
+
+    <!--
+      Die Figur. `aria-hidden`, weil sie Schmuck ist: sie traegt keine
+      Aussage, die nicht schon links danebensteht, und vorgelesen waere sie
+      nur ein Hindernis auf dem Weg zu den Knoepfen.
+
+      Der Schein darunter ist CSS und steht sofort. Kommt kein WebGL, kommt
+      das Modell nicht oder bleibt die Leinwand aus irgendeinem Grund leer,
+      bleibt er stehen und die Seite hat kein Loch - dieselbe Vorkehrung wie
+      auf der Doku-Site.
+    -->
+    <div class="hero-stage" id="hero-stage" aria-hidden="true">
+      <div class="hero-stage-glow"></div>
+      <canvas id="hero-stage-canvas"></canvas>
     </div>
   </section>
 
