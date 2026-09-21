@@ -13,6 +13,9 @@
  */
 
 import { createMannequinStage, PROPORTIONS } from './stage.js';
+import {
+  addFigure, figureForStage, listFigures, rememberFigure, rememberedFigure, removeFigure,
+} from './figures.js';
 
 const ICONS = {
   mesh: '<path d="M12 3.6 20 8v8l-8 4.4L4 16V8z"/><path d="M12 12 20 8M12 12v8.4M12 12 4 8"/>',
@@ -64,6 +67,115 @@ function rememberProportions(name) {
   } catch {
     /* dann eben nur fuer diesen Clip */
   }
+}
+
+/**
+ * Die Reihe mit den eigenen Figuren: das Mannequin des Hauses, dann alles, was
+ * jemand aus der Workbench hier abgelegt hat, dann ein Plus.
+ *
+ * WARUM SIE AN DER BUEHNE STEHT und nicht in einem Menue: es ist dieselbe
+ * Frage wie die Proportionen darunter - auf WEM laeuft der Clip. Die Antwort
+ * gehoert dorthin, wo man sie sieht.
+ *
+ * Die Dateien kommen aus der Figuren-Ansicht der Workbench ("Use my figures on
+ * the portal", dann Export) und bleiben in diesem Browser.
+ */
+async function mountFigureRow(wrap, row, activeId, remount) {
+  const note = document.createElement('div');
+  note.className = 'stage-note';
+  wrap.append(note);
+
+  let noteTimer = 0;
+  const say = (text, bad) => {
+    note.textContent = text;
+    note.classList.toggle('bad', !!bad);
+    note.classList.add('on');
+    clearTimeout(noteTimer);
+    noteTimer = setTimeout(() => note.classList.remove('on'), 5000);
+  };
+
+  const picker = document.createElement('input');
+  picker.type = 'file';
+  picker.accept = '.glb,model/gltf-binary';
+  picker.hidden = true;
+  wrap.append(picker);
+
+  const take = async (file) => {
+    if (!file) return;
+    try {
+      const entry = await addFigure(file);
+      say(entry.name + ' is here now.');
+      await remount(entry.id);
+    } catch (error) {
+      say(error.message || 'That file could not be read.', true);
+      console.warn('[figures] import failed', error);
+    }
+  };
+
+  picker.addEventListener('change', () => {
+    const file = picker.files && picker.files[0];
+    picker.value = '';
+    take(file);
+  });
+
+  //  Auf die Buehne ziehen tut dasselbe wie das Plus - und ist der Weg, den
+  //  die meisten zuerst versuchen.
+  wrap.addEventListener('dragover', (event) => {
+    event.preventDefault();
+    wrap.classList.add('dropping');
+  });
+  wrap.addEventListener('dragleave', () => wrap.classList.remove('dropping'));
+  wrap.addEventListener('drop', (event) => {
+    event.preventDefault();
+    wrap.classList.remove('dropping');
+    take(event.dataTransfer && event.dataTransfer.files[0]);
+  });
+
+  const chip = (label, title, pressed) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'hud-toggle hud-chip';
+    button.textContent = label;
+    button.title = title;
+    button.setAttribute('aria-label', title);
+    if (pressed !== undefined) button.setAttribute('aria-pressed', String(pressed));
+    return button;
+  };
+
+  const draw = async () => {
+    const stored = await listFigures();
+    row.replaceChildren();
+
+    //  Ohne eine einzige eigene Figur steht hier nur das Plus: eine Reihe mit
+    //  einem gedrueckten "Mannequin" und sonst nichts waere eine Auswahl ohne
+    //  Wahl.
+    if (stored.length) {
+      const house = chip('Mannequin', 'The figure the Workbench ships with', !activeId);
+      house.addEventListener('click', () => { if (activeId) remount(''); });
+      row.append(house);
+    }
+
+    for (const entry of stored) {
+      const one = chip(entry.name, entry.name + ' - right-click to forget it', entry.id === activeId);
+      one.addEventListener('click', () => { if (entry.id !== activeId) remount(entry.id); });
+      one.addEventListener('contextmenu', async (event) => {
+        event.preventDefault();
+        if (!confirm('Forget ' + entry.name + '? The file stays on your disk.')) return;
+        await removeFigure(entry.id);
+        if (entry.id === activeId) { await remount(''); return; }
+        say(entry.name + ' is gone from this browser.');
+        draw();
+      });
+      row.append(one);
+    }
+
+    const add = chip(stored.length ? '+' : '+ My figure',
+      'Add a figure exported from the Animation Workbench (.glb)');
+    add.addEventListener('click', () => picker.click());
+    row.append(add);
+  };
+
+  await draw();
 }
 
 /**
@@ -119,15 +231,50 @@ export async function mountViewer(box, preview, options = {}) {
    */
   const rig = options.rig || 'humanoid';
 
+  /**
+   * DIE EIGENE FIGUR, WENN EINE ABGELEGT IST.
+   *
+   * Sie liegt im Browser (`figures.js`), nicht bei uns. Ist sie nicht mehr da
+   * oder laesst sie sich nicht laden, steht das Mannequin - eine leere Buehne
+   * waere die schlechtere Antwort auf eine geloeschte Datei.
+   */
+  let ownId = options.figureId !== undefined ? options.figureId : rememberedFigure();
+  let own = null;
+
+  if (rig === 'humanoid' && ownId) {
+    try {
+      own = await figureForStage(ownId);
+    } catch (error) {
+      console.warn('[viewer] own figure unavailable', error);
+    }
+    if (!own) ownId = '';
+  }
+
   if (rig === 'humanoid') {
     try {
       stage = await createMannequinStage(canvas, preview, {
         onFrame, autoplay: options.autoplay, proportions: rememberedProportions(),
+        figure: own,
       });
     } catch (error) {
-      // Kein WebGL, kein Modell, kein Drama: das Strichmaennchen kann das auch.
       failure = error;
-      console.warn('[viewer] mannequin unavailable, falling back to the skeleton', error);
+      console.warn('[viewer] figure unavailable', error);
+    }
+
+    //  Die eigene Figur ist gescheitert - noch einmal mit dem Mannequin, bevor
+    //  es das Strichmaennchen wird.
+    if (!stage && own) {
+      ownId = '';
+      own = null;
+      try {
+        stage = await createMannequinStage(canvas, preview, {
+          onFrame, autoplay: options.autoplay, proportions: rememberedProportions(),
+        });
+      } catch (error) {
+        // Kein WebGL, kein Modell, kein Drama: das Strichmaennchen kann das auch.
+        failure = error;
+        console.warn('[viewer] mannequin unavailable, falling back to the skeleton', error);
+      }
     }
   }
 
@@ -154,6 +301,38 @@ export async function mountViewer(box, preview, options = {}) {
   scrub.addEventListener('change', () => (scrubbing = false));
 
   const keys = new Map([[' ', () => setPlaying(!stage.playing)]]);
+
+  // Die Tasten gehoeren der Seite, aber nicht, solange jemand tippt - ein "g"
+  // im Suchfeld darf das Raster nicht umschalten.
+  const onKey = (event) => {
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
+    const target = event.target;
+    if (target && (target.closest('input, textarea, select, [contenteditable]'))) return;
+    const action = keys.get(event.key.toLowerCase());
+    if (!action) return;
+    event.preventDefault();
+    action();
+  };
+
+  const destroy = () => {
+    document.removeEventListener('keydown', onKey);
+    if (stage.dispose) stage.dispose();
+  };
+
+  /**
+   * Eine andere Figur heisst: alles noch einmal.
+   *
+   * Nicht aus Bequemlichkeit - eine Buehne haengt an ihrer Leinwand, und eine
+   * Leinwand gibt ihren WebGL-Kontext nicht wieder her. Der Aufbau ist
+   * ohnehin ein Ladevorgang; ihn zu wiederholen ist ehrlicher als einen
+   * halben Zustand weiterzureichen.
+   */
+  const remount = async (nextId) => {
+    rememberFigure(nextId);
+    const playing = stage.playing;
+    destroy();
+    await mountViewer(box, preview, { ...options, figureId: nextId, autoplay: playing });
+  };
 
   if (mode === 'mannequin') {
     const hud = document.createElement('div');
@@ -202,6 +381,15 @@ export async function mountViewer(box, preview, options = {}) {
      */
     const figures = document.createElement('div');
     figures.className = 'stage-figures';
+
+    const ownRow = document.createElement('div');
+    ownRow.className = 'stage-row';
+
+    const proportionRow = document.createElement('div');
+    proportionRow.className = 'stage-row';
+
+    figures.append(ownRow, proportionRow);
+
     const names = Object.keys(PROPORTIONS);
     const chips = new Map();
 
@@ -213,44 +401,34 @@ export async function mountViewer(box, preview, options = {}) {
       rememberProportions(stage.proportions);
     };
 
-    for (const name of names) {
-      const chip = document.createElement('button');
-      chip.type = 'button';
-      chip.className = 'hud-toggle hud-chip';
-      chip.textContent = PROPORTIONS[name].label;
-      chip.title = `Proportions: ${PROPORTIONS[name].label} (P)`;
-      chip.setAttribute('aria-label', chip.title);
-      chip.setAttribute('aria-pressed', String(name === stage.proportions));
-      chip.addEventListener('click', () => setProportions(name));
-      chips.set(name, chip);
-      figures.append(chip);
+    /**
+     * Die Masse gehoeren dem Mannequin. Eine eigene Figur HAT ihre
+     * Proportionen - die Reihe waere dann ein Schalter, der nichts tut, und
+     * das ist schlimmer als keiner.
+     */
+    if (!own) {
+      for (const name of names) {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'hud-toggle hud-chip';
+        chip.textContent = PROPORTIONS[name].label;
+        chip.title = `Proportions: ${PROPORTIONS[name].label} (P)`;
+        chip.setAttribute('aria-label', chip.title);
+        chip.setAttribute('aria-pressed', String(name === stage.proportions));
+        chip.addEventListener('click', () => setProportions(name));
+        chips.set(name, chip);
+        proportionRow.append(chip);
+      }
+
+      // P geht die Reihe durch, wie T das Mesh umschaltet.
+      keys.set('p', () => setProportions(names[(names.indexOf(stage.proportions) + 1) % names.length]));
     }
 
-    // P geht die Reihe durch, wie T das Mesh umschaltet.
-    keys.set('p', () => setProportions(names[(names.indexOf(stage.proportions) + 1) % names.length]));
-
     wrap.append(figures);
+    mountFigureRow(wrap, ownRow, ownId, remount);
   }
 
-  // Die Tasten gehoeren der Seite, aber nicht, solange jemand tippt - ein "g"
-  // im Suchfeld darf das Raster nicht umschalten.
-  const onKey = (event) => {
-    if (event.metaKey || event.ctrlKey || event.altKey) return;
-    const target = event.target;
-    if (target && (target.closest('input, textarea, select, [contenteditable]'))) return;
-    const action = keys.get(event.key.toLowerCase());
-    if (!action) return;
-    event.preventDefault();
-    action();
-  };
   document.addEventListener('keydown', onKey);
 
-  return {
-    stage,
-    mode,
-    destroy() {
-      document.removeEventListener('keydown', onKey);
-      if (stage.dispose) stage.dispose();
-    },
-  };
+  return { stage, mode, destroy };
 }

@@ -122,6 +122,66 @@ feste Korrektur aus der Richtung zum Kindknochen - in beiden Rigs im lokalen
 Raum bekannt. Bei gleicher Konvention ist sie die Einheit und das Bild exakt.
 Der Kopf von `stage.js` erklaert es im Ganzen.
 
+### Die eigene Figur
+
+Seit dem 21.09.2026 muss es nicht das Mannequin sein. Rechts unten auf der
+Bühne steht über den Proportionen eine zweite Reihe: `Mannequin`, dann jede
+Figur, die jemand hier abgelegt hat, dann ein Plus.
+
+| Datei | |
+|---|---|
+| `static/assets/figures.js` | Die Ablage: IndexedDB, Lesen des `extras`-Blocks, gemerkte Auswahl. |
+| `static/assets/viewer-ui.js` | Die Reihe, der Dateiwähler, das Ablegen auf der Bühne. |
+| `static/assets/stage.js` | `parseFigure()` und `options.figure` - dieselbe Bühne, andere Figur. |
+
+**Die Datei bleibt hier.** Sie geht nie an den Server. Ein Mesh ist Megabyte
+groß und gehört jemandem: ein gekauftes Synty- oder Mixamo-Modell auf unserem
+Server wäre eine Kopie eines lizenzierten Assets, mit allem, was daran hängt.
+Im Browser des Käufers ist es dieselbe Ansicht, die Unity zwei Fenster weiter
+auch zeigt. Deshalb IndexedDB und kein Upload - und deshalb sieht eine
+abgelegte Figur außer ihrem Besitzer niemand, auch wir nicht.
+
+**Woher die Datei kommt.** Aus der Workbench: Figuren-Ansicht, `⋯`-Menü, *Use
+my figures on the portal*, abwählen was nicht mit soll, dann **Export**. Das
+schreibt je Figur ein `.glb` - Geometrie, Skelett, Haut, Basisfarbe und
+-textur. Der Schreiber ist `Editor/Community/Format/AWGlb.cs`, ohne
+Paketabhängigkeit; gesammelt wird aus Unitys Speicher und nicht aus der FBX,
+weil eine modulare Figur (Synty Sidekick) als Datei gar nicht existiert und
+weil Maßstab, Achsen und Material-Remaps in der `.meta` stehen, nicht in der
+FBX.
+
+**Was die Umrechnung braucht, steht in der Datei.** Ein `extras`-Block, den
+jeder andere Betrachter ignoriert:
+
+```json
+{ "aw": 1, "name": "Starter_03", "rig": "humanoid", "pose": "tpose",
+  "height": 1.78, "bones": { "...": 0.42 },
+  "humanoid": { "Hips": "B_Hip", "LeftUpperArm": "B_UpperArm_L" } }
+```
+
+`humanoid` ist der Teil, ohne den nichts geht: eine Vorschau nennt ihre
+Knochen `LeftUpperArm`, das Skelett in der Datei heißt vielleicht
+`B_UpperArm_L`. Nur der Exporteur kennt beide Namen; im Mannequin-Fall steht
+dieselbe Zuordnung als `BONE_MAP` fest in `stage.js`. Die Rechnung darüber
+ändert sich nicht - die Korrektur je Knochen kommt ohnehin aus der Bindepose
+des Ziels, und ob das Ziel unser Mannequin ist oder eine fremde Figur, macht
+dabei keinen Unterschied.
+
+**Drei Kleinigkeiten, die in der Bühne dafür nachgezogen wurden.** Eine
+modulare Figur bringt MEHRERE Häute mit (Kopf, Körper, Haare), und jede nennt
+nur die Knochen, die sie braucht - gerechnet wird deshalb auf der Vereinigung,
+und die inversen Bindematrizen werden über den Knochen nachgeschlagen statt
+über den Platz in einer Haut. Der Boden misst über alle Häute. Und die eigene
+Figur behält ihre Materialien, während das Mannequin weiter seine zwei
+bekommt.
+
+**Die Proportionen verschwinden bei einer eigenen Figur.** `Tall` und `Heavy`
+skalieren Knochen des Mannequins; eine eigene Figur HAT ihre Proportionen. Ein
+Schalter, der nichts tut, ist schlimmer als keiner.
+
+Eine Figur wieder loswerden: Rechtsklick auf ihren Schalter. Die Datei auf der
+Platte bleibt, nur dieser Browser vergisst sie.
+
 ### Generische Clips
 
 Neben `humanoid` nimmt das Portal `generic` an - eine Tür, ein Schwanz, ein

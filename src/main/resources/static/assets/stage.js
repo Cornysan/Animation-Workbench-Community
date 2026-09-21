@@ -427,6 +427,22 @@ export class MannequinStage {
 
     this.proportions = PROPORTIONS[options.proportions] ? options.proportions : 'default';
 
+    /**
+     * EINE EIGENE FIGUR STATT DES MANNEQUINS.
+     *
+     * `boneMap` kommt dann aus der Datei selbst (`extras.humanoid`, von der
+     * Workbench geschrieben): nur der Exporteur kennt beide Namen - die
+     * Vorschau nennt ihren Knochen `LeftUpperArm`, das Skelett in der Datei
+     * heisst vielleicht `B_UpperArm_L`.
+     *
+     * Alles andere an der Rechnung bleibt, wie es ist. Die Korrektur je
+     * Knochen wird ohnehin aus der Bindepose des ZIELS bestimmt, und ob das
+     * Ziel unser Mannequin ist oder die Figur von jemandem, macht dabei
+     * keinen Unterschied.
+     */
+    this.own = !!options.own;
+    this.boneMap = options.boneMap || BONE_MAP;
+
     this.buildScene(gltf);
     this.applyProportions();
     this.buildSkeletonLines();
@@ -554,18 +570,39 @@ export class MannequinStage {
     // dieselben Knochen und werfen sich gegenseitig aus der Pose. cloneSkinned
     // (SkeletonUtils) haengt die geklonte Haut an die geklonten Knochen.
     const model = cloneSkinned(gltf.scene);
+    this.skins = [];
     model.traverse((node) => {
       if (node.isMesh || node.isSkinnedMesh) {
         node.castShadow = shadows;
         node.receiveShadow = false;
         node.frustumCulled = false; // die Haut ist quantisiert, ihr eigener Kasten luegt
-        const seam = node.material.name === SEAMS;
-        node.material = seam
-          ? new MeshStandardMaterial({ color: ACCENT, emissive: 0x2b1f6b, roughness: 0.38 })
-          : new MeshStandardMaterial({ color: 0xe9e6f2, roughness: 0.55 });
+
+        //  Die eigene Figur behaelt ihre Materialien. Das Mannequin bekommt
+        //  seine zwei: es ist unser Schaustueck, und es soll auf jeder Seite
+        //  gleich aussehen.
+        if (!this.own) {
+          const seam = node.material.name === SEAMS;
+          node.material = seam
+            ? new MeshStandardMaterial({ color: ACCENT, emissive: 0x2b1f6b, roughness: 0.38 })
+            : new MeshStandardMaterial({ color: 0xe9e6f2, roughness: 0.55 });
+        }
+
+        if (node.isSkinnedMesh) this.skins.push(node);
         if (!this.skinned) this.skinned = node;
       }
     });
+
+    //  Eine modulare Figur bringt mehrere Haeute mit (Kopf, Koerper, Haare),
+    //  und jede nennt nur die Knochen, die SIE braucht. Gerechnet wird auf der
+    //  Vereinigung - sonst faende die Zuordnung eine Hand nicht, nur weil die
+    //  erste Haut sie nicht benutzt.
+    this.bones = [];
+    const seen = new Set();
+    for (const skin of this.skins) {
+      for (const bone of skin.skeleton.bones) {
+        if (bone && !seen.has(bone.uuid)) { seen.add(bone.uuid); this.bones.push(bone); }
+      }
+    }
     this.figure.add(model);
     this.model = model;
     this.scene.updateMatrixWorld(true);
@@ -580,7 +617,11 @@ export class MannequinStage {
    * Pose als Bindepose ein, und die Figur bliebe schief stehen.
    */
   applyProportions() {
-    const bones = this.skinned.skeleton.bones;
+    //  Die Masse gehoeren dem Mannequin: sie skalieren Knochen, die es unter
+    //  diesen Namen nur dort gibt. Eine eigene Figur HAT ihre Proportionen.
+    if (this.own) { this.boneScale = this.bones.map(() => 1); return; }
+
+    const bones = this.bones;
     const byKey = new Map(bones.map((b, i) => [b.name, i]));
 
     if (!this.boneRestScale) this.boneRestScale = bones.map((b) => b.scale.clone());
@@ -591,7 +632,7 @@ export class MannequinStage {
 
     this.boneScale = bones.map(() => 1);
     for (const [srcName, factor] of proportionFactors(this.proportions)) {
-      const ti = byKey.get(boneKey(BONE_MAP[srcName] || ''));
+      const ti = byKey.get(boneKey(this.boneMap[srcName] || ''));
       if (ti === undefined) continue;
       bones[ti].scale.multiplyScalar(factor);
       this.boneScale[ti] = factor;
@@ -619,8 +660,7 @@ export class MannequinStage {
   // ── Bindung an die Vorschau ────────────────────────────────────────────
 
   bindRetarget() {
-    const skeleton = this.skinned.skeleton;
-    const bones = skeleton.bones;
+    const bones = this.bones;
     const byKey = new Map(bones.map((b, i) => [b.name, i]));
 
     // Quelle: Index je Unity-Name, und das Kind, das die Richtung angibt.
@@ -649,9 +689,23 @@ export class MannequinStage {
     };
 
 
-    // Bindepose des Modells: Weltmatrix je Knochen ist die Inverse der
-    // inversen Bindematrix.
-    const bindWorld = skeleton.boneInverses.map((m) => m.clone().invert());
+    //  Bindepose des Modells: Weltmatrix je Knochen ist die Inverse der
+    //  inversen Bindematrix.
+    //
+    //  Die Inversen stehen an den HAEUTEN, und eine modulare Figur hat
+    //  mehrere davon - jede mit ihrer eigenen Reihenfolge. Nachgeschlagen
+    //  wird deshalb ueber den Knochen, nicht ueber den Platz in einer Haut.
+    const inverses = new Map();
+    for (const skin of this.skins) {
+      skin.skeleton.bones.forEach((bone, i) => {
+        if (bone && !inverses.has(bone.uuid)) inverses.set(bone.uuid, skin.skeleton.boneInverses[i]);
+      });
+    }
+
+    const bindWorld = bones.map((bone) => {
+      const inverse = inverses.get(bone.uuid);
+      return inverse ? inverse.clone().invert() : bone.matrixWorld.clone();
+    });
     const bindPos = bindWorld.map((m) => new Vector3().setFromMatrixPosition(m));
     const bindRot = bindWorld.map((m) => new Quaternion().setFromRotationMatrix(m));
 
@@ -697,7 +751,7 @@ export class MannequinStage {
      */
     const dirTo = (ti, childName) => {
       const ci = srcIndex.get(childName);
-      const tci = byKey.get(boneKey(BONE_MAP[childName] || ''));
+      const tci = byKey.get(boneKey(this.boneMap[childName] || ''));
       if (ci === undefined || tci === undefined) return null;
       //  Quelle: `rest` ist der Versatz des Kindes IM lokalen Raum des
       //  Elternknochens - genau die Richtung, die wir brauchen.
@@ -791,7 +845,7 @@ export class MannequinStage {
     for (const key of groupNames) {
       if (!groupUsable[key]) continue;
       dstAxes[key] = axesOf(AXIS_GROUPS[key], (name) => {
-        const t = byKey.get(boneKey(BONE_MAP[name] || ''));
+        const t = byKey.get(boneKey(this.boneMap[name] || ''));
         return t === undefined ? null : bindPos[t];
       });
     }
@@ -839,7 +893,7 @@ export class MannequinStage {
     this.tracks = [];
     const corrections = new Map();
 
-    for (const [srcName, defName] of Object.entries(BONE_MAP)) {
+    for (const [srcName, defName] of Object.entries(this.boneMap)) {
       const si = srcIndex.get(srcName);
       const ti = byKey.get(boneKey(defName));
       if (si === undefined || ti === undefined) continue;
@@ -993,10 +1047,18 @@ export class MannequinStage {
 
     this.applyFrame(lowest);
     this.scene.updateMatrixWorld(true);
-    this.skinned.computeBoundingBox();
-    const box = this.skinned.boundingBox;
-    if (!box) return this.solved.floorY * this.scale;
-    return new Box3().copy(box).applyMatrix4(this.skinned.matrixWorld).min.y;
+
+    const union = new Box3();
+    let any = false;
+    for (const skin of this.skins) {
+      skin.computeBoundingBox();
+      if (!skin.boundingBox) continue;
+      union.union(new Box3().copy(skin.boundingBox).applyMatrix4(skin.matrixWorld));
+      any = true;
+    }
+
+    if (!any) return this.solved.floorY * this.scale;
+    return union.min.y;
   }
 
   /** Das Strichmaennchen, in der Buehne: dieselben Seitenfarben wie im
@@ -1262,10 +1324,29 @@ export class MannequinStage {
 }
 
 /**
+ * Eine eigene Figur aus dem Speicher - die Datei, die die Workbench
+ * geschrieben und der Nutzer hier abgelegt hat. Sie geht nie an den Server:
+ * ein gekauftes Modell gehoert seinem Kaeufer, und im eigenen Browser ist es
+ * dieselbe Ansicht, die Unity zwei Fenster weiter auch zeigt.
+ */
+export function parseFigure(buffer) {
+  return new Promise((resolve, reject) => {
+    new GLTFLoader().parse(buffer, '', resolve, reject);
+  });
+}
+
+/**
  * Baut eine Buehne. Wirft, wenn WebGL fehlt oder das Modell nicht kommt - der
  * Aufrufer faellt dann auf das Strichmaennchen zurueck.
+ *
+ * `options.figure` ist eine eigene Figur: `{ buffer, humanoid }`, beides aus
+ * der abgelegten Datei. Ohne sie steht das Mannequin des Hauses da.
  */
-export async function createMannequinStage(canvas, preview, options) {
-  const gltf = await loadModel();
-  return new MannequinStage(canvas, preview, gltf, options);
+export async function createMannequinStage(canvas, preview, options = {}) {
+  const own = options.figure || null;
+  const gltf = own ? await parseFigure(own.buffer) : await loadModel();
+
+  return new MannequinStage(canvas, preview, gltf, own
+    ? { ...options, own: true, boneMap: own.humanoid }
+    : options);
 }

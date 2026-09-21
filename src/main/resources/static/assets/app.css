@@ -831,8 +831,57 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
   right: 12px;
   bottom: 12px;
   display: flex;
+  flex-direction: column;
+  align-items: flex-end;
   gap: 6px;
 }
+
+/* Zwei Reihen uebereinander: oben, auf WEM der Clip laeuft, darunter die
+   Masse des Mannequins. Bei einer eigenen Figur faellt die untere weg - sie
+   hat ihre Proportionen. */
+.stage-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: min(62vw, 420px);
+}
+
+/* Die Buehne nimmt eine Figur auch per Ziehen an. */
+.stage.dropping::after {
+  content: 'Drop the figure here';
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius-sm);
+  background: rgba(14, 13, 18, 0.72);
+  color: var(--accent);
+  font-size: 14px;
+  pointer-events: none;
+}
+
+/* Eine Zeile, die etwas sagt und wieder geht - die Seite hat sonst keinen
+   Ort fuer kurze Rueckmeldungen. */
+.stage-note {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  max-width: min(60vw, 360px);
+  padding: 6px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: rgba(14, 13, 18, 0.82);
+  color: var(--text);
+  font-size: 12px;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 160ms ease, transform 160ms ease;
+  pointer-events: none;
+}
+.stage-note.on { opacity: 1; transform: none; }
+.stage-note.bad { color: var(--danger, #ff8a8a); border-color: var(--danger, #ff8a8a); }
 
 /* Ein Schalter mit Wort statt Zeichen: dieselbe Schale wie `.hud-toggle`, nur
    so breit, wie das Wort es braucht. */
@@ -848,6 +897,7 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
   .viewer canvas { height: 360px; }
   .stage-hud { left: 8px; bottom: 8px; }
   .stage-figures { right: 8px; bottom: 8px; gap: 4px; }
+  .stage-row { gap: 4px; max-width: 70vw; }
   .hud-chip { padding: 0 8px; font-size: 11px; }
 }
 .viewer-controls {
