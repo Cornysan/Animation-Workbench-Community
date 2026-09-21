@@ -55,6 +55,9 @@ class PageController(
     @ModelAttribute("communityEnabled")
     fun communityEnabled() = shell.communityEnabled()
 
+    @ModelAttribute("charactersEnabled")
+    fun charactersEnabled() = shell.charactersEnabled()
+
     @ModelAttribute("meta")
     fun defaultMeta() = shell.defaultMeta()
 
@@ -191,6 +194,17 @@ class PageController(
      * liegen im Browser (IndexedDB), und diese Seite ist nur ihr Ort. Sie
      * steht trotzdem in der Leiste, weil eine Funktion, die man nur findet,
      * wenn man schon weiss, dass es sie gibt, keine Funktion ist.
+     */
+    /**
+     * Die eigenen Figuren. Der Server hat mit dem INHALT nichts zu tun: die
+     * Dateien liegen im Browser, diese Seite ist nur ihr Ort.
+     *
+     * Ist der Schalter aus, bleibt die Adresse trotzdem bestehen und erklaert
+     * sich. KEIN 404: die Doku der Workbench schickt Leute hierher ("Drop
+     * those files on the portal's Characters page"), und wer dem Satz folgt,
+     * hat eine Antwort verdient und keine Sackgasse. Die Vorlage zeigt dann
+     * statt der Ablage einen kurzen Absatz - und sagt vor allem, dass die
+     * abgelegten Figuren weiterhin im Browser liegen.
      */
     @GetMapping("/characters.html")
     fun characters(model: Model) = view(model, "characters", active = "characters")

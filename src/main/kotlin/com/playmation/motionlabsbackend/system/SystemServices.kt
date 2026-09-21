@@ -47,12 +47,36 @@ class SystemSettingsService(private val repository: SystemSettingRepository, pri
     companion object {
         const val COMMUNITY_ENABLED = "community.enabled"
         const val UPLOADS_ENABLED = "uploads.enabled"
+        const val CHARACTERS_ENABLED = "characters.enabled"
 
-        private val KEYS = setOf(COMMUNITY_ENABLED, UPLOADS_ENABLED)
+        private val KEYS = setOf(COMMUNITY_ENABLED, UPLOADS_ENABLED, CHARACTERS_ENABLED)
     }
 
     fun communityEnabled() = flag(COMMUNITY_ENABLED, default = true)
     fun uploadsEnabled() = communityEnabled() && flag(UPLOADS_ENABLED, default = true)
+
+    /**
+     * Die eigenen Figuren - vorerst aus.
+     *
+     * ZWEI UNTERSCHIEDE ZU DEN ANDEREN BEIDEN, beide mit Absicht:
+     *
+     * `default = false`. Die anderen Schalter sichern etwas Laufendes ab und
+     * stehen darum auf an; dieser hier verdeckt etwas Unfertiges. Waere die
+     * Vorgabe `true`, brauchte jede frische Datenbank einen Handgriff, damit
+     * die Seite wieder verschwindet - und genau der wird vergessen.
+     *
+     * NICHT an `communityEnabled()` gekettet. `uploadsEnabled` ist es, weil
+     * ein Upload eine Handlung IN der Community ist. Figuren sind das nicht:
+     * sie liegen in der IndexedDB des Browsers, gehen nie an den Server und
+     * funktionieren auch dann, wenn hier nichts geteilt werden darf. Die
+     * beiden Fragen haben nichts miteinander zu tun, also haengen sie auch
+     * nicht aneinander.
+     *
+     * Was der Schalter NICHT tut: etwas loeschen. Abgelegte Figuren bleiben
+     * im Browser liegen, wo sie liegen - sie werden nur nirgends mehr
+     * angeboten. Wird wieder eingeschaltet, sind sie unveraendert da.
+     */
+    fun charactersEnabled() = flag(CHARACTERS_ENABLED, default = false)
 
     @Transactional
     fun set(key: String, enabled: Boolean) {

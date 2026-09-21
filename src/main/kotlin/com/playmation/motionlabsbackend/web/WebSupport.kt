@@ -47,6 +47,8 @@ class StatusController(
     data class StatusResponse(
         val communityEnabled: Boolean,
         val uploadsEnabled: Boolean,
+        /** Ob die Figuren-Seite ueberhaupt angeboten wird - siehe SystemSettingsService. */
+        val charactersEnabled: Boolean,
         val formatVersion: Int,
         val declarationText: String,
         val declarationVersion: Int,
@@ -62,7 +64,8 @@ class StatusController(
 
     @GetMapping("/status")
     fun status() = StatusResponse(
-        settings.communityEnabled(), settings.uploadsEnabled(), AwclipSchema.FORMAT_VERSION,
+        settings.communityEnabled(), settings.uploadsEnabled(), settings.charactersEnabled(),
+        AwclipSchema.FORMAT_VERSION,
         Declaration.TEXT, Declaration.VERSION, licenses(),
         discordSignIn = discordClientId.isNotBlank() && discordClientId != "unset",
         devLogin = portal.devLogin,

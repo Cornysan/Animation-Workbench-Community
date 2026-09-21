@@ -19,6 +19,21 @@
   <div th:replace="~{fragments/shell :: paused}"></div>
 
   <h1>Your characters</h1>
+
+  <!--
+    AUSGESCHALTET. Kein 404: die Workbench-Doku schickt Leute genau hierher,
+    und wer dem Satz folgt, soll eine Antwort finden. Der wichtigste Teil ist
+    der zweite Absatz - abgelegte Figuren sind NICHT weg, sie liegen weiter
+    im Browser. Ohne diesen Satz muesste jeder annehmen, dass sie geloescht
+    wurden, und genau das tut der Schalter nicht.
+  -->
+  <div th:unless="${charactersEnabled}" class="prose">
+    <p class="lead">This part of the portal is being reworked and is not available right now.</p>
+    <p>Clips run on the mannequin the Workbench ships with, as they did before.</p>
+    <p class="muted">If you had already put your own characters here, they are untouched. They live in this browser and were never uploaded anywhere, so they will be waiting when this comes back.</p>
+  </div>
+
+  <div th:if="${charactersEnabled}">
   <p class="lead">Clips here run on the mannequin the Workbench ships with. Add your own characters and they run on those instead.</p>
 
   <div id="drop" class="figure-drop">
@@ -38,10 +53,11 @@
     <p><strong>Or straight out of the Workbench.</strong> Open the <strong>Figures</strong> view, and in its <code>&#8943;</code> menu pick <strong>Use my figures on the portal</strong>. Every humanoid character in the project turns into a card; click the ones that should stay home, then press <strong>Export</strong> and pick a folder. Those files bring their own mapping, so there is nothing to check - and a character built from parts, like a Synty Sidekick, can only come this way.</p>
     <p class="muted">Two things to expect from a plain <code>.fbx</code>: it usually arrives grey, because FBX keeps its textures in files next to it rather than inside it, and it is measured in centimetres rather than metres - the page reads the unit out of the file and converts. What never travels either way: blend shapes, normal maps, LODs.</p>
   </div>
+  </div>
 
 </main>
 <footer th:replace="~{fragments/shell :: footer}"></footer>
 <script src="/assets/app.js"></script>
-<script type="module" src="/assets/pages/characters.js"></script>
+<script type="module" src="/assets/pages/characters.js" th:if="${charactersEnabled}"></script>
 </body>
 </html>

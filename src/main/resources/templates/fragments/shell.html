@@ -41,6 +41,15 @@
   <link rel="icon" href="/favicon.ico">
   <link rel="stylesheet" href="/assets/app.css">
 
+  <!--
+    Der Figuren-Schalter, fuer die Skripte. Er steht hier im GEMEINSAMEN Kopf
+    und nicht als Attribut an einzelnen Seiten, weil ihn zwei sehr
+    verschiedene Stellen brauchen - die Figuren-Seite und die Figurenreihe
+    unter jeder Buehne - und weil ein Skript ihn so ohne eine weitere
+    Abfrage lesen kann.
+  -->
+  <meta name="aw-characters" th:attr="content=${charactersEnabled}">
+
   <meta name="description" th:attr="content=${meta.description}">
   <meta name="robots" content="noindex, nofollow" th:if="${meta.noindex}">
 
@@ -104,7 +113,13 @@
         <span>Browse</span>
       </a>
 
+      <!--
+        Nur wenn der Schalter an ist (Admin-Ansicht). Aus heisst hier wirklich
+        aus: kein Eintrag, kein grauer Platzhalter. Die Adresse selbst bleibt
+        erreichbar und erklaert sich, weil die Workbench-Doku auf sie zeigt.
+      -->
       <a href="/characters.html" title="Characters" class="nav-item"
+         th:if="${charactersEnabled}"
          th:classappend="${active == 'characters'} ? ' active'">
         <svg viewBox="0 0 24 24" class="nav-icon" aria-hidden="true" fill="none" stroke="currentColor"
              stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">

@@ -16,15 +16,22 @@
   // ── Schalter ─────────────────────────────────────────────────────────
   const community = document.getElementById("community-enabled");
   const uploads = document.getElementById("uploads-enabled");
+  const characters = document.getElementById("characters-enabled");
   const status = await api("GET", "/api/v1/status");
-  community.checked = status.communityEnabled;
-  uploads.checked = status.uploadsEnabled;
+
+  //  Die Antwort des Servers ist die Wahrheit, nicht der Klick. `uploads`
+  //  haengt an `community`, und ein Schalter, der etwas anderes zeigt als
+  //  das, was gilt, ist schlimmer als gar keiner.
+  const show = (s) => {
+    community.checked = s.communityEnabled;
+    uploads.checked = s.uploadsEnabled;
+    characters.checked = s.charactersEnabled;
+  };
+  show(status);
 
   const saveSwitch = async (body, input) => {
     try {
-      const result = await api("POST", "/api/v1/admin/settings", body);
-      community.checked = result.communityEnabled;
-      uploads.checked = result.uploadsEnabled;
+      show(await api("POST", "/api/v1/admin/settings", body));
     } catch (e) {
       input.checked = !input.checked;
       notice(state, e.message, "error");
@@ -32,6 +39,9 @@
   };
   community.addEventListener("change", () => saveSwitch({ communityEnabled: community.checked }, community));
   uploads.addEventListener("change", () => saveSwitch({ uploadsEnabled: uploads.checked }, uploads));
+  //  Wirkt erst beim naechsten Seitenaufbau: der Schalter steht im Kopf
+  //  jeder Seite, und der wird auf dem Server gesetzt.
+  characters.addEventListener("change", () => saveSwitch({ charactersEnabled: characters.checked }, characters));
 
   // ── Fälle ────────────────────────────────────────────────────────────
   async function load() {

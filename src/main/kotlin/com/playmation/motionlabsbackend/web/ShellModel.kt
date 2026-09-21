@@ -78,6 +78,7 @@ class ShellModel(
     val devLogin: Boolean get() = portal.devLogin
     val buildLabel: String get() = build.label
     fun communityEnabled() = settings.communityEnabled()
+    fun charactersEnabled() = settings.charactersEnabled()
 
     /**
      * Was eine Vorschau zeigt, wenn jemand eine Adresse dieses Portals in
@@ -124,6 +125,7 @@ class ShellModel(
         model["devLogin"] = devLogin
         model["buildLabel"] = buildLabel
         model["communityEnabled"] = communityEnabled()
+        model["charactersEnabled"] = charactersEnabled()
         model["meta"] = defaultMeta()
     }
 }

@@ -86,6 +86,19 @@ function rememberProportions(name) {
  * Proportionen darunter - auf WEM laeuft der Clip. Die Antwort gehoert dorthin,
  * wo man sie sieht. Hinzufuegen und Loeschen gehoeren dagegen auf eine Seite.
  */
+/**
+ * Ob die eigenen Figuren ueberhaupt angeboten werden.
+ *
+ * Der Wert kommt aus dem gemeinsamen Kopf (`fragments/shell`), also vom
+ * Server und ohne eine weitere Abfrage. Fehlt das Feld - eine alte Seite im
+ * Cache, ein Rahmen ohne unseren Kopf -, gilt AUS: eine Reihe, die auf eine
+ * Seite fuehrt, die es nicht mehr gibt, waere die schlechtere Antwort.
+ */
+export function charactersEnabled() {
+  const meta = document.querySelector('meta[name="aw-characters"]');
+  return !!meta && meta.content === 'true';
+}
+
 async function mountFigureRow(row, activeId, remount) {
   const chip = (label, title, pressed) => {
     const button = document.createElement('button');
@@ -185,7 +198,14 @@ export async function mountViewer(box, preview, options = {}) {
    * oder laesst sie sich nicht laden, steht das Mannequin - eine leere Buehne
    * waere die schlechtere Antwort auf eine geloeschte Datei.
    */
-  let ownId = options.figureId !== undefined ? options.figureId : rememberedFigure();
+  //  AUSGESCHALTET HEISST AUCH: NICHT BENUTZT. Die zuletzt gewaehlte Figur
+  //  steht weiter im localStorage und ihre Datei weiter in der IndexedDB -
+  //  beides bleibt unangetastet. Sie wird nur nicht mehr aufgelegt, sonst
+  //  liefe der Clip weiter auf einer Figur, die nirgends mehr zu sehen oder
+  //  zu wechseln ist.
+  let ownId = charactersEnabled()
+    ? (options.figureId !== undefined ? options.figureId : rememberedFigure())
+    : '';
   let own = null;
 
   if (rig === 'humanoid' && ownId) {
@@ -372,7 +392,9 @@ export async function mountViewer(box, preview, options = {}) {
     }
 
     wrap.append(figures);
-    mountFigureRow(ownRow, ownId, remount);
+    //  Ist der Schalter aus, kommt die Reihe gar nicht erst - weder die
+    //  abgelegten Figuren noch das Plus, das auf die Seite fuehren wuerde.
+    if (charactersEnabled()) mountFigureRow(ownRow, ownId, remount);
   }
 
   document.addEventListener('keydown', onKey);
