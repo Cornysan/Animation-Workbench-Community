@@ -43,7 +43,14 @@ function message(text) {
     //  zweiten Aufruf. Fehlt es - etwa bei einem privaten Clip, den der
     //  Server ohne Anmeldung nicht sieht -, bleibt es bei `humanoid`, und
     //  scheitert die Umrechnung, faengt sie das Strichmaennchen auf.
-    await mountViewer(box, preview, { rig: box.dataset.rig });
+    const viewer = await mountViewer(box, preview, { rig: box.dataset.rig });
+
+    //  WEITERSAGEN, DASS DIE BUEHNE STEHT. Die Ausgabe als .glb "mit Figur"
+    //  schreibt die Pose dieser Buehne heraus, Bild fuer Bild - sie braucht
+    //  also genau diesen Griff. Ein Ereignis statt eines Aufrufs, weil die
+    //  beiden nichts voneinander wissen muessen: kommt niemand, passiert
+    //  nichts, und kommt die Buehne nie, wartet niemand vergebens.
+    document.dispatchEvent(new CustomEvent('aw:viewer', { detail: { viewer, preview, slug } }));
   } catch (error) {
     console.warn('[clip] no viewer', error);
     message('The preview could not be loaded.');

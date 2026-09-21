@@ -55,6 +55,15 @@
           In Unity: <strong>Tools &rsaquo; Animation Workbench &rsaquo; Community</strong> -
           or subscribe to it straight from the Community view.
         </p>
+
+        <!--
+          Die Ausgabe fuer alles ausser Unity. Sie steht hier leer und wird
+          von `clip-download.js` gefuellt - und zwar erst, wenn die Buehne
+          steht: "mit Figur" schreibt genau die Pose heraus, die sie zeigt.
+          Kommt keine Buehne (kein WebGL, keine Vorschau), bleibt der Block
+          leer und der .awclip darueber ist weiter da.
+        -->
+        <div id="downloads"></div>
       </div>
 
       <dl class="facts" id="facts"></dl>
@@ -89,5 +98,6 @@
 <script src="/assets/pages/clip.js"></script>
 <script src="/assets/pages/clip-comments.js"></script>
 <script type="module" src="/assets/pages/clip-viewer.js"></script>
+<script type="module" src="/assets/pages/clip-download.js"></script>
 </body>
 </html>
