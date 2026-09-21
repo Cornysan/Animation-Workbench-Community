@@ -272,6 +272,12 @@ export async function figureForStage(id) {
     //  aus der Workbench da, und die ist in Metern.
     kind: entry.kind || 'glb',
     scale: entry.scale || 1,
+    //  Die gemessene Groesse der Figur - dieselbe Zahl, die auf der Karte
+    //  steht. Die Buehne rahmt damit, weil ihre eigene Schaetzung nur das
+    //  SKELETT kennt: eine Figur mit kurzen Beinen und grossem Kopf kam
+    //  darin als 1,03 m vor und war in Wahrheit 3,60 m hoch - die Kamera
+    //  stand dann mitten im Modell.
+    height: entry.height || 0,
   };
 }
 

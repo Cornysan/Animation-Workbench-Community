@@ -461,6 +461,9 @@ export class MannequinStage {
      */
     this.unitScale = options.unitScale || 1;
 
+    /** Die gemessene Hoehe der eigenen Figur; 0 beim Mannequin. */
+    this.figureHeight = options.figureHeight || 0;
+
     this.buildScene(gltf);
     this.applyProportions();
     this.buildSkeletonLines();
@@ -1070,6 +1073,20 @@ export class MannequinStage {
       this.height = Math.max(this.height, (hi - lo) * this.scale);
     }
 
+    //  DIE HAUT ZAEHLT AUCH MIT.
+    //
+    //  Oben steht die Spanne der KNOCHEN, auf die Beinlaenge der Figur
+    //  umgerechnet. Fuer unser Mannequin ist das die Figur; fuer eine fremde
+    //  ist es eine Schaetzung, die nur den Strich kennt und nicht die
+    //  Silhouette. Bei kurzen Beinen und grossem Kopf - einer stilisierten
+    //  Figur - kam 1,03 m heraus, wo 3,60 m stehen: die Kamera rahmte einen
+    //  Meter und stand damit INNERHALB des Kopfes.
+    //
+    //  Das Maximum, nicht der gemessene Wert allein: die Messung ist die
+    //  Ruhepose, und ein Clip, der die Arme ueber den Kopf nimmt, ist
+    //  hoeher als die Figur dasteht.
+    if (this.figureHeight) this.height = Math.max(this.height, this.figureHeight);
+
     this.target = new Vector3(0, this.height * 0.5, 0);
 
     this.offsetY = 0;
@@ -1398,6 +1415,7 @@ export async function createMannequinStage(canvas, preview, options = {}) {
   const gltf = own ? await parseFigure(own.buffer, own.kind, own.scale) : await loadModel();
 
   return new MannequinStage(canvas, preview, gltf, own
-    ? { ...options, own: true, boneMap: own.humanoid, unitScale: own.scale || 1 }
+    ? { ...options, own: true, boneMap: own.humanoid, unitScale: own.scale || 1,
+        figureHeight: own.height || 0 }
     : options);
 }
