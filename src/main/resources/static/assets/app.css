@@ -847,41 +847,6 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
   max-width: min(62vw, 420px);
 }
 
-/* Die Buehne nimmt eine Figur auch per Ziehen an. */
-.stage.dropping::after {
-  content: 'Drop the figure here';
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  border: 2px dashed var(--accent);
-  border-radius: var(--radius-sm);
-  background: rgba(14, 13, 18, 0.72);
-  color: var(--accent);
-  font-size: 14px;
-  pointer-events: none;
-}
-
-/* Eine Zeile, die etwas sagt und wieder geht - die Seite hat sonst keinen
-   Ort fuer kurze Rueckmeldungen. */
-.stage-note {
-  position: absolute;
-  left: 12px;
-  top: 12px;
-  max-width: min(60vw, 360px);
-  padding: 6px 10px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-sm);
-  background: rgba(14, 13, 18, 0.82);
-  color: var(--text);
-  font-size: 12px;
-  opacity: 0;
-  transform: translateY(4px);
-  transition: opacity 160ms ease, transform 160ms ease;
-  pointer-events: none;
-}
-.stage-note.on { opacity: 1; transform: none; }
-.stage-note.bad { color: var(--danger, #ff8a8a); border-color: var(--danger, #ff8a8a); }
 
 /* Ein Schalter mit Wort statt Zeichen: dieselbe Schale wie `.hud-toggle`, nur
    so breit, wie das Wort es braucht. */
@@ -1519,3 +1484,64 @@ dialog.sheet .counter { float: right; }
   .profile-identity h1 { font-size: 24px; }
   .award { min-width: 100%; }
 }
+
+/* ── Die eigenen Figuren ──────────────────────────────────────────────────
+   Die Seite, auf der sie leben. Die Schalterreihe an der Buehne waehlt nur
+   aus; hinzufuegen, nachsehen und loswerden passiert hier. */
+.figure-drop {
+  margin: 22px 0 18px;
+  padding: 26px 20px;
+  border: 2px dashed var(--line-strong);
+  border-radius: var(--radius);
+  text-align: center;
+  transition: border-color 140ms ease, background-color 140ms ease;
+}
+.figure-drop p { margin: 0 0 6px; }
+.figure-drop .button { margin-top: 10px; }
+.figure-drop.on { border-color: var(--accent); background: rgba(142, 119, 255, 0.08); }
+
+.figure-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 16px;
+  margin: 18px 0 34px;
+}
+
+.figure-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+.figure-card.active { border-color: var(--accent-line); }
+
+/* Ein Standbild, kein zweiter Viewer: wer die Figur in Bewegung sehen will,
+   schickt einen Clip darauf. */
+.figure-shot {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  display: block;
+  background: linear-gradient(180deg, rgba(142, 119, 255, 0.10), transparent 70%);
+}
+
+.figure-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 4px; }
+.figure-body h3 { margin: 0; font-size: 15px; }
+.figure-body p { margin: 0; }
+
+.figure-actions { display: flex; gap: 8px; margin-top: 10px; }
+.figure-actions .button { flex: 1; min-height: 32px; padding: 0 10px; font-size: 13px; }
+
+.figure-empty {
+  grid-column: 1 / -1;
+  padding: 28px 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  text-align: center;
+}
+.figure-empty p { margin: 0 0 4px; }
+
+.figure-how { margin-top: 30px; }

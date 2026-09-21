@@ -1,0 +1,46 @@
+<!doctype html>
+<!--
+  Die eigenen Figuren.
+
+  DER SERVER HAT DAMIT NICHTS ZU TUN. Diese Seite ist ein leerer Rahmen; was
+  darin steht, liegt im Browser dessen, der sie aufruft (IndexedDB), und geht
+  nie irgendwohin. Ein Mesh ist Megabyte gross und gehoert jemandem - ein
+  gekauftes Synty- oder Mixamo-Modell auf unserem Server waere eine Kopie
+  eines lizenzierten Assets.
+
+  Sie steht trotzdem in der Leiste. Eine Funktion, die man nur findet, wenn
+  man schon weiss, dass es sie gibt, ist keine.
+-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/shell :: head('Characters')}"></head>
+<body th:attr="data-signed-in=${user != null}">
+<header th:replace="~{fragments/shell :: header}"></header>
+<main>
+  <div th:replace="~{fragments/shell :: paused}"></div>
+
+  <h1>Your characters</h1>
+  <p class="lead">Clips here run on the mannequin the Workbench ships with. Add your own characters and they run on those instead.</p>
+
+  <div id="drop" class="figure-drop">
+    <p><strong>Drop a figure here</strong></p>
+    <p class="muted small">A <code>.glb</code> written by the Animation Workbench. It stays in this browser and is never uploaded.</p>
+    <button type="button" class="button" id="pick">Choose a file</button>
+    <input type="file" id="file" accept=".glb,model/gltf-binary" hidden>
+  </div>
+
+  <div id="note" class="notice" hidden></div>
+
+  <div id="figures" class="figure-grid"></div>
+
+  <div class="prose figure-how">
+    <h2>Where a figure comes from</h2>
+    <p>In the Animation Workbench: open the <strong>Figures</strong> view, and in its <code>⋯</code> menu pick <strong>Use my figures on the portal</strong>. Every humanoid character in the project turns into a card; click the ones that should stay home, then press <strong>Export</strong> and pick a folder. Drop what lands there on this page.</p>
+    <p>What goes into the file: the mesh, the skeleton, the skin weights, the base colour and the base texture, plus the measurements and the bone mapping this site needs to put a clip on it. What does not: blend shapes, normal maps, LODs.</p>
+    <p class="muted">Dropping a plain <code>.fbx</code> or a <code>.glb</code> from somewhere else is not in yet. Those files carry bone names but no mapping, and without it a clip cannot be put on them. Reading the names and asking you about the rest is the next step.</p>
+  </div>
+</main>
+<footer th:replace="~{fragments/shell :: footer}"></footer>
+<script src="/assets/app.js"></script>
+<script type="module" src="/assets/pages/characters.js"></script>
+</body>
+</html>

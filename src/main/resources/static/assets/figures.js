@@ -123,6 +123,28 @@ function readHeader(buffer) {
 }
 
 /**
+ * Was sich am Kopf schon abzaehlen laesst: Dreiecke, Gelenke, Teile. Die
+ * Zahlen stehen auf der Karte - sie beantworten "ist das die Figur, die ich
+ * meinte?" schneller als ein Name es kann.
+ */
+function facts(header) {
+  const accessors = header.accessors || [];
+  let triangles = 0;
+  let parts = 0;
+
+  for (const mesh of header.meshes || []) {
+    for (const prim of mesh.primitives || []) {
+      parts++;
+      const accessor = accessors[prim.indices];
+      if (accessor) triangles += Math.floor(accessor.count / 3);
+    }
+  }
+
+  const joints = (header.skins || []).reduce((most, skin) => Math.max(most, (skin.joints || []).length), 0);
+  return { triangles, parts, joints, textures: (header.images || []).length };
+}
+
+/**
  * Eine Datei ablegen. Gibt den Eintrag zurueck, unter dem sie danach steht.
  *
  * Gleicher Name, gleiche Figur: ein zweiter Export derselben Figur ERSETZT
@@ -151,6 +173,7 @@ export async function addFigure(file) {
     humanoid: extras.humanoid,
     bytes: buffer.byteLength,
     added: Date.now(),
+    ...facts(header),
     blob: new Blob([buffer], { type: 'model/gltf-binary' }),
   };
 

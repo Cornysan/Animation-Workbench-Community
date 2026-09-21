@@ -13,9 +13,7 @@
  */
 
 import { createMannequinStage, PROPORTIONS } from './stage.js';
-import {
-  addFigure, figureForStage, listFigures, rememberFigure, rememberedFigure, removeFigure,
-} from './figures.js';
+import { figureForStage, listFigures, rememberFigure, rememberedFigure } from './figures.js';
 
 const ICONS = {
   mesh: '<path d="M12 3.6 20 8v8l-8 4.4L4 16V8z"/><path d="M12 12 20 8M12 12v8.4M12 12 4 8"/>',
@@ -80,57 +78,15 @@ function rememberProportions(name) {
  * Die Dateien kommen aus der Figuren-Ansicht der Workbench ("Use my figures on
  * the portal", dann Export) und bleiben in diesem Browser.
  */
-async function mountFigureRow(wrap, row, activeId, remount) {
-  const note = document.createElement('div');
-  note.className = 'stage-note';
-  wrap.append(note);
-
-  let noteTimer = 0;
-  const say = (text, bad) => {
-    note.textContent = text;
-    note.classList.toggle('bad', !!bad);
-    note.classList.add('on');
-    clearTimeout(noteTimer);
-    noteTimer = setTimeout(() => note.classList.remove('on'), 5000);
-  };
-
-  const picker = document.createElement('input');
-  picker.type = 'file';
-  picker.accept = '.glb,model/gltf-binary';
-  picker.hidden = true;
-  wrap.append(picker);
-
-  const take = async (file) => {
-    if (!file) return;
-    try {
-      const entry = await addFigure(file);
-      say(entry.name + ' is here now.');
-      await remount(entry.id);
-    } catch (error) {
-      say(error.message || 'That file could not be read.', true);
-      console.warn('[figures] import failed', error);
-    }
-  };
-
-  picker.addEventListener('change', () => {
-    const file = picker.files && picker.files[0];
-    picker.value = '';
-    take(file);
-  });
-
-  //  Auf die Buehne ziehen tut dasselbe wie das Plus - und ist der Weg, den
-  //  die meisten zuerst versuchen.
-  wrap.addEventListener('dragover', (event) => {
-    event.preventDefault();
-    wrap.classList.add('dropping');
-  });
-  wrap.addEventListener('dragleave', () => wrap.classList.remove('dropping'));
-  wrap.addEventListener('drop', (event) => {
-    event.preventDefault();
-    wrap.classList.remove('dropping');
-    take(event.dataTransfer && event.dataTransfer.files[0]);
-  });
-
+/**
+ * Die Reihe mit den eigenen Figuren: das Mannequin des Hauses, dann alles, was
+ * jemand abgelegt hat, dann ein Plus, das zur Characters-Seite fuehrt.
+ *
+ * WARUM SIE HIER STEHT und nicht in einem Menue: es ist dieselbe Frage wie die
+ * Proportionen darunter - auf WEM laeuft der Clip. Die Antwort gehoert dorthin,
+ * wo man sie sieht. Hinzufuegen und Loeschen gehoeren dagegen auf eine Seite.
+ */
+async function mountFigureRow(row, activeId, remount) {
   const chip = (label, title, pressed) => {
     const button = document.createElement('button');
     button.type = 'button';
@@ -142,40 +98,31 @@ async function mountFigureRow(wrap, row, activeId, remount) {
     return button;
   };
 
-  const draw = async () => {
-    const stored = await listFigures();
-    row.replaceChildren();
+  const stored = await listFigures();
+  row.replaceChildren();
 
-    //  Ohne eine einzige eigene Figur steht hier nur das Plus: eine Reihe mit
-    //  einem gedrueckten "Mannequin" und sonst nichts waere eine Auswahl ohne
-    //  Wahl.
-    if (stored.length) {
-      const house = chip('Mannequin', 'The figure the Workbench ships with', !activeId);
-      house.addEventListener('click', () => { if (activeId) remount(''); });
-      row.append(house);
-    }
+  if (stored.length) {
+    const house = chip('Mannequin', 'The figure the Workbench ships with', !activeId);
+    house.addEventListener('click', () => { if (activeId) remount(''); });
+    row.append(house);
 
     for (const entry of stored) {
-      const one = chip(entry.name, entry.name + ' - right-click to forget it', entry.id === activeId);
+      const one = chip(entry.name, 'Run this clip on ' + entry.name, entry.id === activeId);
       one.addEventListener('click', () => { if (entry.id !== activeId) remount(entry.id); });
-      one.addEventListener('contextmenu', async (event) => {
-        event.preventDefault();
-        if (!confirm('Forget ' + entry.name + '? The file stays on your disk.')) return;
-        await removeFigure(entry.id);
-        if (entry.id === activeId) { await remount(''); return; }
-        say(entry.name + ' is gone from this browser.');
-        draw();
-      });
       row.append(one);
     }
+  }
 
-    const add = chip(stored.length ? '+' : '+ My figure',
-      'Add a figure exported from the Animation Workbench (.glb)');
-    add.addEventListener('click', () => picker.click());
-    row.append(add);
-  };
-
-  await draw();
+  //  Hinzufuegen und Verwalten stehen auf der Characters-Seite. Hier wird nur
+  //  gewaehlt: ein Schalter ist kein Ort, und wer eine Figur loswerden will,
+  //  sucht sie nicht am Rand einer Buehne.
+  const add = document.createElement('a');
+  add.className = 'hud-toggle hud-chip';
+  add.href = '/characters.html';
+  add.textContent = stored.length ? '+' : '+ My figure';
+  add.title = stored.length ? 'Add or manage your characters' : 'Run clips on your own character';
+  add.setAttribute('aria-label', add.title);
+  row.append(add);
 }
 
 /**
@@ -425,7 +372,7 @@ export async function mountViewer(box, preview, options = {}) {
     }
 
     wrap.append(figures);
-    mountFigureRow(wrap, ownRow, ownId, remount);
+    mountFigureRow(ownRow, ownId, remount);
   }
 
   document.addEventListener('keydown', onKey);

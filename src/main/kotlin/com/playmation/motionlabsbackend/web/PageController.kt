@@ -186,6 +186,15 @@ class PageController(
     @GetMapping("/me.html")
     fun me(model: Model) = view(model, "me")
 
+    /**
+     * Die eigenen Figuren. Der Server hat damit NICHTS zu tun: die Dateien
+     * liegen im Browser (IndexedDB), und diese Seite ist nur ihr Ort. Sie
+     * steht trotzdem in der Leiste, weil eine Funktion, die man nur findet,
+     * wenn man schon weiss, dass es sie gibt, keine Funktion ist.
+     */
+    @GetMapping("/characters.html")
+    fun characters(model: Model) = view(model, "characters", active = "characters")
+
     @GetMapping("/licenses.html")
     fun licenses(model: Model) = view(model, "licenses", active = "licenses")
 

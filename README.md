@@ -75,6 +75,7 @@ Security Policy erlaubt nur Skripte von dieser Adresse.
 | `/browse.html` | `browse.html` | Der Katalog. Lag bis zur Startseite auf `/`. |
 | `/clip.html?p=<slug>` | `clip.html` | Ein Clip. Diese Adresse steht in Discord-Vorschauen und Takedown-Mails - sie aendert sich nicht. |
 | `/u.html?u=<handle>` | `user.html` | Ein Profil: Clips, Sammlungen, Folgen, Auszeichnungen. Der Handle ist die Adresse, nicht der Anzeigename - er ueberlebt eine Umbenennung. |
+| `/characters.html` | `characters.html` | Die eigenen Figuren. Der Server liefert nur den Rahmen; der Inhalt liegt im Browser. |
 | `/collection.html?c=<slug>` | `collection.html` | Eine Sammlung. Derselbe Aufbau wie der Katalog, nur von Hand ausgesucht. |
 
 ### Die Figur im Viewer
@@ -124,15 +125,35 @@ Der Kopf von `stage.js` erklaert es im Ganzen.
 
 ### Die eigene Figur
 
-Seit dem 21.09.2026 muss es nicht das Mannequin sein. Rechts unten auf der
-Bühne steht über den Proportionen eine zweite Reihe: `Mannequin`, dann jede
-Figur, die jemand hier abgelegt hat, dann ein Plus.
+Seit dem 21.09.2026 muss es nicht das Mannequin sein. Es gibt zwei Orte dafür,
+und die Trennung ist Absicht:
+
+**`/characters.html`** ist der Ort. Dort kommen Figuren herein (ziehen oder
+auswählen), dort stehen sie als Karten mit ihrem Bild und ihren Zahlen, dort
+wird eine gewählt und dort wieder vergessen. Die Seite steht in der
+Navigationsleiste, weil eine Funktion, die man nur findet, wenn man schon
+weiß, dass es sie gibt, keine ist.
+
+**Die Schalterreihe an der Bühne** ist der Schalter. Rechts unten, über den
+Proportionen: `Mannequin`, dann die abgelegten Figuren, dann ein Plus, das auf
+die Seite führt. Dort entscheidet man, auf WEM der Clip gerade läuft - mehr
+nicht. Hinzufügen und Löschen am Rand einer Bühne zu verstecken war der erste
+Entwurf und der falsche.
 
 | Datei | |
 |---|---|
-| `static/assets/figures.js` | Die Ablage: IndexedDB, Lesen des `extras`-Blocks, gemerkte Auswahl. |
-| `static/assets/viewer-ui.js` | Die Reihe, der Dateiwähler, das Ablegen auf der Bühne. |
+| `static/assets/figures.js` | Die Ablage: IndexedDB, Lesen des `extras`-Blocks, die Zahlen für die Karte, gemerkte Auswahl. |
+| `static/assets/pages/characters.js` | Die Seite: Ablegen, Karten, ein Bild je Figur, wählen und vergessen. |
+| `static/assets/viewer-ui.js` | Die Schalterreihe an der Bühne. |
 | `static/assets/stage.js` | `parseFigure()` und `options.figure` - dieselbe Bühne, andere Figur. |
+
+**Das Bild auf der Karte misst am Skelett, nicht am Mesh.**
+`Box3.setFromObject` nimmt für eine gehäutete Haut ihren Geometrie-Kasten, und
+der steht im Mesh-Raum, vor jeder Häutung: bei quantisierten Ecken liegt er
+zwischen -1 und 1, während die Figur 1,74 m groß ist. Die Knochen stehen
+dagegen dort, wo die Figur wirklich steht. Ein Renderer zeichnet reihum für
+alle Karten, jede kopiert sich ihr Bild auf ihre eigene 2D-Leinwand - derselbe
+Griff wie im Katalog.
 
 **Die Datei bleibt hier.** Sie geht nie an den Server. Ein Mesh ist Megabyte
 groß und gehört jemandem: ein gekauftes Synty- oder Mixamo-Modell auf unserem
@@ -179,8 +200,14 @@ bekommt.
 skalieren Knochen des Mannequins; eine eigene Figur HAT ihre Proportionen. Ein
 Schalter, der nichts tut, ist schlimmer als keiner.
 
-Eine Figur wieder loswerden: Rechtsklick auf ihren Schalter. Die Datei auf der
+Eine Figur wieder loswerden: **Forget** auf ihrer Karte. Die Datei auf der
 Platte bleibt, nur dieser Browser vergisst sie.
+
+**Was noch nicht geht:** ein fremdes Modell hereinziehen - eine `.fbx` von
+Mixamo, eine `.glb` aus Blender. Die tragen Knochennamen, aber keine
+Zuordnung, und ohne die lässt sich kein Clip darauf rechnen. Der nächste
+Schritt ist, die Namen zu lesen (`mixamorig:LeftArm`, `upperarm_l`,
+`B_UpperArm_L` meinen dasselbe Gelenk) und nach dem Rest zu fragen.
 
 ### Generische Clips
 
