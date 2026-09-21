@@ -76,14 +76,6 @@ class Account(
 
     var createdAt: Instant = Instant.now(),
     var lastLoginAt: Instant? = null,
-
-    /**
-     * Muenzstand. Abgeleitet aus `coin_entry` und in derselben Transaktion
-     * fortgeschrieben; die Wahrheit steht im Protokoll, das hier ist die
-     * schnelle Antwort. Darf negativ werden - eine Rueckbuchung ist eine
-     * Korrektur und scheitert nicht an einem leeren Konto.
-     */
-    var coinBalance: Long = 0,
 )
 
 interface AccountRepository : JpaRepository<Account, UUID> {

@@ -82,7 +82,6 @@ class AdminController(
     data class SettingsRequest(
         val communityEnabled: Boolean? = null,
         val uploadsEnabled: Boolean? = null,
-        val economyEnabled: Boolean? = null,
     )
 
     @GetMapping("/cases")
@@ -134,11 +133,9 @@ class AdminController(
     fun updateSettings(@RequestBody body: SettingsRequest): Map<String, Boolean> {
         body.communityEnabled?.let { settings.set(SystemSettingsService.COMMUNITY_ENABLED, it) }
         body.uploadsEnabled?.let { settings.set(SystemSettingsService.UPLOADS_ENABLED, it) }
-        body.economyEnabled?.let { settings.set(SystemSettingsService.ECONOMY_ENABLED, it) }
         return mapOf(
             "communityEnabled" to settings.communityEnabled(),
             "uploadsEnabled" to settings.uploadsEnabled(),
-            "economyEnabled" to settings.economyEnabled(),
         )
     }
 

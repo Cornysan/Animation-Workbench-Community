@@ -48,20 +48,11 @@ class SystemSettingsService(private val repository: SystemSettingRepository, pri
         const val COMMUNITY_ENABLED = "community.enabled"
         const val UPLOADS_ENABLED = "uploads.enabled"
 
-        /**
-         * Das Muenz-Tor. Anders als die beiden anderen ist es standardmaessig
-         * ZU: die Wirtschaft laeuft ab Tag 1 mit, aber Freischalten kostet
-         * erst, wenn der Katalog genug hergibt. Ein Preis auf einen leeren
-         * Katalog waere eine Tuer vor einem leeren Raum.
-         */
-        const val ECONOMY_ENABLED = "economy.enabled"
-
-        private val KEYS = setOf(COMMUNITY_ENABLED, UPLOADS_ENABLED, ECONOMY_ENABLED)
+        private val KEYS = setOf(COMMUNITY_ENABLED, UPLOADS_ENABLED)
     }
 
     fun communityEnabled() = flag(COMMUNITY_ENABLED, default = true)
     fun uploadsEnabled() = communityEnabled() && flag(UPLOADS_ENABLED, default = true)
-    fun economyEnabled() = flag(ECONOMY_ENABLED, default = false)
 
     @Transactional
     fun set(key: String, enabled: Boolean) {

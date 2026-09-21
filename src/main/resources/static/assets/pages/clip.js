@@ -151,13 +151,9 @@
   }
 
   // ── Mitnehmen ────────────────────────────────────────────────────────
-  //  Seit der Muenzwirtschaft ist Herunterladen Freischalten, und das kostet
-  //  unter Umstaenden. Der Knopf muss das sagen, BEVOR er es tut - "Download"
-  //  auf einem Knopf, der zehn Muenzen abbucht, waere eine Falle.
+  //  Herunterladen kostet nichts und hat nie etwas gekostet - der Knopf sagt
+  //  deshalb genau das, was er tut.
   const actions = document.getElementById("actions");
-  const status = await api("GET", "/api/v1/status").catch(() => ({}));
-
-  const costs = status.economyEnabled && !clip.unlockedByMe && clip.license === "CC-BY-4.0";
 
   if (!user) {
     //  Ein grauer Knopf, der nicht sagt warum, ist die haeufigste Sackgasse
@@ -166,8 +162,7 @@
       signInButton("Sign in to download", true),
       el("p", { class: "faint small" }, "Downloads are tied to an account so the counter means something."));
   } else {
-    const download = el("button", { class: "primary" },
-      costs ? "Unlock for " + status.unlockCost + " coins" : "Download .awclip");
+    const download = el("button", { class: "primary" }, "Download .awclip");
 
     download.addEventListener("click", async () => {
       download.disabled = true;

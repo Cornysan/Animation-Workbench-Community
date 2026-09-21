@@ -14,11 +14,11 @@ import com.playmation.motionlabsbackend.catalog.PackageStatus
 import com.playmation.motionlabsbackend.common.PortalException
 import com.playmation.motionlabsbackend.common.RateLimiter
 import com.playmation.motionlabsbackend.config.PortalProperties
-import com.playmation.motionlabsbackend.economy.PackageUnlockRepository
 import com.playmation.motionlabsbackend.format.AwclipSchema
 import com.playmation.motionlabsbackend.moderation.Notification
 import com.playmation.motionlabsbackend.moderation.NotificationRepository
 import com.playmation.motionlabsbackend.system.AuditService
+import com.playmation.motionlabsbackend.unlocks.PackageUnlockRepository
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional

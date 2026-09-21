@@ -42,10 +42,9 @@ data class ProfileStats(
  *
  * Es gibt keine Tabelle, in der steht, wer was bekommen hat. Jede Auszeichnung
  * ist eine Regel auf Zahlen, die ohnehin gezaehlt werden, und wird bei jedem
- * Aufruf neu gerechnet. Dasselbe Verfahren wie bei den Meilensteinen der
- * Muenzwirtschaft, wo `QuestService.checkMilestones` absichtlich gegen die
- * Summe prueft statt gegen einen mitgefuehrten Zaehler: ein verpasster Lauf
- * heilt sich von selbst, und alles gilt rueckwirkend.
+ * Aufruf neu gerechnet - gegen die Summe, nicht gegen einen mitgefuehrten
+ * Zaehler: ein verpasster Lauf heilt sich von selbst, und alles gilt
+ * rueckwirkend.
  *
  * Der Preis dafuer steht hier, damit ihn niemand suchen muss: es gibt kein
  * Verleihungsdatum und keine "neu freigeschaltet"-Meldung. Wer die will,

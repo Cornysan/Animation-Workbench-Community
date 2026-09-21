@@ -99,12 +99,6 @@ class PortalFlowTest {
     private fun unlockOk(token: String, slug: String): String =
         unlock(token, slug).andExpect { status { isOk() } }.body()["url"].asString()
 
-    private fun coins(token: String): Long =
-        mvc.get("/api/v1/me") { header("Authorization", "Bearer $token") }.body()["coins"].asLong()
-
-    private fun setEconomy(admin: String, on: Boolean) =
-        adminPost("/api/v1/admin/settings", admin, """{"economyEnabled":$on}""").andExpect { status { isOk() } }
-
     private fun adminPost(path: String, admin: String, body: String) =
         mvc.post(path) {
             contentType = MediaType.APPLICATION_JSON
@@ -795,224 +789,32 @@ class PortalFlowTest {
     }
 
     // ═════════════════════════════════════════════════════════════════════
-    // MUENZEN
+    // QUITTUNGEN
     // ═════════════════════════════════════════════════════════════════════
 
     /**
-     * Das Tor ist im Auslieferungszustand ZU: die Wirtschaft laeuft mit, aber
-     * Freischalten kostet nichts. So steht beim Umlegen niemand bei null.
+     * Die Quittung ist die Eintrittskarte: ohne sie gibt es keinen Link, und
+     * ohne Konto gibt es keine Quittung.
      */
-    @Test
-    fun `with the gate closed unlocking is free but the owner still earns`() {
-        val admin = login("admin")
-        setEconomy(admin, false)
-
-        val owner = login("e-owner-${unique()}")
-        val taker = login("e-taker-${unique()}")
-        val slug = uploadOk(owner, awclip(0.315))
-
-        val ownerBefore = coins(owner)
-        val takerBefore = coins(taker)
-
-        unlockOk(taker, slug)
-
-        assertEquals(takerBefore, coins(taker), "a closed gate costs nothing")
-        assertEquals(ownerBefore + 1, coins(owner), "the credit runs either way")
-    }
-
-    @Test
-    fun `an open gate charges once and the receipt lasts`() {
-        val admin = login("admin")
-        setEconomy(admin, true)
-        try {
-            val owner = login("e-once-owner-${unique()}")
-            val taker = login("e-once-taker-${unique()}")
-            val slug = uploadOk(owner, awclip(0.32))
-
-            val before = coins(taker)
-            unlockOk(taker, slug)
-            assertEquals(before - 10, coins(taker), "ten coins for the first unlock")
-
-            unlockOk(taker, slug)
-            unlockOk(taker, slug)
-            assertEquals(before - 10, coins(taker), "the receipt lasts - a second time is free")
-
-            assertTrue(
-                mvc.get("/api/v1/packages/$slug") { header("Authorization", "Bearer $taker") }
-                    .body()["unlockedByMe"].asBoolean(),
-                "the workbench must be able to tell",
-            )
-        } finally {
-            setEconomy(admin, false)
-        }
-    }
-
-    @Test
-    fun `nobody pays for their own clip and nobody earns from it`() {
-        val admin = login("admin")
-        setEconomy(admin, true)
-        try {
-            val owner = login("e-self-${unique()}")
-            val slug = uploadOk(owner, awclip(0.33))
-            val before = coins(owner)
-
-            unlockOk(owner, slug)
-
-            assertEquals(before, coins(owner), "the own clip moves nothing in either direction")
-            assertEquals(0L, mvc.get("/api/v1/packages/$slug").body()["downloads"].asLong())
-        } finally {
-            setEconomy(admin, false)
-        }
-    }
-
-    /**
-     * Ein privat geteilter Slug ist eine Einladung, keine Auslage. Wer ihn
-     * bekommt, soll nicht an einer Kasse stehen.
-     */
-    @Test
-    fun `a private clip is free to unlock and pays nothing`() {
-        val admin = login("admin")
-        setEconomy(admin, true)
-        try {
-            val owner = login("e-priv-owner-${unique()}")
-            val taker = login("e-priv-taker-${unique()}")
-            val slug = uploadOk(owner, awclip(0.34, license = AwclipSchema.LICENSE_PRIVATE))
-
-            val ownerBefore = coins(owner)
-            val takerBefore = coins(taker)
-
-            unlockOk(taker, slug)
-
-            assertEquals(takerBefore, coins(taker), "a private link is not a shop")
-            assertEquals(ownerBefore, coins(owner), "and it pays nothing either")
-        } finally {
-            setEconomy(admin, false)
-        }
-    }
-
-    @Test
-    fun `an empty purse is turned away and leaves no receipt`() {
-        val admin = login("admin")
-        setEconomy(admin, true)
-        try {
-            val owner = login("e-poor-owner-${unique()}")
-            val broke = login("e-poor-${unique()}")
-            val slugs = (0..5).map { uploadOk(owner, awclip(0.40 + it * 0.001)) }
-
-            //  Die Grundausstattung reicht fuer genau fuenf.
-            for (slug in slugs.take(5)) unlockOk(broke, slug)
-            assertEquals(0L, coins(broke), "fifty coins buy five unlocks")
-
-            unlock(broke, slugs[5]).andExpect {
-                status { isConflict() }
-                jsonPath("$.error.code") { value("not-enough-coins") }
-            }
-
-            assertFalse(
-                mvc.get("/api/v1/packages/${slugs[5]}") { header("Authorization", "Bearer $broke") }
-                    .body()["unlockedByMe"].asBoolean(),
-                "a refused unlock must not leave a receipt",
-            )
-            assertEquals(0L, mvc.get("/api/v1/packages/${slugs[5]}").body()["downloads"].asLong())
-        } finally {
-            setEconomy(admin, false)
-        }
-    }
-
     @Test
     fun `a download link needs a receipt`() {
-        val admin = login("admin")
-        setEconomy(admin, true)
-        try {
-            val owner = login("e-link-owner-${unique()}")
-            val stranger = login("e-link-other-${unique()}")
-            val slug = uploadOk(owner, awclip(0.36))
+        val owner = login("e-link-owner-${unique()}")
+        val stranger = login("e-link-other-${unique()}")
+        val slug = uploadOk(owner, awclip(0.36))
 
-            mvc.post("/api/v1/packages/$slug/download-link") {
-                header("Authorization", "Bearer $stranger")
-            }.andExpect {
-                status { isConflict() }
-                jsonPath("$.error.code") { value("not-unlocked") }
-            }
-
-            mvc.post("/api/v1/packages/$slug/download-link") { with(csrf()) }
-                .andExpect { status { isUnauthorized() } }
-
-            unlockOk(stranger, slug)
-            mvc.post("/api/v1/packages/$slug/download-link") {
-                header("Authorization", "Bearer $stranger")
-            }.andExpect { status { isOk() } }
-        } finally {
-            setEconomy(admin, false)
+        mvc.post("/api/v1/packages/$slug/download-link") {
+            header("Authorization", "Bearer $stranger")
+        }.andExpect {
+            status { isConflict() }
+            jsonPath("$.error.code") { value("not-unlocked") }
         }
-    }
 
-    /**
-     * Die Wochenaufgabe ist die eigentliche Beitragspraemie - mit hartem
-     * Deckel, sonst waere sie ein Kopfgeld je Upload.
-     */
-    @Test
-    fun `sharing pays once a week, not once a clip`() {
-        val sharer = login("e-quest-${unique()}")
-        val start = coins(sharer)
+        mvc.post("/api/v1/packages/$slug/download-link") { with(csrf()) }
+            .andExpect { status { isUnauthorized() } }
 
-        uploadOk(sharer, awclip(0.515))
-        assertEquals(start + 30, coins(sharer), "the first clip this week pays")
-
-        uploadOk(sharer, awclip(0.52))
-        uploadOk(sharer, awclip(0.53))
-        assertEquals(start + 30, coins(sharer), "the second and third do not")
-
-        val quests = mvc.get("/api/v1/me/quests") { header("Authorization", "Bearer $sharer") }
-            .andExpect { status { isOk() } }.body()
-        assertTrue(quests["quests"][0]["done"].asBoolean())
-        assertEquals("share-a-clip", quests["quests"][0]["key"].asString())
-    }
-
-    @Test
-    fun `a milestone is credited exactly once`() {
-        val admin = login("admin")
-        setEconomy(admin, false)
-
-        val owner = login("e-mile-${unique()}")
-        val slug = uploadOk(owner, awclip(0.615))
-        val before = coins(owner)
-
-        repeat(10) { unlockOk(login("e-mile-taker-$it-${unique()}"), slug) }
-
-        // Zehn Freischaltungen zu je einer Muenze, dazu der Meilenstein bei 10.
-        assertEquals(before + 10 + 25, coins(owner), "ten earnings plus the first milestone")
-
-        unlockOk(login("e-mile-extra-${unique()}"), slug)
-        assertEquals(before + 10 + 25 + 1, coins(owner), "the eleventh pays one coin, not the milestone again")
-
-        val quests = mvc.get("/api/v1/me/quests") { header("Authorization", "Bearer $owner") }.body()
-        assertEquals(11L, quests["unlocksEarned"].asLong())
-        assertTrue(quests["milestones"][0]["reached"].asBoolean())
-    }
-
-    /**
-     * Was an einem fremden Werk verdient wurde, war nie verdient. Die Buchung
-     * bleibt stehen und bekommt eine Gegenbuchung - ein anhaengendes Protokoll
-     * erzaehlt auch die Korrektur.
-     */
-    @Test
-    fun `removing a clip for a rights violation books the earnings back`() {
-        val admin = login("admin")
-        setEconomy(admin, false)
-
-        val owner = login("e-rev-owner-${unique()}")
-        val slug = uploadOk(owner, awclip(0.715))
-        repeat(3) { unlockOk(login("e-rev-taker-$it-${unique()}"), slug) }
-
-        val earned = coins(owner)
-        adminPost("/api/v1/admin/packages/$slug/remove", admin, """{"note":"Asset Store pack","strike":false}""")
-            .andExpect { status { isOk() } }
-
-        assertEquals(earned - 3, coins(owner), "three earnings, three reversals")
-
-        val ledger = mvc.get("/api/v1/me/coins") { header("Authorization", "Bearer $owner") }
-            .andExpect { status { isOk() } }.body()
-        assertTrue(ledger["recent"].any { it["reason"].asString() == "reversal" }, "the correction is on the record")
+        unlockOk(stranger, slug)
+        mvc.post("/api/v1/packages/$slug/download-link") {
+            header("Authorization", "Bearer $stranger")
+        }.andExpect { status { isOk() } }
     }
 }

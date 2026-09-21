@@ -2,7 +2,6 @@ package com.playmation.motionlabsbackend.account
 
 import com.playmation.motionlabsbackend.common.PortalException
 import com.playmation.motionlabsbackend.config.PortalProperties
-import com.playmation.motionlabsbackend.economy.QuestService
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Clock
@@ -12,7 +11,6 @@ import java.util.UUID
 class AccountService(
     private val accounts: AccountRepository,
     private val handles: AccountHandleService,
-    private val quests: QuestService,
     private val properties: PortalProperties,
     private val clock: Clock,
 ) {
@@ -45,13 +43,7 @@ class AccountService(
         //  sich mit dem Discord-Namen aendert, bricht jeden geteilten Link.
         handles.ensure(account)
 
-        val saved = accounts.save(account)
-
-        //  Die Grundausstattung haengt an der ersten Anmeldung, nicht an einem
-        //  Knopf. Sie bucht genau einmal je Konto - darum kann sie bei JEDER
-        //  Anmeldung versucht werden, ohne dass jemand mitzaehlen muss.
-        quests.grant(saved)
-        return saved
+        return accounts.save(account)
     }
 
     fun get(id: UUID): Account = accounts.findById(id).orElseThrow { PortalException.notFound("Account not found") }

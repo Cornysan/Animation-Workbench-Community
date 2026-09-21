@@ -9,8 +9,6 @@ import com.playmation.motionlabsbackend.common.Crypto
 import com.playmation.motionlabsbackend.common.PortalException
 import com.playmation.motionlabsbackend.common.RateLimiter
 import com.playmation.motionlabsbackend.config.PortalProperties
-import com.playmation.motionlabsbackend.economy.EconomyService
-import com.playmation.motionlabsbackend.economy.QuestService
 import com.playmation.motionlabsbackend.format.AwclipHash
 import com.playmation.motionlabsbackend.format.AwclipReadResult
 import com.playmation.motionlabsbackend.format.AwclipReader
@@ -20,6 +18,7 @@ import com.playmation.motionlabsbackend.profile.ProfileService
 import com.playmation.motionlabsbackend.storage.BlobStore
 import com.playmation.motionlabsbackend.system.AuditService
 import com.playmation.motionlabsbackend.system.SystemSettingsService
+import com.playmation.motionlabsbackend.unlocks.UnlockService
 import jakarta.persistence.criteria.Predicate
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
@@ -121,8 +120,7 @@ class CatalogService(
      * aufeinander.
      */
     private val savedCollections: CollectionItemRepository,
-    private val economy: EconomyService,
-    private val quests: QuestService,
+    private val unlocks: UnlockService,
     /** Nur fuer die Nachricht an die Follower, wenn ein neuer Clip erscheint. */
     private val profiles: ProfileService,
     private val accountRepository: AccountRepository,
@@ -247,15 +245,10 @@ class CatalogService(
         audit.record(account.id, if (existing == null) "package.created" else "package.version-added", "package", pkg.slug,
             "v${version.versionNumber} hash=$hash origin=${doc.origin} license=${manifest.license}", ip)
 
-        //  Nur ein NEUER Clip erfuellt die Wochenaufgabe. Eine weitere Version
-        //  desselben Clips ist Pflege, kein Beitrag - und waere sonst der
-        //  billigste Weg, die Praemie jede Woche mitzunehmen.
+        //  Wer jemandem folgt, folgt ihm wegen genau dieses Augenblicks. Nur
+        //  beim neuen Clip: eine zweite Fassung ist keine Nachricht wert, und
+        //  ein privater Clip schon gar nicht.
         if (existing == null && manifest.license == AwclipSchema.LICENSE_PUBLIC) {
-            quests.onClipShared(account.id)
-
-            //  Wer jemandem folgt, folgt ihm wegen genau dieses Augenblicks.
-            //  Auch hier nur beim neuen Clip: eine zweite Fassung ist keine
-            //  Nachricht wert, und ein privater Clip schon gar nicht.
             profiles.notifyFollowers(
                 account.id, "${account.displayName} shared a new clip: '${pkg.title}'.")
         }
@@ -383,7 +376,7 @@ class CatalogService(
         val currentVersions = versions.findAllById(found.mapNotNull { it.currentVersionId }).associateBy { it.id }
 
         val likedByMe = principal?.let { me -> likes.likedAmong(me.accountId, found.map { it.id }).toSet() } ?: emptySet()
-        val unlockedByMe = principal?.let { me -> economy.unlockedAmong(me.accountId, found.map { it.id }) } ?: emptySet()
+        val unlockedByMe = principal?.let { me -> unlocks.unlockedAmong(me.accountId, found.map { it.id }) } ?: emptySet()
         val savedByMe = principal?.takeIf { found.isNotEmpty() }
             ?.let { me -> savedCollections.savedAmong(me.accountId, found.map { it.id }).toSet() } ?: emptySet()
 
@@ -462,24 +455,22 @@ class CatalogService(
      * Ein Link fuer einen Clip, den man schon hat. Die Quittung ist die
      * Eintrittskarte - ohne sie fuehrt der Weg ueber [unlock].
      *
-     * Bis zur Muenzwirtschaft war dieser Aufruf offen. Er ist es nicht mehr:
-     * eine Freischaltung ohne Konto liesse sich nicht abrechnen, und ein
-     * Zaehler ohne Konto war schon vorher nur eine Behauptung.
+     * Offen war dieser Aufruf einmal. Er ist es nicht mehr: ein Zaehler ohne
+     * Konto ist nur eine Behauptung.
      */
     @Transactional(readOnly = true)
     fun downloadLink(slug: String, principal: PortalPrincipal, ip: String): DownloadLink {
         rateLimiter.require("download-link", ip, properties.limits.downloadLinksPerHourPerIp, Duration.ofHours(1))
 
         val (pkg, version) = visible(slug, principal)
-        if (pkg.ownerId != principal.accountId && !economy.hasUnlocked(pkg.id, principal.accountId))
+        if (pkg.ownerId != principal.accountId && !unlocks.hasUnlocked(pkg.id, principal.accountId))
             throw PortalException.conflict("not-unlocked", "Unlock this clip first.")
 
         return link(pkg, version)
     }
 
     /**
-     * Der eine Vorgang, der Muenzen bewegt: abbuchen, Quittung schreiben,
-     * Besitzer gutschreiben, zaehlen, Link zurueckgeben - alles in einer
+     * Quittung schreiben, zaehlen, Link zurueckgeben - alles in einer
      * Transaktion.
      *
      * Er ersetzt den alten Zweischritt aus `download-link` und `taken`. Der
@@ -493,7 +484,7 @@ class CatalogService(
         val account = accounts.requireUsable(principal.accountId)
         val (pkg, version) = visible(slug, principal)
 
-        if (economy.unlock(account, pkg))
+        if (unlocks.unlock(account, pkg))
             audit.record(account.id, "package.unlocked", "package", pkg.slug, null, ip)
 
         return link(pkg, version)
@@ -585,7 +576,7 @@ class CatalogService(
             pkg.takeCount, pkg.likeCount, pkg.saveCount, pkg.commentCount,
             principal != null && likes.existsByPackageIdAndAccountId(pkg.id, principal.accountId),
             principal != null && savedCollections.collectionsOfOwnerContaining(principal.accountId, pkg.id).isNotEmpty(),
-            principal != null && (isOwner || economy.hasUnlocked(pkg.id, principal.accountId)),
+            principal != null && (isOwner || unlocks.hasUnlocked(pkg.id, principal.accountId)),
             version.previewBlobKey != null, pkg.createdAt, pkg.updatedAt,
             if (isOwner || principal?.isAdmin == true) pkg.status.name else null,
             isOwner,

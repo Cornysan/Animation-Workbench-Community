@@ -18,7 +18,6 @@ import com.playmation.motionlabsbackend.catalog.VersionStatus
 import com.playmation.motionlabsbackend.common.PortalException
 import com.playmation.motionlabsbackend.common.RateLimiter
 import com.playmation.motionlabsbackend.config.PortalProperties
-import com.playmation.motionlabsbackend.economy.EconomyService
 import com.playmation.motionlabsbackend.format.AwclipSchema
 import com.playmation.motionlabsbackend.system.AlertService
 import com.playmation.motionlabsbackend.system.AuditService
@@ -51,7 +50,6 @@ class ModerationService(
     private val accountRepository: AccountRepository,
     private val accounts: AccountService,
     private val tokens: ApiTokenService,
-    private val economy: EconomyService,
     private val alerts: AlertService,
     private val audit: AuditService,
     private val rateLimiter: RateLimiter,
@@ -360,10 +358,6 @@ class ModerationService(
             close(report, CaseStatus.UPHELD, admin, note, now)
             notify(report.reporterId, "Thank you - '${pkg.title}' was removed after your report.")
         }
-
-        //  Was an einem fremden Werk verdient wurde, war nie verdient. Die
-        //  Buchung bleibt stehen und bekommt eine Gegenbuchung.
-        economy.reverseEarnings(pkg)
 
         notify(pkg.ownerId, "'${pkg.title}' was removed from the community. Reason: $note")
         action(admin.accountId, "remove", pkg.id, note)
