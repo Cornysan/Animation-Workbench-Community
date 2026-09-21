@@ -12,7 +12,7 @@
  */
 
 import { guess } from './humanoid.js';
-import { Box3, FBXLoader, GLTFLoader, Vector3 } from './vendor/three.module.js';
+import { Box3, FBXLoader, GLTFLoader, LoadingManager, Vector3 } from './vendor/three.module.js';
 
 const GLB_MAGIC = 0x46546c67; // "glTF"
 
@@ -37,8 +37,33 @@ export function kindOf(buffer, filename = '') {
  * eine blanke Gruppe, und der Rest des Portals rechnet mit einem glTF.
  */
 export function parseModel(buffer, kind) {
-  if (kind === 'fbx') return Promise.resolve({ scene: new FBXLoader().parse(buffer, '') });
+  if (kind === 'fbx') return Promise.resolve({ scene: new FBXLoader(fbxManager()).parse(buffer, '') });
   return new Promise((resolve, reject) => new GLTFLoader().parse(buffer, '', resolve, reject));
+}
+
+/** Ein weisses Pixel - was ein FBX statt seiner Texturen bekommt. */
+const BLANK = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4//8/AAX+Av4N70a4AAAAAElFTkSuQmCC';
+
+/**
+ * Der Manager, der die Texturanfragen eines FBX ins Leere laufen laesst.
+ *
+ * Ein FBX traegt seine Texturen NICHT in sich, sondern nennt Dateinamen, die
+ * daneben liegen sollen - `BarbarianBodyTexture.png` und zwei Geschwister.
+ * Hier liegt nichts daneben: die Datei kam per Drag & Drop, es gibt keinen
+ * Ordner dazu. Der Loader fragt trotzdem, und zwar gegen UNSERE Adresse -
+ * dreimal je Figur, jedes Mal 404, bei jeder Karte neu.
+ *
+ * Statt der Anfrage bekommt er ein weisses Pixel. Weiss und nicht
+ * durchsichtig: die Textur wird mit der Grundfarbe multipliziert, und ein
+ * transparentes Pixel liesse die Figur verschwinden.
+ *
+ * EIN EIGENER MANAGER JE AUFRUF, nicht der voreingestellte: den teilen sich
+ * alle Loader im Fenster, und das Mannequin laedt seine Texturen richtig.
+ */
+function fbxManager() {
+  const manager = new LoadingManager();
+  manager.setURLModifier(() => BLANK);
+  return manager;
 }
 
 /**
