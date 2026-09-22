@@ -66,7 +66,6 @@
     <aside class="clip-side">
       <div class="panel get-panel">
         <div id="license" class="license-note"></div>
-        <div class="actions" id="actions"></div>
         <!--
           HIER STAND EINE UNITY-WEGBESCHREIBUNG ("Tools > Animation Workbench
           > Community"). Der Pfad stimmt sogar - er ist nur nicht die Sache
@@ -76,11 +75,10 @@
         -->
 
         <!--
-          Die Ausgabe fuer alles ausser Unity. Sie steht hier leer und wird
-          von `clip-download.js` gefuellt - und zwar erst, wenn die Buehne
-          steht: "mit Figur" schreibt genau die Pose heraus, die sie zeigt.
-          Kommt keine Buehne (kein WebGL, keine Vorschau), bleibt der Block
-          leer und der .awclip darueber ist weiter da.
+          Der Download-Knopf mit der Formatwahl dahinter - gefuellt von
+          `clip-download.js`. Formate, die die Buehne brauchen ("mit Figur"
+          schreibt genau die Pose heraus, die sie zeigt), sagen selbst, wenn
+          sie gerade nicht gehen.
         -->
         <div id="downloads"></div>
       </div>

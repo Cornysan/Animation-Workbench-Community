@@ -1,5 +1,5 @@
 /**
- * Den Clip mitnehmen - fuer alles, was nicht Unity ist.
+ * Den Clip mitnehmen - EIN Knopf, dahinter die Formate.
  *
  * WARUM. Bis hierher stand auf dieser Seite genau ein Knopf: "Download
  * .awclip". Das ist unser eigenes Format, und ausserhalb der Workbench kann
@@ -18,10 +18,22 @@
  *   Zum Ansehen, zum Weitergeben, und fuer jeden, der erst einmal irgendeine
  *   Figur braucht, um zu sehen, ob die Bewegung passt.
  *
- * `.awclip` bleibt daneben stehen und bleibt der kurze Weg fuer Unity: dort
- * kommt der Clip mit Kurven statt mit gebackenen Bildern an, also genauer,
- * und er legt sich auf jedes humanoide Rig.
+ * `.awclip` bleibt der kurze Weg fuer Unity: dort kommt der Clip mit Kurven
+ * statt mit gebackenen Bildern an, also genauer, und er legt sich auf jedes
+ * humanoide Rig.
+ *
+ * WIE BEI MIXAMO: ein Knopf "Download", und erst der Klick zeigt die Wahl.
+ * Vorher standen bis zu vier Textknoepfe untereinander, zwei davon mit
+ * demselben Namen bis auf die Endung - die Spalte war eine Liste von
+ * Dateiendungen, und man musste sie lesen, bevor man wusste, welcher Knopf
+ * der eigene ist. Jetzt steht an jeder Zeile, WOFUER sie ist.
+ *
+ * Was nicht geht, steht trotzdem da und sagt warum - "Sign in" bei der
+ * .awclip, "No preview" ohne Vorschau. Eine Zeile, die fehlt, verraet nicht,
+ * dass es sie gaebe.
  */
+
+const { api, ensureCsrf, el, icon, popover, closePopover, toast, toastError, signInUrl } = AW;
 
 //  Die beiden Schreiber holt erst der Klick. Zusammen sind es rund 12 KB
 //  gzip, die jeder Besucher der Seite lud, auch wer nie etwas herunterlaedt.
@@ -29,6 +41,7 @@ const glbExport = () => import('../glb-export.js');
 const fbxExport = () => import('../fbx-export.js');
 
 const box = document.getElementById('downloads');
+const slug = new URLSearchParams(location.search).get('p');
 
 /** Dateinamen duerfen nicht alles, und ein Clip heisst, wie jemand will. */
 function safeName(title) {
@@ -51,130 +64,159 @@ function save(bytes, fileName, type) {
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
-function button(label, hint) {
-  const b = document.createElement('button');
-  b.type = 'button';
-  b.className = 'button';
-  b.textContent = label;
-  b.title = hint;
-  return b;
-}
+/*
+ * WAS DIE FORMATE BRAUCHEN, KOMMT ZU VERSCHIEDENEN ZEITEN. Die .awclip nur
+ * eine Anmeldung - sie kommt vom Server. Die beiden Skelette brauchen die
+ * Vorschau, "mit Figur" zusaetzlich die stehende Buehne: es schreibt genau
+ * die Pose heraus, die sie zeigt. Beides meldet `clip-viewer.js` mit
+ * `aw:viewer`; bis dahin stehen die Zeilen auf "Loading".
+ */
+let staged = null;
+let previewMissing = false;
 
 document.addEventListener('aw:viewer', (event) => {
-  const { viewer, preview } = event.detail;
-  if (!box || !preview) return;
-
-  const title = document.querySelector('h1')?.textContent || 'clip';
-  const base = safeName(title);
-  const frames = preview.hips.length;
-
-  const state = document.createElement('p');
-  state.className = 'faint small';
-
-  /*
-   * "For everything else" ergibt nur Sinn, wenn darueber etwas steht. Fuer
-   * wen die .awclip fehlt - also jeden, der nicht angemeldet ist - haengt
-   * der Satz in der Luft und verweist auf nichts.
-   *
-   * Gefragt wird der Server, nicht das Dokument. Der .awclip-Knopf entsteht
-   * in `clip.js`, und das ist ein eigener Einstiegspunkt mit eigenem Tempo:
-   * ein Blick ins DOM traf ihn mal an und mal nicht. `data-signed-in` steht
-   * schon im ausgelieferten Markup und ist damit immer da.
-   */
-  const head = document.createElement('p');
-  head.className = 'faint small';
-  head.textContent = document.body.dataset.signedIn === 'true'
-    ? 'For everything else:'
-    : 'Download:';
-
-  const row = document.createElement('div');
-  row.className = 'actions';
-
-  // ── Nur die Bewegung ───────────────────────────────────────────────────
-  const plain = button('Animation (.glb)', 'The skeleton and its motion - put it on your own character');
-  plain.addEventListener('click', async () => {
-    plain.disabled = true;
-    state.textContent = '';
-    try {
-      const { skeletonGlb } = await glbExport();
-      save(skeletonGlb(preview, { name: title }), base + '.glb');
-      state.textContent = frames + ' frames, ' + preview.bones.length + ' bones, no mesh.';
-    } catch (error) {
-      state.textContent = 'That did not work: ' + error.message;
-      console.warn('[download] skeleton glb', error);
-    } finally {
-      plain.disabled = false;
-    }
-  });
-  row.append(plain);
-
-  /*
-   * UND DASSELBE ALS .fbx.
-   *
-   * Nicht doppelt gemoppelt: glTF kennt Knochen nur ueber eine Haut, und eine
-   * Haut braucht ein Netz. Ein Skelett OHNE Figur kommt dort also als Kette
-   * leerer Knoten an - brauchbar, aber in Blender kein Armature. FBX hat mit
-   * `LimbNode` einen echten Begriff dafuer, und genau deshalb steht dieser
-   * Knopf neben dem anderen.
-   */
-  const fbx = button('Animation (.fbx)', 'The same motion as a real skeleton - for Unity, Blender, Maya');
-  fbx.addEventListener('click', async () => {
-    fbx.disabled = true;
-    state.textContent = '';
-    try {
-      const { skeletonFbx } = await fbxExport();
-      save(skeletonFbx(preview, { name: title }), base + '.fbx', 'application/octet-stream');
-      state.textContent = frames + ' frames, ' + preview.bones.length
-        + ' bones, in centimetres as FBX expects.';
-    } catch (error) {
-      state.textContent = 'That did not work: ' + error.message;
-      console.warn('[download] skeleton fbx', error);
-    } finally {
-      fbx.disabled = false;
-    }
-  });
-  row.append(fbx);
-
-  /*
-   * MIT FIGUR NUR, WENN EINE STEHT. Gezeigt wird genau die Buehne, die auf
-   * der Seite laeuft - faellt sie auf das Strichmaennchen zurueck (kein
-   * WebGL, ein generischer Clip, eine Vorschau, die sich nicht umrechnen
-   * laesst), gibt es nichts herauszuschreiben, und der Knopf bleibt weg
-   * statt zu enttaeuschen.
-   */
-  const stage = viewer && viewer.mode === 'mannequin' ? viewer.stage : null;
-  if (stage) {
-    const dressed = button('With character (.glb)', 'The same motion on the mannequin, mesh included');
-    dressed.addEventListener('click', async () => {
-      dressed.disabled = true;
-      state.textContent = 'Putting it together...';
-      try {
-        const response = await fetch(new URL('../models/aw-mannequin.glb', import.meta.url));
-        if (!response.ok) throw new Error('the figure could not be loaded');
-        const mannequin = new Uint8Array(await response.arrayBuffer());
-
-        //  Die Buehne wird dabei durch alle Bilder gestellt. Danach steht sie
-        //  auf dem letzten - also zurueck auf das, was der Betrachter sah.
-        const { bakeFromStage, injectAnimation } = await glbExport();
-        const playing = stage.playing;
-        const tracks = bakeFromStage(stage, frames);
-        const { bytes, missing } = injectAnimation(mannequin, tracks, {
-          name: title, frameRate: preview.frameRate || 30, frames,
-        });
-        stage.playing = playing;
-
-        save(bytes, base + '_character.glb');
-        state.textContent = frames + ' frames on the mannequin'
-          + (missing.length ? ', ' + missing.length + ' bones skipped' : '') + '.';
-      } catch (error) {
-        state.textContent = 'That did not work: ' + error.message;
-        console.warn('[download] character glb', error);
-      } finally {
-        dressed.disabled = false;
-      }
-    });
-    row.append(dressed);
-  }
-
-  box.append(head, row, state);
+  staged = event.detail;
 });
+document.addEventListener('aw:no-preview', () => {
+  previewMissing = true;
+});
+
+const signedIn = () => document.body.dataset.signedIn === 'true';
+const title = () => document.querySelector('h1')?.textContent || 'clip';
+
+const FORMATS = [
+  {
+    id: 'awclip',
+    name: 'Unity (.awclip)',
+    about: 'For the Animation Workbench: curves, fits any humanoid rig.',
+    //  Kein Anmeldeweg heisst: die Zeile bleibt, sagt es aber.
+    blocked: () => (signedIn() ? null : signInUrl ? 'Sign in' : 'Unavailable'),
+    run: downloadAwclip,
+  },
+  {
+    id: 'glb',
+    name: 'Animation (.glb)',
+    about: 'The skeleton and its motion, for your own character.',
+    blocked: previewBlocked,
+    run: async () => {
+      const { preview } = staged;
+      const { skeletonGlb } = await glbExport();
+      save(skeletonGlb(preview, { name: title() }), safeName(title()) + '.glb');
+      toast(preview.hips.length + ' frames, ' + preview.bones.length + ' bones, no mesh.', { kind: 'ok' });
+    },
+  },
+  {
+    id: 'fbx',
+    name: 'Animation (.fbx)',
+    about: 'The same motion as a real skeleton, for Blender, Maya or Unity.',
+    blocked: previewBlocked,
+    run: async () => {
+      const { preview } = staged;
+      const { skeletonFbx } = await fbxExport();
+      save(skeletonFbx(preview, { name: title() }), safeName(title()) + '.fbx', 'application/octet-stream');
+      toast(preview.hips.length + ' frames, ' + preview.bones.length + ' bones, in centimetres as FBX expects.',
+        { kind: 'ok' });
+    },
+  },
+  {
+    id: 'character',
+    name: 'With character (.glb)',
+    about: 'The motion on the mannequin, mesh included.',
+    //  Faellt die Buehne auf das Strichmaennchen zurueck (kein WebGL, ein
+    //  generischer Clip, eine Vorschau, die sich nicht umrechnen laesst),
+    //  gibt es keine Figur herauszuschreiben.
+    blocked: () => previewBlocked() || (staged.viewer && staged.viewer.mode === 'mannequin' ? null : 'No character'),
+    run: downloadWithCharacter,
+  },
+];
+
+function previewBlocked() {
+  if (previewMissing) return 'No preview';
+  if (!staged) return 'Loading';
+  return null;
+}
+
+async function downloadAwclip() {
+  if (!signedIn()) {
+    if (signInUrl) location.href = signInUrl;
+    return;
+  }
+  await ensureCsrf();
+  const link = await api('POST', '/api/v1/packages/' + encodeURIComponent(slug) + '/unlock');
+  const a = el('a', { href: link.url, download: link.fileName });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  toast('Downloaded. In Unity: Tools > Animation Workbench > Community > Import .awclip File. License: '
+    + link.license + '.', { kind: 'ok', duration: 9000 });
+}
+
+async function downloadWithCharacter() {
+  const { viewer, preview } = staged;
+  const stage = viewer.stage;
+  const frames = preview.hips.length;
+  const dismiss = toast('Putting it together...', { duration: 60_000 });
+  try {
+    const response = await fetch(new URL('../models/aw-mannequin.glb', import.meta.url));
+    if (!response.ok) throw new Error('the figure could not be loaded');
+    const mannequin = new Uint8Array(await response.arrayBuffer());
+
+    //  Die Buehne wird dabei durch alle Bilder gestellt. Danach steht sie
+    //  auf dem letzten - also zurueck auf das, was der Betrachter sah.
+    const { bakeFromStage, injectAnimation } = await glbExport();
+    const playing = stage.playing;
+    const tracks = bakeFromStage(stage, frames);
+    const { bytes, missing } = injectAnimation(mannequin, tracks, {
+      name: title(), frameRate: preview.frameRate || 30, frames,
+    });
+    stage.playing = playing;
+    if (stage.invalidate) stage.invalidate();
+
+    save(bytes, safeName(title()) + '_character.glb');
+    dismiss();
+    toast(frames + ' frames on the mannequin'
+      + (missing.length ? ', ' + missing.length + ' bones skipped' : '') + '.', { kind: 'ok' });
+  } catch (error) {
+    dismiss();
+    throw error;
+  }
+}
+
+/** Die Wahl unter dem Knopf - jede Zeile ist die Handlung selbst. */
+function sheet() {
+  return el('div', { class: 'format-sheet', role: 'menu', 'aria-label': 'Download formats' },
+    FORMATS.map((format) => {
+      const reason = format.blocked();
+      //  "Sign in" ist kein Hindernis, sondern ein Weg - die Zeile bleibt
+      //  anklickbar und fuehrt dorthin.
+      const disabled = reason !== null && reason !== 'Sign in';
+      const row = el('button', {
+        type: 'button', class: 'format-row', role: 'menuitem', disabled,
+      },
+        el('span', { class: 'format-text' },
+          el('strong', {}, format.name),
+          el('span', { class: 'faint small' }, format.about)),
+        reason ? el('span', { class: 'format-tag' }, reason) : icon('download'));
+
+      row.addEventListener('click', async () => {
+        closePopover();
+        try {
+          await format.run();
+        } catch (error) {
+          console.warn('[download] ' + format.id, error);
+          toastError(error);
+        }
+      });
+      return row;
+    }));
+}
+
+if (box && slug) {
+  const button = el('button', {
+    type: 'button', class: 'primary download-button', 'aria-haspopup': 'menu',
+  }, icon('download'), 'Download');
+  button.addEventListener('click', () => {
+    popover(button, sheet()).classList.add('format-popover');
+  });
+  box.replaceChildren(button);
+}

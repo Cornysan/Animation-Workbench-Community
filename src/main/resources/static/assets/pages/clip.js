@@ -172,46 +172,8 @@
   }
 
   // ── Mitnehmen ────────────────────────────────────────────────────────
-  //  Herunterladen kostet nichts und hat nie etwas gekostet - der Knopf sagt
-  //  deshalb genau das, was er tut.
-  const actions = document.getElementById("actions");
-
-  /*
-   * HIER STAND "Sign in to download" MIT DER BEGRUENDUNG, Downloads haengen
-   * an einem Konto, damit der Zaehler etwas bedeutet.
-   *
-   * Das stimmt nicht mehr. Seit der Clip als .glb und .fbx mitgeht - beides
-   * im Browser gerechnet, aus einer Vorschau, die ohnehin oeffentlich ist -
-   * kann jeder ihn herunterladen, ohne sich anzumelden. Ein Riegel, der
-   * daneben steht und etwas behauptet, was zwei Knoepfe weiter widerlegt
-   * wird, ist schlimmer als keiner.
-   *
-   * Angemeldet sein muss man nur noch fuer die .awclip, weil die vom Server
-   * kommt. Wer nicht angemeldet ist, sieht sie gar nicht - und verliert
-   * nichts, weil die beiden anderen Formate dastehen.
-   */
-  if (user) {
-    const download = el("button", { class: "primary" }, "Download .awclip");
-
-    download.addEventListener("click", async () => {
-      download.disabled = true;
-      try {
-        await ensureCsrf();
-        const link = await api("POST", "/api/v1/packages/" + encodeURIComponent(slug) + "/unlock");
-        const a = el("a", { href: link.url, download: link.fileName });
-        document.body.append(a);
-        a.click();
-        a.remove();
-        notice(actionState, "Downloaded. In Unity: Tools > Animation Workbench > Community > Import .awclip File. License: " + link.license + ".", "ok");
-        download.replaceChildren(document.createTextNode("Download .awclip"));
-      } catch (e) {
-        notice(actionState, e.message, "error");
-      } finally {
-        download.disabled = false;
-      }
-    });
-    actions.append(download);
-  }
+  //  Herunterladen - alle Formate, die .awclip eingeschlossen - gehoert
+  //  `clip-download.js`: ein Knopf, dahinter die Wahl.
 
   // ── Nachbarschaft ────────────────────────────────────────────────────
   //  Wer einen Laufzyklus ansieht, will meistens Laufzyklen sehen. Das erste

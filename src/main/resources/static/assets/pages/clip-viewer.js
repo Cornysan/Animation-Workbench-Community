@@ -34,6 +34,7 @@ function message(text) {
     // 404 heisst hier: der Clip bringt keine Vorschau mit. clip.js sagt
     // ohnehin, wenn der Clip selbst nicht erreichbar ist.
     message('This clip has no preview.');
+    document.dispatchEvent(new CustomEvent('aw:no-preview'));
     return;
   }
 
@@ -57,5 +58,6 @@ function message(text) {
   } catch (error) {
     console.warn('[clip] no viewer', error);
     message('The preview could not be loaded.');
+    document.dispatchEvent(new CustomEvent('aw:no-preview'));
   }
 })();

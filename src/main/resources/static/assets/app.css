@@ -752,6 +752,41 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
 .get-panel .actions { display: flex; flex-direction: column; gap: 8px; margin: 0; }
 .get-panel .actions .button, .get-panel .actions button { width: 100%; justify-content: center; }
 .get-panel .actions p { margin: 0; }
+
+/* EIN Download-Knopf, dahinter die Formate (clip-download.js). */
+.download-button { width: 100%; justify-content: center; gap: 8px; }
+.download-button .icon { width: 18px; height: 18px; }
+.popover.format-popover { max-width: 360px; min-width: 300px; padding: 6px; }
+.format-sheet { display: flex; flex-direction: column; gap: 2px; }
+.format-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 0;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.format-row:hover:not(:disabled) { background: var(--surface-2); border-color: var(--line); }
+.format-row:disabled { cursor: default; opacity: 0.6; }
+.format-row .icon { width: 18px; height: 18px; flex: none; color: var(--text-dim); }
+.format-row:hover:not(:disabled) .icon { color: var(--accent); }
+.format-text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.format-text strong { font-weight: 600; font-size: 14px; }
+.format-tag {
+  flex: none;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line-strong);
+  color: var(--text-dim);
+}
 .license-note {
   background: var(--bg-soft);
   border-left: 3px solid var(--accent);
