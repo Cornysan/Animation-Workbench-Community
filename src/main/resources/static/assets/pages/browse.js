@@ -74,10 +74,14 @@
   for (const key of ["q", "tag", "author", "sort", "page"]) if (params.get(key)) request.set(key, params.get(key));
   request.set("size", "24");
 
+  //  Die Form der Wand steht, bevor die Daten da sind.
+  AW.placeholderCards(results, 8);
+
   let page;
   try {
     page = await api("GET", "/api/v1/packages?" + request.toString());
   } catch (e) {
+    results.replaceChildren();
     notice(empty, e.message, "error");
     return;
   }

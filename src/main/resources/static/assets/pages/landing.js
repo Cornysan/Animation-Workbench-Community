@@ -76,6 +76,7 @@ async function mountRow(sort, containerId, sectionId, stateId, page = null) {
   const container = document.getElementById(containerId);
 
   if (page.items.length === 0) {
+    container.replaceChildren();
     if (stateId) {
       document.getElementById(stateId).replaceChildren(
         el('div', { class: 'empty' },
@@ -132,8 +133,12 @@ function whenIdle(run) {
 
 mountOverview().catch((error) => console.warn('[landing] no overview', error));
 
+AW.placeholderCards(document.getElementById('latest'), 6);
 mountRow('new', 'latest', null, 'latest-state')
-  .catch((error) => notice(document.getElementById('latest-state'), error.message, 'error'));
+  .catch((error) => {
+    document.getElementById('latest').replaceChildren();
+    notice(document.getElementById('latest-state'), error.message, 'error');
+  });
 
 //  Haengt an nichts: die Figur ist ihr eigener Abschnitt wie jeder andere hier.
 whenIdle(mountHeroStage);

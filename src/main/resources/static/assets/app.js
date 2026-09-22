@@ -406,6 +406,9 @@ const AW = (() => {
     let visible = true;
     let destroyed = false;
 
+    //  Unsichtbar bis zum ersten Bild, dann einblenden (app.css, "Bewegung").
+    canvas.classList.add("fade-in");
+
     api("GET", "/api/v1/packages/" + canvas.dataset.slug + "/preview")
       .then(async (preview) => {
         if (destroyed) return;
@@ -466,6 +469,20 @@ const AW = (() => {
    * die Szene haengt weiter an der gemeinsamen Flaeche (card-stage.js), und der
    * Beobachter haelt die Leinwand fest. Wer Karten ersetzt, ruft vorher das hier.
    */
+  /**
+   * Platzhalter in eine Wand stellen, solange sie laedt - dieselbe Form wie
+   * eine Karte, damit beim Eintreffen nichts springt. Die echten Karten
+   * ersetzen sie mit `replaceChildren`, dafuer braucht es keinen eigenen Schritt.
+   */
+  function placeholderCards(container, count) {
+    container.replaceChildren(...Array.from({ length: count }, () =>
+      el("div", { class: "card placeholder", "aria-hidden": "true" },
+        el("div", { class: "card-stage" }),
+        el("div", { class: "card-body" },
+          el("span", { class: "ph-line" }),
+          el("span", { class: "ph-line short" })))));
+  }
+
   function releasePreviews(root) {
     root.querySelectorAll("canvas").forEach((canvas) => {
       if (canvas.__observer) canvas.__observer.unobserve(canvas);
@@ -1109,6 +1126,6 @@ const AW = (() => {
     copyText, param, signInUrl, signInButton, clipCard, collectionCard, previewObserver,
     icon, iconButton, setIconState, popover, closePopover, signInHint, signedIn,
     likeButton, saveButton, collectionDialog, profileHref, releasePreviews,
-    toast, toastError, confirmDialog, copyLink, pulse,
+    toast, toastError, confirmDialog, copyLink, pulse, placeholderCards,
   };
 })();

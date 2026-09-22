@@ -53,6 +53,15 @@
   --radius-pill: 999px;
 
   --shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
+
+  /* Bewegung: kurz, ohne Nachfedern, am Ende weich. Wer weniger Bewegung
+     eingestellt hat, bekommt alles auf einen Schlag (Abschnitt "Bewegung"
+     ganz unten). */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.45, 0, 0.2, 1);
+  --dur-fast: 120ms;
+  --dur: 180ms;
+  --dur-slow: 280ms;
   /* Breite des Inhalts. Der Katalog hebt sie fuer sich an - ein Gitter darf
      breiter stehen als ein Absatz, den jemand lesen soll. */
   --page: 1280px;
@@ -582,7 +591,8 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
   color: var(--text);
   display: flex;
   flex-direction: column;
-  transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+  transition: transform var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out),
+    box-shadow var(--dur) var(--ease-out);
 }
 .card:hover {
   transform: translateY(-3px);
@@ -1715,3 +1725,114 @@ dialog.bone-sheet .bone-scroll { overflow-y: auto; flex: 1 1 auto; padding-right
 .bone-row.bone-gap .bone-pick { border-color: rgba(242, 112, 107, 0.55); }
 .bone-row.bone-clash { background: rgba(251, 146, 60, 0.10); }
 .bone-row.bone-clash .bone-pick { border-color: rgba(251, 146, 60, 0.55); }
+
+/* ── Bewegung ──────────────────────────────────────────────────────────── */
+/* Alles hier ist Zugabe: nimmt man den Abschnitt heraus, funktioniert jede
+   Seite genauso, nur ohne Uebergaenge. Die Regel dafuer: Bewegung sagt, was
+   gerade passiert ist - etwas kam an, etwas wurde gesetzt, etwas ging -, und
+   sie ist vorbei, bevor man darauf wartet. Keine Endlosschleifen ausser dem
+   Schimmer, solange etwas wirklich laedt. */
+
+@keyframes aw-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes aw-rise-small {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes aw-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes aw-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.28); }
+  100% { transform: scale(1); }
+}
+@keyframes aw-sheen {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}
+@keyframes aw-dialog-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Karten kommen gestaffelt, je 35 ms spaeter - ab der zwoelften alle
+   zugleich, wer 24 Karten laedt, soll nicht zusehen muessen. `backwards`,
+   nicht `both`: ein stehengebliebenes Endbild (`transform: none`) schlaege
+   sonst das Anheben beim Hovern. */
+.grid > .card { animation: aw-rise var(--dur-slow) var(--ease-out) backwards; }
+.grid > .card:nth-child(2) { animation-delay: 35ms; }
+.grid > .card:nth-child(3) { animation-delay: 70ms; }
+.grid > .card:nth-child(4) { animation-delay: 105ms; }
+.grid > .card:nth-child(5) { animation-delay: 140ms; }
+.grid > .card:nth-child(6) { animation-delay: 175ms; }
+.grid > .card:nth-child(7) { animation-delay: 210ms; }
+.grid > .card:nth-child(8) { animation-delay: 245ms; }
+.grid > .card:nth-child(9) { animation-delay: 280ms; }
+.grid > .card:nth-child(10) { animation-delay: 315ms; }
+.grid > .card:nth-child(11) { animation-delay: 350ms; }
+.grid > .card:nth-child(12) { animation-delay: 385ms; }
+
+/* Die Vorschau blendet ein, sobald ihr erstes Bild steht (`is-drawn` setzen
+   card-stage.js und viewer.js). Darunter liegt derselbe Verlauf, den die
+   Leinwand sonst selbst traegt - so blitzt beim Einblenden nichts auf. Solange
+   sie laedt, zieht ein Schimmer darueber. */
+.card-stage { background: radial-gradient(120% 90% at 50% 20%, #1e1c28 0%, #100f15 70%); overflow: hidden; }
+.card canvas.fade-in { opacity: 0; transition: opacity var(--dur-slow) var(--ease-out); }
+.card canvas.fade-in.is-drawn { opacity: 1; }
+.card-stage:has(> canvas.fade-in:not(.is-drawn))::after,
+.card.placeholder .card-stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.045) 50%, transparent 70%);
+  animation: aw-sheen 1.5s var(--ease-in-out) infinite;
+}
+
+/* Platzhalter, solange eine Wand laedt (AW.placeholderCards): dieselbe Form
+   wie eine Karte, damit nichts springt, wenn die echten kommen. */
+.card.placeholder { pointer-events: none; }
+.card.placeholder .card-stage { height: 206px; }
+.card.placeholder .ph-line { display: block; height: 12px; width: 68%; border-radius: 6px; background: var(--surface-2); }
+.card.placeholder .ph-line.short { width: 38%; margin-top: 6px; }
+
+/* Was erst nach dem Laden sichtbar wird, taucht auf, statt hineinzuspringen. */
+#clip:not(.hidden), #collection:not(.hidden), #profile:not(.hidden) {
+  animation: aw-fade var(--dur-slow) var(--ease-out) backwards;
+}
+
+/* Dialoge, Kaesten und Meldungen gleiten ein. */
+dialog[open] { animation: aw-dialog-in var(--dur) var(--ease-out) backwards; }
+dialog[open]::backdrop { animation: aw-fade var(--dur) var(--ease-out) backwards; }
+.popover { animation: aw-rise-small var(--dur) var(--ease-out) backwards; }
+.toast {
+  animation: aw-rise var(--dur) var(--ease-out) backwards;
+  transition: opacity var(--dur) var(--ease-out), transform var(--dur) var(--ease-out);
+}
+.toast.leaving { transform: translateY(6px); }
+
+/* Herz, Stern, Folgen: ein kurzer Puls, wenn etwas gesetzt wird. */
+.icon-action.pulse .icon { animation: aw-pop 340ms var(--ease-out); }
+
+/* SEITENWECHSEL. Das Portal besteht aus echten Seiten, und seit es sie gibt,
+   koennen Browser zwischen zwei Seiten derselben Adresse ueberblenden - ohne
+   eine Zeile Skript. Der Kopf traegt einen eigenen Namen und bleibt deshalb
+   stehen, statt mitzublenden. Wer es nicht kann, laedt wie bisher. */
+@view-transition { navigation: auto; }
+.site-header { view-transition-name: site-header; }
+::view-transition-old(root),
+::view-transition-new(root) { animation-duration: var(--dur); animation-timing-function: var(--ease-out); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+  @view-transition { navigation: none; }
+}

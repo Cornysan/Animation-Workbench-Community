@@ -256,6 +256,10 @@ class SkeletonViewer {
     if (key !== this.drawnKey) {
       this.draw();
       this.drawnKey = key;
+      if (!this.shown) {
+        this.shown = true;
+        this.canvas.classList.add("is-drawn");
+      }
     }
     if (this.onFrame) this.onFrame(this.time, this.duration);
     requestAnimationFrame(this.loop);

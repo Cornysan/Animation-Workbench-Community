@@ -314,6 +314,8 @@ class CardPreview {
     this.context.clearRect(0, 0, tile.width, tile.height);
     this.context.drawImage(this.surface.canvas, tile.left, tile.top, tile.width, tile.height,
       0, 0, tile.width, tile.height);
+    //  Das erste Bild steht - die Karte darf die Leinwand einblenden (app.css).
+    if (!this.drawn) this.canvas.classList.add('is-drawn');
     this.drawn = true;
   }
 
