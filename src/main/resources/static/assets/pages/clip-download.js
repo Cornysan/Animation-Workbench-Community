@@ -24,6 +24,7 @@
  */
 
 import { skeletonGlb, injectAnimation, bakeFromStage } from '../glb-export.js';
+import { skeletonFbx } from '../fbx-export.js';
 
 const box = document.getElementById('downloads');
 
@@ -35,8 +36,8 @@ function safeName(title) {
   return name || 'clip';
 }
 
-function save(bytes, fileName) {
-  const url = URL.createObjectURL(new Blob([bytes], { type: 'model/gltf-binary' }));
+function save(bytes, fileName, type) {
+  const url = URL.createObjectURL(new Blob([bytes], { type: type || 'model/gltf-binary' }));
   const a = document.createElement('a');
   a.href = url;
   a.download = fileName;
@@ -91,6 +92,32 @@ document.addEventListener('aw:viewer', (event) => {
     }
   });
   row.append(plain);
+
+  /*
+   * UND DASSELBE ALS .fbx.
+   *
+   * Nicht doppelt gemoppelt: glTF kennt Knochen nur ueber eine Haut, und eine
+   * Haut braucht ein Netz. Ein Skelett OHNE Figur kommt dort also als Kette
+   * leerer Knoten an - brauchbar, aber in Blender kein Armature. FBX hat mit
+   * `LimbNode` einen echten Begriff dafuer, und genau deshalb steht dieser
+   * Knopf neben dem anderen.
+   */
+  const fbx = button('Animation (.fbx)', 'The same motion as a real skeleton - for Unity, Blender, Maya');
+  fbx.addEventListener('click', () => {
+    fbx.disabled = true;
+    state.textContent = '';
+    try {
+      save(skeletonFbx(preview, { name: title }), base + '.fbx', 'application/octet-stream');
+      state.textContent = frames + ' frames, ' + preview.bones.length
+        + ' bones, in centimetres as FBX expects.';
+    } catch (error) {
+      state.textContent = 'That did not work: ' + error.message;
+      console.warn('[download] skeleton fbx', error);
+    } finally {
+      fbx.disabled = false;
+    }
+  });
+  row.append(fbx);
 
   /*
    * MIT FIGUR NUR, WENN EINE STEHT. Gezeigt wird genau die Buehne, die auf
