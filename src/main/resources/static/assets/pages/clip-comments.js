@@ -14,7 +14,7 @@
  * keinen ausgegrauten Kasten.
  */
 (async () => {
-  const { api, ensureCsrf, me, el, notice, formatRelative, param, signInButton, confirmDialog, toast, toastError } = AW;
+  const { api, ensureCsrf, me, el, notice, formatRelative, param, signInButton, confirmDialog, toast, toastError, avatar } = AW;
 
   const slug = param("p");
   if (!slug) return;
@@ -28,9 +28,10 @@
   const base = "/api/v1/packages/" + encodeURIComponent(slug) + "/comments";
   const MAX = 2000;
 
+  const PAGE = 30;
   let page;
   try {
-    page = await api("GET", base + "?size=50");
+    page = await api("GET", base + "?size=" + PAGE);
   } catch {
     //  Kein Gespraech ist kein Fehler, der jemanden angeht: der Clip kann
     //  versteckt sein, dann hat er auch keine Kommentare.
@@ -90,11 +91,18 @@
       actions.push(report);
     }
 
+    //  Der Name fuehrt zur Person - wer etwas Kluges unter einen Clip
+    //  schreibt, soll auffindbar sein. Ohne Handle (geloeschtes Konto) bleibt
+    //  er Text.
+    const name = comment.authorHandle
+      ? el("a", { class: "comment-author", href: "/u.html?u=" + encodeURIComponent(comment.authorHandle) }, comment.author)
+      : el("strong", {}, comment.author);
+
     const node = el("article", { class: "comment" + (comment.mine ? " mine" : "") },
-      el("span", { class: "avatar" }, (comment.author[0] || "?").toUpperCase()),
+      avatar(comment.author, comment.authorAvatar),
       el("div", { class: "comment-body" },
         el("div", { class: "comment-head" },
-          el("strong", {}, comment.author),
+          name,
           el("span", { class: "faint small" }, formatRelative(comment.createdAt)),
           comment.editedAt ? el("span", { class: "faint small" }, "edited") : null,
           ...actions),
@@ -108,10 +116,32 @@
       user ? "Nothing yet. Say what you would change." : "Nothing yet."));
   }
 
+  //  Mehr als eine Seite: ein Knopf am Ende holt die naechste. Vorher kamen
+  //  die ersten 50, und `hasMore` wurde nie gelesen - Kommentar 51 gab es
+  //  im Web schlicht nicht.
+  const more = el("button", { class: "ghost comment-more", type: "button" }, "Show more comments");
+  more.addEventListener("click", async () => {
+    more.disabled = true;
+    try {
+      const next = await api("GET", base + "?size=" + PAGE + "&page=" + (page.page + 1));
+      page.page = next.page;
+      page.hasMore = next.hasMore;
+      page.total = next.total;
+      page.comments.push(...next.comments);
+      more.before(...next.comments.map(render));
+      heading(page.total);
+      if (!page.hasMore) more.remove();
+    } catch (e) {
+      toastError(e);
+    } finally {
+      more.disabled = false;
+    }
+  });
+
   function draw() {
     heading(page.total);
     if (page.comments.length === 0) showEmpty();
-    else list.replaceChildren(...page.comments.map(render));
+    else list.replaceChildren(...page.comments.map(render), ...(page.hasMore ? [more] : []));
   }
 
   // ── Schreiben ────────────────────────────────────────────────────────
@@ -146,7 +176,9 @@
         await ensureCsrf();
         const comment = await api("POST", base, { body });
         if (page.comments.length === 0) list.replaceChildren();
-        list.append(render(comment));
+        //  Hinten anhaengen - aber vor "Show more", der bleibt der letzte.
+        if (more.isConnected) more.before(render(comment));
+        else list.append(render(comment));
         page.comments.push(comment);
         heading(++page.total);
         field.value = "";
@@ -160,7 +192,7 @@
 
     sync();
     formBox.replaceChildren(el("div", { class: "comment-compose" },
-      el("span", { class: "avatar" }, (user.displayName[0] || "?").toUpperCase()),
+      avatar(user.displayName, user.avatarUrl),
       el("div", { class: "compose-body" }, field,
         el("div", { class: "compose-foot" }, counter, send))));
   } else {

@@ -1,5 +1,6 @@
 package com.playmation.motionlabsbackend.catalog
 
+import com.playmation.motionlabsbackend.account.avatarPath
 import com.playmation.motionlabsbackend.account.AccountRepository
 import com.playmation.motionlabsbackend.account.AccountService
 import com.playmation.motionlabsbackend.account.AccountStatus
@@ -102,6 +103,8 @@ data class PackageDetail(
     /** Nur für Besitzer und Admins gesetzt. */
     val status: String?,
     val isOwner: Boolean,
+    /** Das Profilbild des Erstellers, oder null - dann der Buchstabenkreis. */
+    val authorAvatar: String? = null,
 )
 
 data class PageResult<T>(val items: List<T>, val page: Int, val size: Int, val total: Long)
@@ -580,17 +583,18 @@ class CatalogService(
             version.previewBlobKey != null, pkg.createdAt, pkg.updatedAt,
             if (isOwner || principal?.isAdmin == true) pkg.status.name else null,
             isOwner,
+            authorAvatar = author?.avatar,
         )
     }
 
     /** Eine Kennung, die keinem Konto gehoert - siehe `authorIds` in [search]. */
     private val NO_ACCOUNT: UUID = UUID(0, 0)
 
-    /** Name und Handle des Erstellers - der Name steht da, der Handle verlinkt. */
-    private data class Author(val name: String, val handle: String?)
+    /** Name, Handle und Bild des Erstellers - der Name steht da, der Handle verlinkt. */
+    private data class Author(val name: String, val handle: String?, val avatar: String? = null)
 
     private fun authors(ids: Collection<UUID>): Map<UUID, Author> =
-        accountRepository.findAllById(ids.toSet()).associate { it.id to Author(it.displayName, it.handle) }
+        accountRepository.findAllById(ids.toSet()).associate { it.id to Author(it.displayName, it.handle, it.avatarPath()) }
 
     private fun authorNames(ids: Collection<UUID>): Map<UUID, String> =
         authors(ids).mapValues { it.value.name }

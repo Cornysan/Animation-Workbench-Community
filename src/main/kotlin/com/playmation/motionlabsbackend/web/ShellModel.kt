@@ -1,6 +1,7 @@
 package com.playmation.motionlabsbackend.web
 
 import com.playmation.motionlabsbackend.account.AccountService
+import com.playmation.motionlabsbackend.account.avatarPath
 import com.playmation.motionlabsbackend.auth.portalPrincipal
 import com.playmation.motionlabsbackend.config.PortalProperties
 import com.playmation.motionlabsbackend.moderation.NotificationRepository
@@ -55,6 +56,8 @@ class ShellModel(
         val unread: Long,
         val unreadLabel: String,
         val roleLabel: String,
+        /** Das eigene Profilbild, sonst null - dann bleibt der Buchstabe. */
+        val avatar: String? = null,
     )
 
     fun user(authentication: Authentication?): ShellUser? {
@@ -71,6 +74,7 @@ class ShellModel(
             unread = unread,
             unreadLabel = if (unread == 1L) "1 message" else "$unread messages",
             roleLabel = if (admin) "Moderator" else "Signed in",
+            avatar = account.avatarPath(),
         )
     }
 

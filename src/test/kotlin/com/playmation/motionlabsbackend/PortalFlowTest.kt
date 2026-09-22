@@ -684,6 +684,9 @@ class PortalFlowTest {
         assertEquals(1, list["total"].asInt())
         assertEquals("Lovely arc on the arms.", list["comments"][0]["body"].asString())
         assertFalse(list["comments"][0]["mine"].asBoolean(), "anonymous readers own nothing")
+        //  Der Name fuehrt zur Person: ohne Handle ist ein Kommentar eine Zeile von niemandem.
+        assertTrue(list["comments"][0]["authorHandle"].asString().startsWith("c-reader-"),
+            "a comment carries the address of its author")
 
         assertEquals(1, mvc.get("/api/v1/packages/$slug").body()["comments"].asInt())
     }

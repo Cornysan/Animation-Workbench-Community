@@ -99,3 +99,19 @@ interface AccountRepository : JpaRepository<Account, UUID> {
      */
     fun findByDisplayName(displayName: String): List<Account>
 }
+
+/**
+ * Wo das Profilbild dieses Kontos liegt - immer ueber den eigenen Server
+ * (`AvatarCache`), nie bei Discord direkt: sonst stuende die Discord-ID im
+ * Quelltext, und Discord saehe die IP-Adresse jedes Besuchers.
+ *
+ * `null`, wenn es kein Bild gibt (und fuer jeden Entwickler-Login); die Seite
+ * zeigt dann den Buchstabenkreis. Stand vorher privat im ProfileService - seit
+ * auch Kommentare und die Clip-Seite Bilder zeigen, braucht es EINE Regel.
+ */
+fun Account.avatarPath(): String? {
+    val handle = handle ?: return null
+    if (avatar.isNullOrBlank()) return null
+    if (!discordId.all { it.isDigit() }) return null
+    return "/avatar/$handle.png"
+}

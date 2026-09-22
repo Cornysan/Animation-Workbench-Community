@@ -1,6 +1,7 @@
 package com.playmation.motionlabsbackend.profile
 
 import com.playmation.motionlabsbackend.account.Account
+import com.playmation.motionlabsbackend.account.avatarPath
 import com.playmation.motionlabsbackend.account.AccountHandles
 import com.playmation.motionlabsbackend.account.AccountRepository
 import com.playmation.motionlabsbackend.account.AccountService
@@ -328,12 +329,7 @@ class ProfileService(
      * Wer kein Bild hat (und jeder Entwickler-Login), bekommt hier `null`; die
      * Seite zeigt dann den Buchstabenkreis.
      */
-    private fun avatarUrl(account: Account): String? {
-        val handle = account.handle ?: return null
-        if (account.avatar.isNullOrBlank()) return null
-        if (!account.discordId.all { it.isDigit() }) return null
-        return "/avatar/$handle.png"
-    }
+    private fun avatarUrl(account: Account): String? = account.avatarPath()
 
     companion object {
         const val MAX_FOLLOWER_NOTIFICATIONS = 500

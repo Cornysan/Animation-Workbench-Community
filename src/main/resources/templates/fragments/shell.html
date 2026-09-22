@@ -196,7 +196,9 @@
         -->
         <a class="account-name" th:href="${user.handle != null} ? ${'/u.html?u=' + user.handle} : '/me.html'"
            th:title="${user.roleLabel}">
-          <span class="avatar" th:text="${user.initial}">?</span>
+          <img class="avatar" th:if="${user.avatar != null}" th:src="${user.avatar}"
+               th:attr="data-initial=${user.initial}" alt="" width="28" height="28">
+          <span class="avatar" th:unless="${user.avatar != null}" th:text="${user.initial}">?</span>
           <span th:text="${user.displayName}">Name</span>
         </a>
         <button class="ghost icon-button" id="sign-out" type="button" title="Sign out">&#9211;</button>

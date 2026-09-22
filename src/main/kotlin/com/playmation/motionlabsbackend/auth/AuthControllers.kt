@@ -1,5 +1,6 @@
 package com.playmation.motionlabsbackend.auth
 
+import com.playmation.motionlabsbackend.account.avatarPath
 import com.playmation.motionlabsbackend.account.AccountService
 import com.playmation.motionlabsbackend.common.PortalException
 import com.playmation.motionlabsbackend.common.clientIp
@@ -83,6 +84,8 @@ class MeController(
         val role: String,
         val status: String,
         val unreadNotifications: Long,
+        /** Das eigene Profilbild, fuer das Feld zum Kommentieren. */
+        val avatarUrl: String? = null,
     )
 
     data class NotificationDto(val id: UUID, val message: String, val createdAt: Instant, val read: Boolean)
@@ -92,7 +95,7 @@ class MeController(
         val principal = authentication.requirePrincipal()
         val account = accounts.get(principal.accountId)
         return MeResponse(account.id, account.displayName, account.role.name, account.status.name,
-            notifications.countByAccountIdAndReadAtIsNull(account.id))
+            notifications.countByAccountIdAndReadAtIsNull(account.id), account.avatarPath())
     }
 
     @GetMapping("/notifications")

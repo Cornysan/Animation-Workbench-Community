@@ -1050,6 +1050,26 @@ const AW = (() => {
   }
 
   /** Wohin der Name eines Erstellers fuehrt - Profil, sonst der alte Filter. */
+  /**
+   * Das Bild einer Person, oder ihr Anfangsbuchstabe im Kreis. Scheitert das
+   * Bild (geloeschtes Konto, Discord gerade nicht erreichbar), steht danach
+   * der Buchstabe da - nie ein zerbrochenes Bild.
+   */
+  function avatar(name, url, className = "avatar") {
+    const initial = ((name || "?")[0] || "?").toUpperCase();
+    if (!url) return el("span", { class: className, "aria-hidden": "true" }, initial);
+    const image = el("img", { class: className, src: url, alt: "", loading: "lazy", "data-initial": initial });
+    image.addEventListener("error", () => image.replaceWith(el("span", { class: className }, initial)), { once: true });
+    return image;
+  }
+
+  //  Dasselbe fuer Bilder, die schon im ausgelieferten HTML stehen (Kopf).
+  document.querySelectorAll("img.avatar[data-initial]").forEach((image) => {
+    const fallBack = () => image.replaceWith(el("span", { class: "avatar" }, image.dataset.initial));
+    if (image.complete && image.naturalWidth === 0) fallBack();
+    else image.addEventListener("error", fallBack, { once: true });
+  });
+
   function profileHref(item) {
     return item.authorHandle
       ? "/u.html?u=" + encodeURIComponent(item.authorHandle)
@@ -1126,6 +1146,6 @@ const AW = (() => {
     copyText, param, signInUrl, signInButton, clipCard, collectionCard, previewObserver,
     icon, iconButton, setIconState, popover, closePopover, signInHint, signedIn,
     likeButton, saveButton, collectionDialog, profileHref, releasePreviews,
-    toast, toastError, confirmDialog, copyLink, pulse, placeholderCards,
+    toast, toastError, confirmDialog, copyLink, pulse, placeholderCards, avatar,
   };
 })();

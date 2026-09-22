@@ -45,7 +45,7 @@
     href: profileHref(clip),
     "data-tip": clip.authorHandle ? "Profile of " + clip.author : "All clips by " + clip.author,
   }, clip.author));
-  document.getElementById("author-initial").textContent = (clip.author[0] || "?").toUpperCase();
+  document.getElementById("author-initial").replaceWith(AW.avatar(clip.author, clip.authorAvatar));
   document.getElementById("description").textContent = clip.description || "No description.";
 
   //  Eine Zeile statt vier Tabellenzeilen: was hier steht, liest man im

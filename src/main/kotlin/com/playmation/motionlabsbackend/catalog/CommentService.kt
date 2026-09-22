@@ -1,7 +1,9 @@
 package com.playmation.motionlabsbackend.catalog
 
 import com.playmation.motionlabsbackend.account.AccountRepository
+import com.playmation.motionlabsbackend.account.Account
 import com.playmation.motionlabsbackend.account.AccountService
+import com.playmation.motionlabsbackend.account.avatarPath
 import com.playmation.motionlabsbackend.auth.PortalPrincipal
 import com.playmation.motionlabsbackend.common.PortalException
 import com.playmation.motionlabsbackend.common.RateLimiter
@@ -25,6 +27,13 @@ data class CommentView(
     val editedAt: Instant?,
     /** Der Abrufende hat ihn geschrieben - die Workbench zeigt dann "Delete" statt "Report". */
     val mine: Boolean,
+    /**
+     * Wohin der Name fuehrt und welches Bild daneben steht. Ohne beides war
+     * ein Kommentar eine Zeile von niemandem: ein Buchstabe im Kreis, kein Weg
+     * zur Person, die ihn geschrieben hat.
+     */
+    val authorHandle: String? = null,
+    val authorAvatar: String? = null,
 )
 
 data class CommentPage(val comments: List<CommentView>, val total: Long, val page: Int, val hasMore: Boolean)
@@ -57,9 +66,9 @@ class CommentService(
         val request = PageRequest.of(maxOf(page, 0), size.coerceIn(1, 100))
         val found = comments.findByPackageIdAndStatusOrderByCreatedAtAsc(pkg.id, CommentStatus.VISIBLE, request)
 
-        val names = authorNames(found.content.map { it.accountId })
+        val authors = authors(found.content.map { it.accountId })
         return CommentPage(
-            found.content.map { view(it, names, principal) },
+            found.content.map { view(it, authors, principal) },
             found.totalElements,
             request.pageNumber,
             found.hasNext(),
@@ -87,7 +96,7 @@ class CommentService(
         if (pkg.ownerId != author.id)
             notify(pkg.ownerId, "${author.displayName} commented on '${pkg.title}'.")
 
-        return view(saved, mapOf(author.id to author.displayName), principal)
+        return view(saved, mapOf(author.id to author), principal)
     }
 
     /**
@@ -107,7 +116,7 @@ class CommentService(
         comment.editedAt = clock.instant()
         audit.record(author.id, "comment.edited", "comment", comment.id.toString(), null, ip)
 
-        return view(comment, mapOf(author.id to author.displayName), principal)
+        return view(comment, mapOf(author.id to author), principal)
     }
 
     /** Verfasser oder Admin. Status, kein Löschen - der Text bleibt für Rückfragen. */
@@ -166,17 +175,22 @@ class CommentService(
         return text
     }
 
-    private fun view(comment: PackageComment, names: Map<UUID, String>, principal: PortalPrincipal?) = CommentView(
-        comment.id,
-        names[comment.accountId] ?: "unknown",
-        comment.body,
-        comment.createdAt,
-        comment.editedAt,
-        principal?.accountId == comment.accountId,
-    )
+    private fun view(comment: PackageComment, authors: Map<UUID, Account>, principal: PortalPrincipal?): CommentView {
+        val author = authors[comment.accountId]
+        return CommentView(
+            comment.id,
+            author?.displayName ?: "unknown",
+            comment.body,
+            comment.createdAt,
+            comment.editedAt,
+            principal?.accountId == comment.accountId,
+            authorHandle = author?.handle,
+            authorAvatar = author?.avatarPath(),
+        )
+    }
 
-    private fun authorNames(ids: Collection<UUID>): Map<UUID, String> =
-        accountRepository.findAllById(ids.toSet()).associate { it.id to it.displayName }
+    private fun authors(ids: Collection<UUID>): Map<UUID, Account> =
+        accountRepository.findAllById(ids.toSet()).associateBy { it.id }
 
     private fun notify(accountId: UUID, message: String) {
         notifications.save(Notification(accountId = accountId, message = message.take(1000), createdAt = clock.instant()))
