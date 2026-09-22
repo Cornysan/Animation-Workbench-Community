@@ -115,15 +115,47 @@
   const observer = previewObserver();
   results.replaceChildren(...page.items.map((item) => clipCard(item, observer)));
 
-  // ── Seiten ───────────────────────────────────────────────────────────
-  const current = page.page;
+  // ── Weiter ───────────────────────────────────────────────────────────
+  //  "Load more" haengt die naechste Seite an die Wand, statt die Seite zu
+  //  wechseln. Mit "Previous / Next" fing jede Seite oben an, und die Karten
+  //  der vorigen waren weg - beim Stoebern will man weiterscrollen, nicht
+  //  blaettern. `?page=` in der Adresse gilt weiter als Einstieg; wer so
+  //  hereinkommt, findet den Weg zurueck zum Anfang.
   const lastPage = Math.max(0, Math.ceil(page.total / page.size) - 1);
+  let loaded = page.page;
+
+  const status = el("span", { class: "faint small" });
+  const more = el("button", { class: "ghost load-more", type: "button" }, "Load more");
+
+  const sync = () => {
+    const count = results.querySelectorAll(".card").length;
+    status.textContent = count.toLocaleString() + " of " + page.total.toLocaleString();
+    more.hidden = loaded >= lastPage;
+  };
+
+  more.addEventListener("click", async () => {
+    more.disabled = true;
+    more.textContent = "Loading…";
+    try {
+      request.set("page", String(loaded + 1));
+      const next = await api("GET", "/api/v1/packages?" + request.toString());
+      loaded = next.page;
+      results.append(...next.items.map((item) => clipCard(item, observer)));
+    } catch (e) {
+      AW.toastError(e);
+    } finally {
+      more.disabled = false;
+      more.textContent = "Load more";
+      sync();
+    }
+  });
 
   if (lastPage > 0) {
     pager.replaceChildren(...[
-      current > 0 ? el("a", { class: "button ghost", href: linkTo({ page: String(current - 1) }) }, "Previous") : null,
-      el("span", { class: "faint small" }, `Page ${current + 1} of ${lastPage + 1}`),
-      current < lastPage ? el("a", { class: "button ghost", href: linkTo({ page: String(current + 1) }) }, "Next") : null,
+      page.page > 0 ? el("a", { class: "button ghost", href: linkTo({ page: null }) }, "Back to the start") : null,
+      more,
+      status,
     ].filter(Boolean));
+    sync();
   }
 })();
