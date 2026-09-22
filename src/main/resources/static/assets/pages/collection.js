@@ -11,7 +11,7 @@
 (async () => {
   const {
     api, ensureCsrf, el, notice, icon, iconButton, formatDate, copyText, param,
-    clipCard, previewObserver, collectionDialog, releasePreviews,
+    clipCard, previewObserver, collectionDialog, releasePreviews, toast, toastError, confirmDialog, copyLink,
   } = AW;
 
   const slug = param("c");
@@ -102,8 +102,9 @@
               card.remove();
               drawHead();
               if (!collection.items.length) drawGrid();
+              toast("Removed from “" + collection.title + "”", { kind: "ok" });
             } catch (e) {
-              notice(actionState, e.message, "error");
+              toastError(e);
               remove.disabled = false;
             }
           },
@@ -126,11 +127,7 @@
   const share = iconButton({
     name: "link",
     tip: "Copy a link to this collection",
-    onClick: async () => {
-      const ok = await copyText(location.origin + "/collection.html?c=" + encodeURIComponent(collection.slug));
-      share.dataset.tip = ok ? "Link copied" : "Could not copy";
-      setTimeout(() => { share.dataset.tip = "Copy a link to this collection"; }, 2000);
-    },
+    onClick: () => copyLink(location.origin + "/collection.html?c=" + encodeURIComponent(collection.slug)),
   });
   actions.append(share);
 
@@ -154,13 +151,18 @@
       tip: "Delete this collection",
       className: "danger",
       onClick: async () => {
-        if (!confirm("Delete '" + collection.title + "'? The clips themselves stay where they are.")) return;
+        const sure = await confirmDialog({
+          title: "Delete this collection?",
+          body: "“" + collection.title + "” goes away. The clips themselves stay where they are.",
+          confirm: "Delete", danger: true,
+        });
+        if (!sure) return;
         try {
           await ensureCsrf();
           await api("DELETE", "/api/v1/collections/" + encodeURIComponent(collection.slug));
           location.href = collection.ownerHandle ? "/u.html?u=" + encodeURIComponent(collection.ownerHandle) + "&tab=collections" : "/browse.html";
         } catch (e) {
-          notice(actionState, e.message, "error");
+          toastError(e);
         }
       },
     }));

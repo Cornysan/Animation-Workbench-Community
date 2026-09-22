@@ -53,10 +53,24 @@ const AW = (() => {
     try { data = text ? JSON.parse(text) : null; } catch { data = null; }
 
     if (!response.ok) {
-      const error = data && data.error ? data.error : { code: "http-" + response.status, message: "Request failed (" + response.status + ")." };
+      const error = data && data.error ? data.error : { code: "http-" + response.status, message: fallbackMessage(response.status) };
       throw new ApiError(response.status, error.code, error.message);
     }
     return data;
+  }
+
+  /**
+   * Was ein Mensch lesen soll, wenn der Server keinen eigenen Satz mitschickt.
+   * "Request failed (401)" stand vorher in jeder Meldung - richtig, aber fuer
+   * niemanden ausser dem Entwickler lesbar.
+   */
+  function fallbackMessage(status) {
+    if (status === 401) return "Your sign-in has ended. Sign in again to do that.";
+    if (status === 403) return "You are not allowed to do that.";
+    if (status === 404) return "That is not there anymore.";
+    if (status === 429) return "Too many tries. Wait a moment and try again.";
+    if (status >= 500) return "The community is having trouble right now. Try again in a moment.";
+    return "That did not work (" + status + ").";
   }
 
   // Ein GET vorab, damit das CSRF-Cookie sicher gesetzt ist, bevor ein POST folgt.
@@ -159,6 +173,141 @@ const AW = (() => {
       field.remove();
       return ok;
     }
+  }
+
+  // ── Rueckmeldung ─────────────────────────────────────────────────────
+
+  let toastRegion = null;
+
+  /**
+   * Eine kurze Meldung am unteren Rand, die von selbst wieder geht.
+   *
+   * WARUM. Rueckmeldung kam bisher auf drei Wegen: als Kasten an einer Stelle
+   * der Seite (`notice`), als ausgetauschter Tooltip ("Link copied" - den sah
+   * nur, wer mit der Maus darueber stand, und kein Vorleser) oder gar nicht:
+   * ein Herz auf einer Karte, das am Server scheiterte, schwieg. Jetzt gibt es
+   * einen Ort fuer "das hat geklappt" und "das nicht", und er wird vorgelesen.
+   *
+   * `kind` ist "ok", "error" oder leer; `action` ein `{ label, run }` fuer
+   * einen Knopf in der Meldung. Zurueck kommt eine Funktion, die sie schliesst.
+   * Mehr als drei stehen nie da - die aelteste geht zuerst.
+   */
+  function toast(message, options = {}) {
+    if (!toastRegion) {
+      toastRegion = el("div", { class: "toasts", role: "status", "aria-live": "polite" });
+      document.body.append(toastRegion);
+    }
+
+    const kind = options.kind || "";
+    const item = el("div", { class: "toast" + (kind ? " " + kind : "") },
+      icon(kind === "error" ? "alert" : "check"), el("span", { class: "toast-text" }, message));
+
+    let timer = null;
+    let gone = false;
+    const dismiss = () => {
+      if (gone) return;
+      gone = true;
+      clearTimeout(timer);
+      item.classList.add("leaving");
+      //  Nach der Ausblende-Zeit entfernen, nicht auf `transitionend` warten:
+      //  bei reduzierter Bewegung gibt es keinen Uebergang, und das Ereignis
+      //  kaeme nie.
+      setTimeout(() => item.remove(), 220);
+    };
+
+    if (options.action) {
+      const action = el("button", { type: "button", class: "toast-action" }, options.action.label);
+      action.addEventListener("click", () => { dismiss(); options.action.run(); });
+      item.append(action);
+    }
+
+    //  Wer die Meldung mit der Maus festhaelt, will sie lesen.
+    const arm = () => { timer = setTimeout(dismiss, options.duration || (kind === "error" ? 6000 : 3200)); };
+    item.addEventListener("mouseenter", () => clearTimeout(timer));
+    item.addEventListener("mouseleave", arm);
+
+    toastRegion.append(item);
+    while (toastRegion.children.length > 3) toastRegion.firstElementChild.remove();
+    arm();
+    return dismiss;
+  }
+
+  /** Den Fehler einer Handlung melden, die keinen eigenen Platz auf der Seite hat. */
+  function toastError(error) {
+    toast(error && error.message ? error.message : "Something went wrong.", { kind: "error" });
+  }
+
+  let dialogCount = 0;
+
+  /**
+   * Eine Rueckfrage im Stil der Seite statt `window.confirm`.
+   *
+   * Der Browser-Kasten sah auf jeder Plattform anders aus, trug die Adresse
+   * statt einer Ueberschrift und konnte keinen Knopf "Delete" heissen - er
+   * hiess immer "OK". Hier steht auf dem Knopf, was passiert.
+   *
+   * `typeToConfirm` verlangt ein getipptes Wort, bevor der Knopf aufgeht - die
+   * zweite Huerde fuer Endgueltiges (Konto schliessen). Antwort: true/false.
+   *
+   * Aufgeraeumt wird ueber EINE Stelle (`finish`), nicht ueber das
+   * `close`-Ereignis - Begruendung bei [collectionDialog].
+   */
+  function confirmDialog({ title, body, confirm = "OK", cancel = "Cancel", danger = false, typeToConfirm = null }) {
+    return new Promise((resolve) => {
+      const id = "aw-confirm-" + (++dialogCount);
+      const typed = typeToConfirm
+        ? el("input", { type: "text", autocomplete: "off", spellcheck: "false" })
+        : null;
+      const yes = el("button", { type: "submit", class: danger ? "danger" : "primary" }, confirm);
+      //  `cancel: null` macht aus der Rueckfrage eine Mitteilung mit einem Knopf.
+      const no = cancel === null ? null : el("button", { type: "button", class: "ghost" }, cancel);
+
+      const paragraphs = (Array.isArray(body) ? body : [body]).filter(Boolean)
+        .map((part) => (typeof part === "string" ? el("p", { class: "muted" }, part) : part));
+
+      const form = el("form", {},
+        el("h2", { id }, title),
+        paragraphs,
+        typed ? el("label", { class: "field" },
+          el("span", {}, "Type ", el("strong", {}, typeToConfirm), " to confirm"), typed) : null,
+        el("div", { class: "dialog-actions" }, no, yes));
+
+      const dialog = el("dialog", { class: "sheet", "aria-labelledby": id }, form);
+      document.body.append(dialog);
+
+      let done = false;
+      const finish = (answer) => {
+        if (done) return;
+        done = true;
+        dialog.close();
+        dialog.remove();
+        resolve(answer);
+      };
+
+      if (typed) {
+        yes.disabled = true;
+        typed.addEventListener("input", () => { yes.disabled = typed.value.trim() !== typeToConfirm; });
+      }
+
+      if (no) no.addEventListener("click", () => finish(false));
+      dialog.addEventListener("cancel", (event) => { event.preventDefault(); finish(false); });
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        if (!yes.disabled) finish(true);
+      });
+
+      dialog.showModal();
+      //  Bei etwas Endgueltigem steht der Fokus auf "Abbrechen": ein
+      //  versehentliches Enter soll nichts loeschen.
+      (typed || (danger && no ? no : yes)).focus();
+    });
+  }
+
+  /** Eine Adresse kopieren und sagen, ob es geklappt hat. */
+  async function copyLink(url) {
+    const ok = await copyText(url);
+    toast(ok ? "Link copied" : "Could not copy the link", { kind: ok ? "ok" : "error" });
+    return ok;
   }
 
   function param(name) {
@@ -368,6 +517,7 @@ const AW = (() => {
     folder: '<path d="M4 6h5l2 2.5h9V19H4z"/>',
     plus: '<path d="M12 5.5v13"/><path d="M5.5 12h13"/>',
     check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+    alert: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.8v5.2"/><path d="M12 16.4v.1"/>',
     close: '<path d="m6.5 6.5 11 11"/><path d="m17.5 6.5-11 11"/>',
     search: '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>',
     edit: '<path d="M5 19h3.2l8.6-8.6-3.2-3.2L5 15.8z"/><path d="m14 6.4 3.2 3.2"/>',
@@ -509,9 +659,17 @@ const AW = (() => {
    * Das Herz. Setzt oder nimmt zurueck und traegt die Zahl selbst - eine Zahl,
    * die man anfassen kann, gehoert in den Knopf und nicht daneben.
    */
-  function likeButton(item, onError) {
+  function likeButton(item, onError = toastError) {
     let liked = !!item.likedByMe;
     let count = item.likes || 0;
+    let pending = false;
+
+    const show = () => {
+      setIconState(button, "heart", liked, count || null);
+      button.dataset.tip = liked ? "Remove your like" : "Like this clip";
+      button.setAttribute("aria-label", button.dataset.tip);
+      button.setAttribute("aria-pressed", String(liked));
+    };
 
     const button = iconButton({
       name: "heart",
@@ -519,28 +677,50 @@ const AW = (() => {
       count: count || null,
       on: liked,
       className: "like",
+      //  SOFORT UMSCHALTEN, DANN FRAGEN. Vorher stand der Knopf gesperrt, bis
+      //  der Server antwortete - ein Herz, das eine Viertelsekunde ueberlegt,
+      //  fuehlt sich kaputt an. Schlaegt es fehl, springt es zurueck und sagt
+      //  warum; sonst gilt die Zahl des Servers.
       onClick: async () => {
         if (!signedIn()) return signInHint(button, "Sign in to like a clip.");
+        if (pending) return;
 
-        button.disabled = true;
+        const before = { liked, count };
+        liked = !liked;
+        count = Math.max(0, count + (liked ? 1 : -1));
+        show();
+        if (liked) pulse(button);
+
+        pending = true;
         try {
           await ensureCsrf();
           const result = await api("POST", "/api/v1/packages/" + encodeURIComponent(item.slug) + "/like",
-            { liked: !liked });
-          liked = !liked;
+            { liked });
           count = result.likes;
-          setIconState(button, "heart", liked, count || null);
-          button.dataset.tip = liked ? "Remove your like" : "Like this clip";
-          button.setAttribute("aria-label", button.dataset.tip);
+          show();
         } catch (e) {
+          ({ liked, count } = before);
+          show();
           if (onError) onError(e);
         } finally {
-          button.disabled = false;
+          pending = false;
         }
       },
     });
+    button.setAttribute("aria-pressed", String(liked));
 
     return button;
+  }
+
+  /**
+   * Die Klasse, an der die Bewegung haengt, einmal neu setzen - auch wenn sie
+   * noch vom letzten Mal dransteht. Was sich bewegt, steht in app.css; ohne
+   * Stil passiert hier nichts.
+   */
+  function pulse(node) {
+    node.classList.remove("pulse");
+    void node.offsetWidth;
+    node.classList.add("pulse");
   }
 
   /**
@@ -569,11 +749,15 @@ const AW = (() => {
           count = Math.max(0, count + (nowSaved ? 1 : -1));
           saved = nowSaved;
           setIconState(button, "star", saved, count || null);
+          if (saved) pulse(button);
           button.dataset.tip = saved ? "In one of your collections" : "Save to a collection";
           button.setAttribute("aria-label", button.dataset.tip);
-        }, onError);
+        }, onError || toastError);
       },
     });
+    //  Der Stern schaltet nicht, er oeffnet eine Auswahl - das sagt er dem
+    //  Vorleser, statt sich als Schalter auszugeben.
+    button.setAttribute("aria-haspopup", "dialog");
 
     return button;
   }
@@ -925,5 +1109,6 @@ const AW = (() => {
     copyText, param, signInUrl, signInButton, clipCard, collectionCard, previewObserver,
     icon, iconButton, setIconState, popover, closePopover, signInHint, signedIn,
     likeButton, saveButton, collectionDialog, profileHref, releasePreviews,
+    toast, toastError, confirmDialog, copyLink, pulse,
   };
 })();

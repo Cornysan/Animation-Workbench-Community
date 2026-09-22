@@ -1,5 +1,5 @@
 (async () => {
-  const { api, ensureCsrf, me, el, notice, formatDate } = AW;
+  const { api, ensureCsrf, me, el, notice, formatDate, confirmDialog, toast, toastError } = AW;
 
   const state = document.getElementById("state");
   const user = await me().catch(() => null);
@@ -44,40 +44,52 @@
    * gelesen zu haben - und genau dieser Klick waere hier endgueltig.
    */
   document.getElementById("delete-account").addEventListener("click", async () => {
-    const warning =
-      "Close this account?\n\n" +
-      "Gone: your name, your profile, your collections, your likes, who you follow.\n\n" +
-      "Withdrawn: your shared clips disappear from the catalogue - but copies other people " +
-      "already took stay theirs, as CC BY 4.0 says.\n\n" +
-      "Kept without your name: your comments, so conversations under other people's clips " +
-      "stay readable.\n\n" +
-      "This cannot be undone.";
-
-    if (!confirm(warning)) return;
-    if (prompt("Type DELETE to confirm.") !== "DELETE") {
-      notice(state, "Nothing was deleted.", "");
-      return;
-    }
+    //  Beide Huerden jetzt in EINEM Kasten: erst lesen, was verschwindet,
+    //  dann das Wort tippen. Der Knopf bleibt zu, bis es dasteht.
+    const sure = await confirmDialog({
+      title: "Close this account?",
+      body: [
+        el("p", {}, el("strong", {}, "Gone: "), "your name, your profile, your collections, your likes, who you follow."),
+        el("p", {}, el("strong", {}, "Withdrawn: "), "your shared clips disappear from the catalogue - but copies other people " +
+          "already took stay theirs, as CC BY 4.0 says."),
+        el("p", {}, el("strong", {}, "Kept without your name: "), "your comments, so conversations under other people's clips " +
+          "stay readable."),
+        el("p", { class: "muted" }, "This cannot be undone."),
+      ],
+      confirm: "Close account",
+      danger: true,
+      typeToConfirm: "DELETE",
+    });
+    if (!sure) return;
 
     try {
       await ensureCsrf();
       const result = await api("DELETE", "/api/v1/me");
-      alert("Your account is closed. " + result.withdrawnClips + " clip(s) withdrawn, " +
-        result.deletedCollections + " collection(s) deleted.");
+      await confirmDialog({
+        title: "Your account is closed",
+        body: result.withdrawnClips + " clip(s) withdrawn, " + result.deletedCollections + " collection(s) deleted.",
+        confirm: "OK",
+        cancel: null,
+      });
       location.href = "/";
     } catch (e) {
-      notice(state, e.message, "error");
+      toastError(e);
     }
   });
 
   document.getElementById("revoke").addEventListener("click", async () => {
-    if (!confirm("Sign out every Animation Workbench connected to this account?")) return;
+    const sure = await confirmDialog({
+      title: "Sign out every Workbench?",
+      body: "Every Animation Workbench connected to this account has to sign in again.",
+      confirm: "Sign them out",
+    });
+    if (!sure) return;
     try {
       await ensureCsrf();
       await api("POST", "/api/v1/me/tokens/revoke-all");
-      notice(state, "All Workbench sign-ins ended.", "ok");
+      toast("All Workbench sign-ins ended.", { kind: "ok" });
     } catch (e) {
-      notice(state, e.message, "error");
+      toastError(e);
     }
   });
 })();

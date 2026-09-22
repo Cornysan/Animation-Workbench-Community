@@ -224,7 +224,12 @@ function card(entry, active) {
   const forget = el('button', 'button danger', 'Forget');
   forget.type = 'button';
   forget.addEventListener('click', async () => {
-    if (!confirm('Forget ' + entry.name + '? The file on your disk stays where it is.')) return;
+    const sure = await AW.confirmDialog({
+      title: 'Forget ' + entry.name + '?',
+      body: 'It goes from this browser. The file on your disk stays where it is.',
+      confirm: 'Forget', danger: true,
+    });
+    if (!sure) return;
     await removeFigure(entry.id);
     if (rememberedFigure() === entry.id) rememberFigure('');
     say(entry.name + ' is gone from this browser.');

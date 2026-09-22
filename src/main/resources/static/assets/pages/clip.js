@@ -8,7 +8,7 @@
 (async () => {
   const {
     api, ensureCsrf, me, el, notice, formatDuration, formatDate, copyText, param,
-    iconButton, likeButton, saveButton, profileHref,
+    iconButton, likeButton, saveButton, profileHref, toast, toastError, confirmDialog, copyLink,
   } = AW;
 
   const slug = param("p");
@@ -102,19 +102,15 @@
   //  muss.
   const bar = document.getElementById("clip-actions");
 
-  bar.append(likeButton(clip, (e) => notice(actionState, e.message, "error")));
-  bar.append(saveButton(clip, (e) => notice(actionState, e.message, "error")));
+  bar.append(likeButton(clip));
+  bar.append(saveButton(clip));
 
   //  Ein Portal, das von Links lebt, braucht einen Knopf dafuer. Die Adresse
   //  aus der Leiste zu fischen ist eine Huerde, die niemand nehmen muss.
   const share = iconButton({
     name: "link",
     tip: "Copy a link to this clip",
-    onClick: async () => {
-      const ok = await copyText(location.origin + "/clip.html?p=" + encodeURIComponent(slug));
-      share.dataset.tip = ok ? "Link copied" : "Could not copy";
-      setTimeout(() => { share.dataset.tip = "Copy a link to this clip"; }, 2000);
-    },
+    onClick: () => copyLink(location.origin + "/clip.html?p=" + encodeURIComponent(slug)),
   });
   bar.append(share);
 
@@ -124,12 +120,19 @@
       tip: "Withdraw this clip",
       className: "danger",
       onClick: async () => {
-        if (!confirm("Withdraw '" + clip.title + "'? It disappears from the community.")) return;
+        const sure = await confirmDialog({
+          title: "Withdraw this clip?",
+          body: "“" + clip.title + "” disappears from the community. Copies other people already took stay theirs.",
+          confirm: "Withdraw",
+          danger: true,
+        });
+        if (!sure) return;
         try {
+          await ensureCsrf();
           await api("DELETE", "/api/v1/packages/" + encodeURIComponent(slug));
           location.href = "/me.html";
         } catch (e) {
-          notice(actionState, e.message, "error");
+          toastError(e);
         }
       },
     });
@@ -144,18 +147,25 @@
       onClick: () => dialog.showModal(),
     });
 
-    dialog.addEventListener("close", async () => {
-      if (dialog.returnValue !== "send") return;
+    //  Am Absenden, nicht am `close`-Ereignis: das feuert nicht in jedem
+    //  Browser (siehe collectionDialog in app.js), und dann ging die Meldung
+    //  still verloren. Beide Knoepfe senden das Formular; welcher es war,
+    //  sagt `submitter`.
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const send = event.submitter && event.submitter.value === "send";
+      dialog.close();
+      if (!send) return;
       try {
         await ensureCsrf();
         await api("POST", "/api/v1/packages/" + encodeURIComponent(slug) + "/reports", {
           category: form.category.value,
           message: form.message.value,
         });
-        notice(actionState, "Thank you. The clip is hidden until a moderator has reviewed it.", "ok");
+        toast("Thank you. The clip is hidden until a moderator has reviewed it.", { kind: "ok", duration: 6000 });
         report.disabled = true;
       } catch (e) {
-        notice(actionState, e.message, "error");
+        toastError(e);
       }
     });
     bar.append(report);

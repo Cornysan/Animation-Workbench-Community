@@ -444,6 +444,50 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
 .notice.ok { border-left-color: var(--ok); }
 .notice.warn { border-left-color: var(--warn); }
 
+/* ── Meldungen am unteren Rand (AW.toast) ─────────────────────────────── */
+/* Unten mittig, ueber allem ausser einem offenen Dialog. Der Stapel selbst
+   laesst Klicks durch; nur die Meldungen fangen sie. */
+.toasts {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  pointer-events: none;
+}
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px 10px 12px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+  color: var(--text);
+  box-shadow: var(--shadow);
+  font-size: 14px;
+}
+.toast .icon { width: 18px; height: 18px; flex: none; color: var(--ok); }
+.toast.error .icon { color: var(--danger); }
+.toast.leaving { opacity: 0; }
+.toast-action {
+  min-height: 0;
+  padding: 2px 4px;
+  margin-left: 4px;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .tags { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
 .tag {
   background: var(--surface-2);
@@ -1429,6 +1473,9 @@ dialog.sheet h2 { margin: 0 0 18px; font-size: 20px; }
 dialog.sheet h2::after { content: none; }
 dialog.sheet .field { display: block; margin-bottom: 16px; }
 dialog.sheet .counter { float: right; }
+/* Der Text einer Rueckfrage (AW.confirmDialog) steht zwischen Titel und Knoepfen. */
+dialog.sheet form > p { margin: 0 0 12px; line-height: 1.55; }
+dialog.sheet form > p:last-of-type { margin-bottom: 20px; }
 
 .choices { border: 0; margin: 0 0 18px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .choices legend { padding: 0 0 8px; color: var(--text-dim); font-size: 13.5px; }

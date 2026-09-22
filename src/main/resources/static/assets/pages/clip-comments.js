@@ -14,7 +14,7 @@
  * keinen ausgegrauten Kasten.
  */
 (async () => {
-  const { api, ensureCsrf, me, el, notice, formatRelative, param, signInButton } = AW;
+  const { api, ensureCsrf, me, el, notice, formatRelative, param, signInButton, confirmDialog, toast, toastError } = AW;
 
   const slug = param("p");
   if (!slug) return;
@@ -51,15 +51,19 @@
     if (comment.mine) {
       const remove = el("button", { class: "link-button" }, "Delete");
       remove.addEventListener("click", async () => {
-        if (!confirm("Delete your comment?")) return;
+        const sure = await confirmDialog({
+          title: "Delete your comment?", confirm: "Delete", danger: true,
+        });
+        if (!sure) return;
         try {
           await ensureCsrf();
           await api("DELETE", base + "/" + comment.id);
           node.remove();
           heading(Math.max(0, --page.total));
           if (page.total === 0) showEmpty();
+          toast("Comment deleted", { kind: "ok" });
         } catch (e) {
-          notice(state, e.message, "error");
+          toastError(e);
         }
       });
       actions.push(remove);
@@ -68,13 +72,19 @@
       //  von E10. Sie versteckt ihn sofort, bis jemand hinsieht.
       const report = el("button", { class: "link-button" }, "Report");
       report.addEventListener("click", async () => {
-        if (!confirm("Report this comment? It is hidden until a moderator has looked at it.")) return;
+        const sure = await confirmDialog({
+          title: "Report this comment?",
+          body: "It is hidden until a moderator has looked at it.",
+          confirm: "Report", danger: true,
+        });
+        if (!sure) return;
         try {
           await ensureCsrf();
           await api("POST", base + "/" + comment.id + "/reports", { category: "INAPPROPRIATE", message: "" });
           report.replaceWith(el("span", { class: "faint small" }, "Reported"));
+          toast("Thank you. A moderator will look at it.", { kind: "ok" });
         } catch (e) {
-          notice(state, e.message, "error");
+          toastError(e);
         }
       });
       actions.push(report);

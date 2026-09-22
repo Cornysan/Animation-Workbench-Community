@@ -9,7 +9,7 @@
  */
 (async () => {
   const {
-    api, ensureCsrf, el, notice, icon, iconButton, setIconState, formatDate, copyText,
+    api, ensureCsrf, el, notice, icon, iconButton, setIconState, formatDate, copyText, toastError, copyLink, pulse,
     param, clipCard, collectionCard, previewObserver, signedIn, signInHint, collectionDialog,
   } = AW;
 
@@ -81,43 +81,55 @@
   if (!profile.isMe) {
     let following = profile.followedByMe;
     let followers = profile.followers;
+    let pending = false;
+
+    const showFollow = () => {
+      setIconState(follow, following ? "following" : "follow", following, followers || null);
+      follow.dataset.tip = following ? "You follow " + profile.displayName : "Follow " + profile.displayName;
+      follow.setAttribute("aria-label", follow.dataset.tip);
+      follow.setAttribute("aria-pressed", String(following));
+    };
 
     const follow = iconButton({
       name: following ? "following" : "follow",
       tip: following ? "You follow " + profile.displayName : "Follow " + profile.displayName,
       count: followers || null,
       on: following,
+      //  Wie das Herz: sofort umschalten, bei einem Fehler zurueckspringen.
       onClick: async () => {
         if (!signedIn()) return signInHint(follow, "Sign in to follow someone.");
+        if (pending) return;
 
-        follow.disabled = true;
+        const before = { following, followers };
+        following = !following;
+        followers = Math.max(0, followers + (following ? 1 : -1));
+        showFollow();
+        if (following) pulse(follow);
+
+        pending = true;
         try {
           await ensureCsrf();
           const result = await api("POST", "/api/v1/users/" + encodeURIComponent(profile.handle) + "/follow",
-            { following: !following });
-          following = !following;
+            { following });
           followers = result.followers;
-          setIconState(follow, following ? "following" : "follow", following, followers || null);
-          follow.dataset.tip = following ? "You follow " + profile.displayName : "Follow " + profile.displayName;
-          follow.setAttribute("aria-label", follow.dataset.tip);
+          showFollow();
         } catch (e) {
-          notice(actionState, e.message, "error");
+          ({ following, followers } = before);
+          showFollow();
+          toastError(e);
         } finally {
-          follow.disabled = false;
+          pending = false;
         }
       },
     });
+    follow.setAttribute("aria-pressed", String(following));
     actions.append(follow);
   }
 
   const share = iconButton({
     name: "link",
     tip: "Copy a link to this profile",
-    onClick: async () => {
-      const ok = await copyText(location.origin + "/u.html?u=" + encodeURIComponent(profile.handle));
-      share.dataset.tip = ok ? "Link copied" : "Could not copy";
-      setTimeout(() => { share.dataset.tip = "Copy a link to this profile"; }, 2000);
-    },
+    onClick: () => copyLink(location.origin + "/u.html?u=" + encodeURIComponent(profile.handle)),
   });
   actions.append(share);
 
@@ -157,10 +169,10 @@
           category: form.category.value,
           message: form.message.value,
         });
-        notice(actionState, "Thank you. A moderator will look at it. Nothing was hidden by your report.", "ok");
+        AW.toast("Thank you. A moderator will look at it. Nothing was hidden by your report.", { kind: "ok", duration: 6000 });
         report.disabled = true;
       } catch (e) {
-        notice(actionState, e.message, "error");
+        toastError(e);
       } finally {
         dialog.close();
       }
