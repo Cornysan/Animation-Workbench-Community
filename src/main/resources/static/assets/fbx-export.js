@@ -69,6 +69,7 @@ const P = {
   double: (v) => ({ t: 'D', v }),
   str: (v) => ({ t: 'S', v }),
   raw: (v) => ({ t: 'R', v }),
+  bool: (v) => ({ t: 'C', v: v ? 1 : 0 }),
   floats: (v) => ({ t: 'f', v }),
   ints: (v) => ({ t: 'i', v }),
   longs: (v) => ({ t: 'l', v }),
@@ -78,6 +79,7 @@ const utf8 = new TextEncoder();
 
 function propSize(p) {
   switch (p.t) {
+    case 'C': return 2;
     case 'I': return 5;
     case 'L': case 'D': return 9;
     case 'S': return 5 + utf8.encode(p.v).byteLength;
@@ -88,11 +90,36 @@ function propSize(p) {
   }
 }
 
-function nodeSize(n) {
+/**
+ * OB EIN KNOTEN MIT EINEM ABSCHLUSS-BLOCK ENDET.
+ *
+ * Das war der Fehler, an dem Unity die erste Fassung als "File is corrupted"
+ * abgewiesen hat, waehrend Blender und three.js sie anstandslos lasen. Die
+ * Regel steht so in Blenders eigenem Exporteur, samt Kommentar ("Awful
+ * exceptions"), und sie ist nicht zu erraten:
+ *
+ *   - ein Knoten MIT Kindern bekommt ihn immer,
+ *   - ein Knoten OHNE Eigenschaften bekommt ihn, solange er nicht der letzte
+ *     unter seinen Geschwistern ist,
+ *   - und `AnimationStack` und `AnimationLayer` bekommen ihn IMMER, auch
+ *     ohne Kinder und mit Eigenschaften.
+ *
+ * Unsere `AnimationLayer` hat Eigenschaften und keine Kinder - genau der
+ * Fall, den die dritte Regel abfaengt.
+ */
+const ALWAYS_SENTINEL = new Set(['AnimationStack', 'AnimationLayer']);
+
+function needsSentinel(n, isLast) {
+  if (n.kids.length) return true;
+  if (ALWAYS_SENTINEL.has(n.name)) return true;
+  return n.props.length === 0 && !isLast;
+}
+
+function nodeSize(n, isLast) {
   let size = 13 + utf8.encode(n.name).byteLength;
   for (const p of n.props) size += propSize(p);
-  for (const k of n.kids) size += nodeSize(k);
-  if (n.kids.length) size += 13;
+  n.kids.forEach((k, i) => { size += nodeSize(k, i === n.kids.length - 1); });
+  if (needsSentinel(n, isLast)) size += 13;
   return size;
 }
 
@@ -112,6 +139,7 @@ class Writer {
 
   prop(p) {
     this.u1(p.t.charCodeAt(0));
+    if (p.t === 'C') { this.u1(p.v); return; }
     if (p.t === 'I') { this.i4(p.v); return; }
     if (p.t === 'L') { this.i8(p.v); return; }
     if (p.t === 'D') { this.f8(p.v); return; }
@@ -133,8 +161,8 @@ class Writer {
     }
   }
 
-  node(n) {
-    const end = this.at + nodeSize(n);
+  node(n, isLast) {
+    const end = this.at + nodeSize(n, isLast);
     const name = utf8.encode(n.name);
     let propBytes = 0;
     for (const p of n.props) propBytes += propSize(p);
@@ -145,15 +173,30 @@ class Writer {
     this.u1(name.byteLength);
     this.blob(name);
     for (const p of n.props) this.prop(p);
-    if (n.kids.length) {
-      for (const k of n.kids) this.node(k);
-      //  Der Abschluss einer Kinderliste: dreizehn Null-Byte. NUR wenn es
-      //  Kinder gibt - sonst erwartet ein Leser sie nicht und verliest sich.
-      for (let i = 0; i < 13; i++) this.u1(0);
-    }
+    n.kids.forEach((k, i) => this.node(k, i === n.kids.length - 1));
+    if (needsSentinel(n, isLast)) for (let i = 0; i < 13; i++) this.u1(0);
     if (this.at !== end) throw new Error('node ' + n.name + ': ' + this.at + ' != ' + end);
   }
 }
+
+/**
+ * Die drei festen Kennungen, die zusammengehoeren.
+ *
+ * Eine echte SDK-Datei leitet die Fuss-Kennung aus ihrer `FileId` und ihrer
+ * Erstellungszeit ab. Wer das nachbauen will, braucht die Verschluesselung;
+ * wer es nicht tut, nimmt EIN zusammenpassendes Tripel und benutzt es immer.
+ * Genau das tut Blenders Exporteur seit Jahren, und seine Dateien gehen
+ * ueberall hinein - also stehen hier seine drei Werte.
+ */
+const FILE_ID = new Uint8Array([
+  0x28, 0xb3, 0x2a, 0xeb, 0xb6, 0x24, 0xcc, 0xc2,
+  0xbf, 0xc8, 0xb0, 0x2a, 0xa9, 0x2b, 0xfc, 0xf1,
+]);
+const TIME_ID = '1970-01-01 10:00:00:000';
+const FOOT_ID = new Uint8Array([
+  0xfa, 0xbc, 0xab, 0x09, 0xd0, 0xc8, 0xd4, 0x66,
+  0xb1, 0x76, 0xfb, 0x83, 0x1c, 0xf7, 0x26, 0x7e,
+]);
 
 /** Die sechzehn Byte, an denen ein Leser das Ende erkennt. */
 const FOOTER_MAGIC = new Uint8Array([
@@ -171,26 +214,29 @@ const FOOTER_MAGIC = new Uint8Array([
  */
 function toFile(roots) {
   let content = 13;
-  for (const n of roots) content += nodeSize(n);
+  roots.forEach((n, i) => { content += nodeSize(n, i === roots.length - 1); });
 
-  const afterId = 27 + content + 16;
-  const pad = (16 - (afterId % 16)) % 16;
-  const total = afterId + pad + 4 + 4 + 120 + 16;
+  //  REIHENFOLGE UND AUFFUELLUNG GENAU SO. Kennung, dann VIER Null-Byte,
+  //  dann erst bis zur naechsten Grenze von sechzehn auffuellen - und wenn
+  //  es dort schon aufgeht, trotzdem volle sechzehn. Beides andersherum
+  //  gemacht ergibt eine Datei, die three.js und Blender noch lesen und der
+  //  FBX SDK von Unity nicht mehr.
+  const beforePad = 27 + content + 16 + 4;
+  let pad = ((beforePad + 15) & ~15) - beforePad;
+  if (pad === 0) pad = 16;
+  const total = beforePad + pad + 4 + 120 + 16;
 
   const w = new Writer(total);
   w.blob(utf8.encode('Kaydara FBX Binary  '));
   w.u1(0x00); w.u1(0x1a); w.u1(0x00);
   w.u4(VERSION);
 
-  for (const n of roots) w.node(n);
+  roots.forEach((n, i) => w.node(n, i === roots.length - 1));
   for (let i = 0; i < 13; i++) w.u1(0);
 
-  //  Die Kennung bleibt leer. Echte SDK-Dateien leiten sie aus ihrer FileId
-  //  ab; kein Importeur, den wir nachsehen konnten, prueft sie, und erfundene
-  //  Bytes waeren eine Behauptung ueber etwas, das wir nicht nachrechnen.
-  for (let i = 0; i < 16; i++) w.u1(0);
-  for (let i = 0; i < pad; i++) w.u1(0);
+  w.blob(FOOT_ID);
   w.u4(0);
+  for (let i = 0; i < pad; i++) w.u1(0);
   w.u4(VERSION);
   for (let i = 0; i < 120; i++) w.u1(0);
   w.blob(FOOTER_MAGIC);
@@ -268,21 +314,27 @@ export function skeletonFbx(preview, options) {
       node('Properties70', [], [
         node('P', [P.str('InheritType'), P.str('enum'), P.str(''), P.str(''), P.int(1)]),
         node('P', [P.str('DefaultAttributeIndex'), P.str('int'), P.str('Integer'), P.str(''), P.int(0)]),
-        prop70('Lcl Translation', 'Lcl Translation', '', 'A',
+        prop70('Lcl Translation', 'Lcl Translation', '', 'A+',
           [rest[0] * TO_CM, rest[1] * TO_CM, rest[2] * TO_CM]),
-        prop70('Lcl Rotation', 'Lcl Rotation', '', 'A', [e.x * DEG, e.y * DEG, e.z * DEG]),
-        prop70('Lcl Scaling', 'Lcl Scaling', '', 'A', [1, 1, 1]),
+        prop70('Lcl Rotation', 'Lcl Rotation', '', 'A+', [e.x * DEG, e.y * DEG, e.z * DEG]),
+        prop70('Lcl Scaling', 'Lcl Scaling', '', 'A+', [1, 1, 1]),
       ]),
+      //  Die drei stehen an JEDEM Model einer echten Datei. Sie sagen nichts
+      //  ueber unser Skelett aus - aber eine Form, die ueberall gleich ist,
+      //  gibt einem fremden Leser keinen Anlass, es anders zu machen.
+      node('MultiLayer', [P.int(0)]),
+      node('MultiTake', [P.int(0)]),
+      node('Shading', [P.bool(true)]),
       node('Culling', [P.str('CullingOff')]),
     ]));
 
     objects.push(node('NodeAttribute', [
       P.long(attrId[i]), P.str(objectName(bone, 'NodeAttribute')), P.str('LimbNode'),
     ], [
+      node('TypeFlags', [P.str('Skeleton')]),
       node('Properties70', [], [
         node('P', [P.str('Size'), P.str('double'), P.str('Number'), P.str(''), P.double(1)]),
       ]),
-      node('TypeFlags', [P.str('Skeleton')]),
     ]));
 
     conn('OO', attrId[i], modelId[i]);
@@ -392,8 +444,8 @@ export function skeletonFbx(preview, options) {
       ]),
       node('Creator', [P.str('Animation Workbench Community')]),
     ]),
-    node('FileId', [P.raw(new Uint8Array(16))]),
-    node('CreationTime', [P.str(now.toISOString())]),
+    node('FileId', [P.raw(FILE_ID)]),
+    node('CreationTime', [P.str(TIME_ID)]),
     node('Creator', [P.str('Animation Workbench Community')]),
 
     node('GlobalSettings', [], [
