@@ -69,9 +69,21 @@ document.addEventListener('aw:viewer', (event) => {
   const state = document.createElement('p');
   state.className = 'faint small';
 
+  /*
+   * "For everything else" ergibt nur Sinn, wenn darueber etwas steht. Fuer
+   * wen die .awclip fehlt - also jeden, der nicht angemeldet ist - haengt
+   * der Satz in der Luft und verweist auf nichts.
+   *
+   * Gefragt wird der Server, nicht das Dokument. Der .awclip-Knopf entsteht
+   * in `clip.js`, und das ist ein eigener Einstiegspunkt mit eigenem Tempo:
+   * ein Blick ins DOM traf ihn mal an und mal nicht. `data-signed-in` steht
+   * schon im ausgelieferten Markup und ist damit immer da.
+   */
   const head = document.createElement('p');
   head.className = 'faint small';
-  head.textContent = 'For everything else:';
+  head.textContent = document.body.dataset.signedIn === 'true'
+    ? 'For everything else:'
+    : 'Download:';
 
   const row = document.createElement('div');
   row.className = 'actions';

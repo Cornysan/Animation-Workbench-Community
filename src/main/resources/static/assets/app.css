@@ -705,8 +705,6 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
   line-height: 1.5;
 }
 .license-note strong { color: var(--text); }
-.import-hint { margin: 0; line-height: 1.5; }
-.import-hint strong { color: var(--text-dim); font-weight: 600; }
 
 /* ── Nachbarschaft ─────────────────────────────────────────────────────
    Wer einen Laufzyklus ansieht, will meistens Laufzyklen sehen. Zeilen, keine

@@ -12,7 +12,7 @@
  * Sichtschalter waeren ohne Buehne leere Versprechen und erscheinen gar nicht.
  */
 
-import { createMannequinStage, PROPORTIONS } from './stage.js';
+import { createMannequinStage } from './stage.js';
 import { figureForStage, listFigures, rememberFigure, rememberedFigure } from './figures.js';
 
 const ICONS = {
@@ -47,9 +47,13 @@ const PROPORTIONS_KEY = 'aw.viewer.proportions';
  * Die gewaehlte Figur haelt ueber den Clip hinaus: wer einmal auf der langen
  * Figur schaut, will beim naechsten Clip nicht wieder umschalten.
  *
- * Beides in try/catch, weil `localStorage` nicht nur leer sein, sondern
- * WERFEN kann - im privaten Fenster und bei gesperrten Seitendaten schon beim
- * Lesen. Ohne Gedaechtnis steht hier die Vorgabe, und das ist kein Schaden.
+ * In try/catch, weil `localStorage` nicht nur leer sein, sondern WERFEN kann
+ * - im privaten Fenster und bei gesperrten Seitendaten schon beim Lesen. Ohne
+ * Gedaechtnis steht hier die Vorgabe, und das ist kein Schaden.
+ *
+ * Nur noch gelesen, nicht mehr geschrieben: die Reihe, die das eingestellt
+ * hat, ist weg. Ein alter Eintrag gilt weiter, damit niemandem seine Figur
+ * unter den Haenden umspringt.
  */
 function rememberedProportions() {
   try {
@@ -59,13 +63,6 @@ function rememberedProportions() {
   }
 }
 
-function rememberProportions(name) {
-  try {
-    localStorage.setItem(PROPORTIONS_KEY, name);
-  } catch {
-    /* dann eben nur fuer diesen Clip */
-  }
-}
 
 /**
  * Die Reihe mit den eigenen Figuren: das Mannequin des Hauses, dann alles, was
@@ -340,56 +337,24 @@ export async function mountViewer(box, preview, options = {}) {
     wrap.append(hud);
 
     /**
-     * Die Proportionen stehen rechts unten, getrennt von den Sichtschaltern
-     * links: die schalten die ANSICHT, diese aendern die FIGUR.
+     * HIER STAND EINE REIHE "Default / Tall / Short / Heavy".
      *
-     * Als Wort statt als Zeichen - fuer "Heavy" gibt es kein Symbol, das
-     * jemand ohne Beschriftung liest.
+     * Sie aenderte die Proportionen des Mannequins, und sie ist raus. Der
+     * Clip wird dadurch nicht anders - sie beantwortete eine Frage, die auf
+     * einer Seite zum Ansehen und Mitnehmen niemand stellt, und stand dabei
+     * neben den Schaltern, die wirklich etwas tun.
+     *
+     * Die Buehne KANN es weiterhin (`stage.setProportions`), und die
+     * gemerkte Wahl wird beim Aufbau noch gelesen - wer sie frueher gesetzt
+     * hat, sieht seine Figur unveraendert. Nur zu bedienen ist sie nicht
+     * mehr.
      */
     const figures = document.createElement('div');
     figures.className = 'stage-figures';
 
     const ownRow = document.createElement('div');
     ownRow.className = 'stage-row';
-
-    const proportionRow = document.createElement('div');
-    proportionRow.className = 'stage-row';
-
-    figures.append(ownRow, proportionRow);
-
-    const names = Object.keys(PROPORTIONS);
-    const chips = new Map();
-
-    const setProportions = (name) => {
-      stage.setProportions(name);
-      for (const [key, chip] of chips) {
-        chip.setAttribute('aria-pressed', String(key === stage.proportions));
-      }
-      rememberProportions(stage.proportions);
-    };
-
-    /**
-     * Die Masse gehoeren dem Mannequin. Eine eigene Figur HAT ihre
-     * Proportionen - die Reihe waere dann ein Schalter, der nichts tut, und
-     * das ist schlimmer als keiner.
-     */
-    if (!own) {
-      for (const name of names) {
-        const chip = document.createElement('button');
-        chip.type = 'button';
-        chip.className = 'hud-toggle hud-chip';
-        chip.textContent = PROPORTIONS[name].label;
-        chip.title = `Proportions: ${PROPORTIONS[name].label} (P)`;
-        chip.setAttribute('aria-label', chip.title);
-        chip.setAttribute('aria-pressed', String(name === stage.proportions));
-        chip.addEventListener('click', () => setProportions(name));
-        chips.set(name, chip);
-        proportionRow.append(chip);
-      }
-
-      // P geht die Reihe durch, wie T das Mesh umschaltet.
-      keys.set('p', () => setProportions(names[(names.indexOf(stage.proportions) + 1) % names.length]));
-    }
+    figures.append(ownRow);
 
     wrap.append(figures);
     //  Ist der Schalter aus, kommt die Reihe gar nicht erst - weder die

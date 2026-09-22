@@ -7,7 +7,7 @@
  */
 (async () => {
   const {
-    api, ensureCsrf, me, el, notice, formatDuration, formatDate, copyText, param, signInButton,
+    api, ensureCsrf, me, el, notice, formatDuration, formatDate, copyText, param,
     iconButton, likeButton, saveButton, profileHref,
   } = AW;
 
@@ -155,13 +155,21 @@
   //  deshalb genau das, was er tut.
   const actions = document.getElementById("actions");
 
-  if (!user) {
-    //  Ein grauer Knopf, der nicht sagt warum, ist die haeufigste Sackgasse
-    //  dieses Portals gewesen (B2). Er sagt es jetzt.
-    actions.append(
-      signInButton("Sign in to download", true),
-      el("p", { class: "faint small" }, "Downloads are tied to an account so the counter means something."));
-  } else {
+  /*
+   * HIER STAND "Sign in to download" MIT DER BEGRUENDUNG, Downloads haengen
+   * an einem Konto, damit der Zaehler etwas bedeutet.
+   *
+   * Das stimmt nicht mehr. Seit der Clip als .glb und .fbx mitgeht - beides
+   * im Browser gerechnet, aus einer Vorschau, die ohnehin oeffentlich ist -
+   * kann jeder ihn herunterladen, ohne sich anzumelden. Ein Riegel, der
+   * daneben steht und etwas behauptet, was zwei Knoepfe weiter widerlegt
+   * wird, ist schlimmer als keiner.
+   *
+   * Angemeldet sein muss man nur noch fuer die .awclip, weil die vom Server
+   * kommt. Wer nicht angemeldet ist, sieht sie gar nicht - und verliert
+   * nichts, weil die beiden anderen Formate dastehen.
+   */
+  if (user) {
     const download = el("button", { class: "primary" }, "Download .awclip");
 
     download.addEventListener("click", async () => {
