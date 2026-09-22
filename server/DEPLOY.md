@@ -85,6 +85,22 @@ caddy validate --config /etc/caddy/Caddyfile
 systemctl reload caddy
 ```
 
+**Der Block ist schon drin, aber die Datei im Repo hat sich geaendert?** Nur die
+geaenderten Zeilen im Server-Block nachziehen, nicht noch einmal anhaengen -
+zwei Bloecke fuer denselben Namen lehnt `caddy validate` ab. Seit 2026-09-23
+steht dort `encode zstd gzip` statt `encode gzip`:
+
+```bash
+cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.bak.$(date +%F-%H%M)
+sed -i 's/^	encode gzip$/	encode zstd gzip/' /etc/caddy/Caddyfile
+caddy validate --config /etc/caddy/Caddyfile && systemctl reload caddy
+curl -sI -H 'Accept-Encoding: zstd' https://community.playmations.com/browse.html | grep -i content-encoding
+```
+
+Achtung: das `sed` trifft JEDEN Block mit genau dieser Zeile, auch docs. und
+die anderen. Vorher mit `grep -n 'encode gzip' /etc/caddy/Caddyfile` nachsehen
+und notfalls von Hand im Portal-Block aendern.
+
 Pruefen:
 
 ```bash
