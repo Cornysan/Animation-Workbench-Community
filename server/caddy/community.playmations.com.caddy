@@ -14,7 +14,9 @@
 # ---------------------------------------------------------------------------
 
 community.playmations.com {
-	encode gzip
+	# zstd zuerst: jeder aktuelle Browser kann es, und es ist schneller und
+	# kleiner als gzip. Wer es nicht kann, bekommt weiter gzip.
+	encode zstd gzip
 
 	# Das Portal nimmt .awclip bis 8 MB an (AwclipSchema), der Rest ist Luft
 	# fuer die uebrigen Formularteile. Ohne die Grenze hier laedt jemand erst

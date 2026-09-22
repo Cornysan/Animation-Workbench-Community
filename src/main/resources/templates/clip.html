@@ -13,6 +13,22 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{fragments/shell :: head('Clip')}"></head>
 <body th:attr="data-signed-in=${user != null}">
+<!--
+  DIE BUEHNE HAENGT AN EINER KETTE: clip-viewer.js -> viewer-ui.js -> stage.js
+  -> three.js -> Mannequin, und jedes Glied entdeckt der Browser erst, wenn das
+  vorige angekommen ist. Hier fordert er alle zugleich an, dazu die Vorschau
+  selbst, deren Adresse der Server schon kennt. `crossorigin` bei den
+  fetch-Vorab-Anfragen, weil fetch() und GLTFLoader im CORS-Modus holen - ohne
+  passenden Modus laege die Vorab-Antwort ungenutzt daneben.
+-->
+<link rel="modulepreload" th:href="|${@buildStamp.assets}/viewer-ui.js|">
+<link rel="modulepreload" th:href="|${@buildStamp.assets}/figures.js|">
+<link rel="modulepreload" th:href="|${@buildStamp.assets}/stage.js|">
+<link rel="modulepreload" th:href="|${@buildStamp.assets}/vendor/three.module.js|">
+<link rel="preload" as="fetch" crossorigin th:if="${clipSlug != null}"
+      th:href="@{/api/v1/packages/{s}/preview(s=${clipSlug})}">
+<link rel="preload" as="fetch" crossorigin th:if="${clipRig != 'generic'}"
+      th:href="|${@buildStamp.assets}/models/aw-mannequin.glb|">
 <header th:replace="~{fragments/shell :: header}"></header>
 <main class="wide">
   <div th:replace="~{fragments/shell :: paused}"></div>
@@ -96,11 +112,11 @@
   </dialog>
 </main>
 <footer th:replace="~{fragments/shell :: footer}"></footer>
-<script src="/assets/app.js"></script>
-<script src="/assets/viewer.js"></script>
-<script src="/assets/pages/clip.js"></script>
-<script src="/assets/pages/clip-comments.js"></script>
-<script type="module" src="/assets/pages/clip-viewer.js"></script>
-<script type="module" src="/assets/pages/clip-download.js"></script>
+<script th:src="|${@buildStamp.assets}/app.js|"></script>
+<script th:src="|${@buildStamp.assets}/viewer.js|"></script>
+<script th:src="|${@buildStamp.assets}/pages/clip.js|"></script>
+<script th:src="|${@buildStamp.assets}/pages/clip-comments.js|"></script>
+<script type="module" th:src="|${@buildStamp.assets}/pages/clip-viewer.js|"></script>
+<script type="module" th:src="|${@buildStamp.assets}/pages/clip-download.js|"></script>
 </body>
 </html>

@@ -39,7 +39,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title th:text="|${title} - Animation Workbench Community (Beta)|">Animation Workbench Community (Beta)</title>
   <link rel="icon" href="/favicon.ico">
-  <link rel="stylesheet" href="/assets/app.css">
+  <link rel="stylesheet" th:href="|${@buildStamp.assets}/app.css|">
+  <!--
+    Die Schrift VOR dem Stylesheet anfordern: sonst entdeckt der Browser sie
+    erst beim Auswerten von app.css, und jede Seite erscheint einen Moment in
+    der Ersatzschrift. `crossorigin` ist Pflicht - Schriften werden immer im
+    CORS-Modus geholt, ohne das Attribut laege die Vorab-Anfrage ungenutzt da.
+  -->
+  <link rel="preload" th:href="|${@buildStamp.assets}/fonts/inter-var-latin.woff2|"
+        as="font" type="font/woff2" crossorigin>
 
   <!--
     Der Figuren-Schalter, fuer die Skripte. Er steht hier im GEMEINSAMEN Kopf
@@ -90,9 +98,9 @@
   <div class="header-inner">
 
     <a class="brand" href="/" title="Animation Workbench Community (Beta)">
-      <img class="brand-lockup" src="/assets/brand/aw-lockup-weiss.svg"
+      <img class="brand-lockup" th:src="|${@buildStamp.assets}/brand/aw-lockup-weiss.svg|"
            alt="Animation Workbench" width="150" height="29">
-      <img class="brand-mark" src="/assets/brand/aw-mark-dark.svg"
+      <img class="brand-mark" th:src="|${@buildStamp.assets}/brand/aw-mark-dark.svg|"
            alt="Animation Workbench" width="28" height="28">
       <!--
         Dass dies eine Beta ist, steht ab jetzt im Kopf und nicht nur in den

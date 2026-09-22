@@ -150,6 +150,28 @@ class PortalFlowTest {
     }
 
     /**
+     * Die Seiten zeigen auf `/assets/v/<commit>/`, und dort liegt alles, was
+     * die Skripte relativ nachladen - Module wie das Mannequin. Faellt der
+     * Versionspfad um, laden die Seiten zwar weiter, aber ohne Cache; faellt
+     * `models/` darunter weg, steht jede Buehne leer.
+     */
+    @Test
+    fun `static files are linked and served under a versioned path`() {
+        val page = mvc.get("/browse.html").andReturn().response.contentAsString
+        assertTrue(Regex("""src="/assets/v/[^/"]+/app\.js"""").containsMatchIn(page), "app.js is not versioned")
+        assertFalse(page.contains("src=\"/assets/app.js\""), "an unversioned script is left in the page")
+
+        mvc.get("/assets/v/anything/pages/clip.js").andExpect {
+            status { isOk() }
+            content { contentTypeCompatibleWith("text/javascript") }
+        }
+        //  Nur "da", nicht der Typ: `model/gltf-binary` setzt Tomcat aus
+        //  `server.mime-mappings`, und MockMvc laeuft ohne Tomcat.
+        mvc.get("/assets/v/anything/models/aw-mannequin.glb").andExpect { status { isOk() } }
+        mvc.get("/assets/v/anything/nothing-here.js").andExpect { status { isNotFound() } }
+    }
+
+    /**
      * Jede Adresse, die im Fuss, in der Navigation oder in einer Takedown-Mail
      * steht, muss eine Seite liefern. Die Seiten lagen als Dateien unter
      * `static/`; seit sie aus Vorlagen kommen, haelt nur noch der

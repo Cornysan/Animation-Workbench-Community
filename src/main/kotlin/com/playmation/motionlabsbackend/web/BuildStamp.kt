@@ -40,4 +40,12 @@ class BuildStamp(builds: ObjectProvider<BuildProperties>) {
     /** `Build 42 - 1cd09c3 - 2026-09-20 01:24 UTC`, oder `dev build`. */
     val label: String =
         if (number == "dev") "dev build" else "Build $number - $commit - $shortTime"
+
+    /**
+     * Wo Skripte, Stile und Mannequin dieses Builds liegen, ohne Schraegstrich
+     * am Ende - `/assets/v/1cd09c3`. Die Vorlagen lesen es als
+     * `${@buildStamp.assets}`; warum die Version im Pfad steht, erklaert
+     * [StaticAssets].
+     */
+    val assets: String = "${StaticAssets.PREFIX}/$commit"
 }

@@ -23,8 +23,10 @@
  * und er legt sich auf jedes humanoide Rig.
  */
 
-import { skeletonGlb, injectAnimation, bakeFromStage } from '../glb-export.js';
-import { skeletonFbx } from '../fbx-export.js';
+//  Die beiden Schreiber holt erst der Klick. Zusammen sind es rund 12 KB
+//  gzip, die jeder Besucher der Seite lud, auch wer nie etwas herunterlaedt.
+const glbExport = () => import('../glb-export.js');
+const fbxExport = () => import('../fbx-export.js');
 
 const box = document.getElementById('downloads');
 
@@ -90,10 +92,11 @@ document.addEventListener('aw:viewer', (event) => {
 
   // ── Nur die Bewegung ───────────────────────────────────────────────────
   const plain = button('Animation (.glb)', 'The skeleton and its motion - put it on your own character');
-  plain.addEventListener('click', () => {
+  plain.addEventListener('click', async () => {
     plain.disabled = true;
     state.textContent = '';
     try {
+      const { skeletonGlb } = await glbExport();
       save(skeletonGlb(preview, { name: title }), base + '.glb');
       state.textContent = frames + ' frames, ' + preview.bones.length + ' bones, no mesh.';
     } catch (error) {
@@ -115,10 +118,11 @@ document.addEventListener('aw:viewer', (event) => {
    * Knopf neben dem anderen.
    */
   const fbx = button('Animation (.fbx)', 'The same motion as a real skeleton - for Unity, Blender, Maya');
-  fbx.addEventListener('click', () => {
+  fbx.addEventListener('click', async () => {
     fbx.disabled = true;
     state.textContent = '';
     try {
+      const { skeletonFbx } = await fbxExport();
       save(skeletonFbx(preview, { name: title }), base + '.fbx', 'application/octet-stream');
       state.textContent = frames + ' frames, ' + preview.bones.length
         + ' bones, in centimetres as FBX expects.';
@@ -145,12 +149,13 @@ document.addEventListener('aw:viewer', (event) => {
       dressed.disabled = true;
       state.textContent = 'Putting it together...';
       try {
-        const response = await fetch('/models/aw-mannequin.glb');
+        const response = await fetch(new URL('../models/aw-mannequin.glb', import.meta.url));
         if (!response.ok) throw new Error('the figure could not be loaded');
         const mannequin = new Uint8Array(await response.arrayBuffer());
 
         //  Die Buehne wird dabei durch alle Bilder gestellt. Danach steht sie
         //  auf dem letzten - also zurueck auf das, was der Betrachter sah.
+        const { bakeFromStage, injectAnimation } = await glbExport();
         const playing = stage.playing;
         const tracks = bakeFromStage(stage, frames);
         const { bytes, missing } = injectAnimation(mannequin, tracks, {

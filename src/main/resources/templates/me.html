@@ -50,7 +50,7 @@
   <button id="revoke" class="danger">Sign out all Workbench installations</button>
   </main>
 <footer th:replace="~{fragments/shell :: footer}"></footer>
-<script src="/assets/app.js"></script>
-<script src="/assets/pages/me.js"></script>
+<script th:src="|${@buildStamp.assets}/app.js|"></script>
+<script th:src="|${@buildStamp.assets}/pages/me.js|"></script>
 </body>
 </html>

@@ -13,14 +13,18 @@
 
   if (user.status === "RESTRICTED") notice(state, "Your account is restricted after a removed clip: fewer uploads per day.", "warn");
 
-  const notifications = await api("GET", "/api/v1/me/notifications").catch(() => []);
+  //  Beide Listen zugleich anfordern - sie haengen nicht voneinander ab.
+  const notificationsRequest = api("GET", "/api/v1/me/notifications").catch(() => []);
+  const clipsRequest = api("GET", "/api/v1/me/packages").catch(() => []);
+
+  const notifications = await notificationsRequest;
   document.getElementById("notifications").replaceChildren(
     notifications.length === 0
       ? el("p", { class: "muted" }, "Nothing new.")
       : el("table", { class: "list" }, el("tbody", {}, ...notifications.map((n) =>
           el("tr", {}, el("td", { class: "muted small" }, formatDate(n.createdAt)), el("td", {}, n.message))))));
 
-  const clips = await api("GET", "/api/v1/me/packages").catch(() => []);
+  const clips = await clipsRequest;
   const body = document.querySelector("#clips tbody");
   body.replaceChildren(...(clips.length === 0
     ? [el("tr", {}, el("td", { colspan: 5, class: "muted" }, "You have not shared a clip yet."))]

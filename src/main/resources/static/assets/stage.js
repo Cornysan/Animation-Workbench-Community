@@ -61,7 +61,9 @@ import {
   Vector3, WebGLRenderer,
 } from './vendor/three.module.js';
 
-const MODEL_URL = '/models/aw-mannequin.glb';
+// Relativ zu diesem Modul, damit das Mannequin dieselbe Build-Version traegt
+// wie das Skript, das es laedt (siehe StaticAssets.kt).
+const MODEL_URL = new URL('./models/aw-mannequin.glb', import.meta.url).href;
 
 const ACCENT = 0x8e77ff;
 const WARM = 0xfb923c;

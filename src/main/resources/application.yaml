@@ -52,6 +52,15 @@ spring:
 
 server:
   forward-headers-strategy: framework
+  # Das Mannequin kam als application/octet-stream und damit unkomprimiert an
+  # (334 KB statt 133 KB gzip): Caddy komprimiert nur Typen, die es als Text
+  # kennt. Mit dem eigenen Typ packt Spring es selbst, und Caddy reicht eine
+  # schon gepackte Antwort unveraendert durch.
+  mime-mappings:
+    glb: model/gltf-binary
+  compression:
+    enabled: true
+    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json,application/xml,image/svg+xml,model/gltf-binary
   servlet:
     session:
       cookie:

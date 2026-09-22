@@ -14,7 +14,7 @@
   </div>
   </main>
 <footer th:replace="~{fragments/shell :: footer}"></footer>
-<script src="/assets/app.js"></script>
-<script src="/assets/pages/link.js"></script>
+<script th:src="|${@buildStamp.assets}/app.js|"></script>
+<script th:src="|${@buildStamp.assets}/pages/link.js|"></script>
 </body>
 </html>

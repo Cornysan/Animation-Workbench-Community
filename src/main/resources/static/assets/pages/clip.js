@@ -20,6 +20,12 @@
     return;
   }
 
+  //  Was nicht vom Clip abhaengt, laeuft gleich mit los. Vorher stand jede
+  //  Abfrage hinter der vorigen - Clip, dann Lizenzen, dann Konto, dann
+  //  Nachbarschaft -, und die Seite wartete viermal nacheinander auf das Netz.
+  const licensesRequest = api("GET", "/api/v1/licenses").catch(() => null);
+  const userRequest = me().catch(() => null);
+
   let clip;
   try {
     clip = await api("GET", "/api/v1/packages/" + encodeURIComponent(slug));
@@ -51,6 +57,10 @@
   document.getElementById("tags").replaceChildren(
     ...clip.tags.map((tag) => el("a", { class: "tag", href: "/browse.html?tag=" + encodeURIComponent(tag) }, tag)));
 
+  //  Die Nachbarschaft braucht nur die Schlagworte - sie wartet nicht auf
+  //  Lizenzen und Konto.
+  showRelated();
+
   //  "Used in projects" und "Likes" stehen nicht mehr hier: die eine Zahl steht
   //  in der Zeile unter dem Titel, die andere IM Herz-Knopf. Eine Zahl, die man
   //  anfassen kann, gehoert nicht in eine Tabelle daneben.
@@ -63,8 +73,9 @@
     ...(clip.status ? [el("dt", {}, "Status"), el("dd", {}, el("span", { class: "status " + clip.status }, clip.status))] : []));
 
   try {
-    const licenses = await api("GET", "/api/v1/licenses");
-    const license = licenses.find((l) => l.id === clip.license);
+    const licenses = await licensesRequest;
+    const license = licenses && licenses.find((l) => l.id === clip.license);
+    if (!licenses) throw new Error("no licenses");
     document.getElementById("license").replaceChildren(...[
       el("strong", {}, license ? license.name : clip.license), el("br"),
       license ? license.summary + " " : "",
@@ -80,7 +91,7 @@
   //  auf `#viewer`; zwei Stellen, die denselben Kasten fuellen, ueberholen
   //  einander irgendwann.
 
-  const user = await me().catch(() => null);
+  const user = await userRequest;
 
   // ── Herz, Stern, Link, Meldung ───────────────────────────────────────
   //  Was man an einer fremden Animation tun kann, steht nebeneinander unter
@@ -199,34 +210,36 @@
   //
   //  Das ist bewusst KEIN eigener Endpunkt: die Suche nach einem Schlagwort
   //  kann der Katalog schon, und "aehnlich" heisst hier genau das.
-  const related = document.getElementById("related");
-  const relatedList = document.getElementById("related-list");
-  const relatedTag = clip.tags[0];
+  async function showRelated() {
+    const related = document.getElementById("related");
+    const relatedList = document.getElementById("related-list");
+    const relatedTag = clip.tags[0];
 
-  try {
-    const fetchSome = async (query) => {
-      const page = await api("GET", "/api/v1/packages?" + query + "&size=7");
-      return page.items.filter((item) => item.slug !== slug).slice(0, 6);
-    };
+    try {
+      const fetchSome = async (query) => {
+        const page = await api("GET", "/api/v1/packages?" + query + "&size=7");
+        return page.items.filter((item) => item.slug !== slug).slice(0, 6);
+      };
 
-    //  Beim Schlagwort anfangen, aber nicht dabei stehenbleiben: ein Clip mit
-    //  einem seltenen Schlagwort haette sonst eine leere Spalte, und gerade er
-    //  braucht den Weg weiter.
-    let others = relatedTag ? await fetchSome("tag=" + encodeURIComponent(relatedTag) + "&sort=popular") : [];
-    let byTag = others.length > 0;
-    if (!byTag) others = await fetchSome("sort=popular");
+      //  Beim Schlagwort anfangen, aber nicht dabei stehenbleiben: ein Clip mit
+      //  einem seltenen Schlagwort haette sonst eine leere Spalte, und gerade er
+      //  braucht den Weg weiter.
+      let others = relatedTag ? await fetchSome("tag=" + encodeURIComponent(relatedTag) + "&sort=popular") : [];
+      let byTag = others.length > 0;
+      if (!byTag) others = await fetchSome("sort=popular");
 
-    if (others.length) {
-      document.getElementById("related-title").textContent =
-        byTag ? "More “" + relatedTag + "”" : "Popular right now";
-      related.hidden = false;
-      relatedList.replaceChildren(...others.map((item) => el("a", {
-        class: "related-item",
-        href: "/clip.html?p=" + encodeURIComponent(item.slug),
-      },
-        el("span", { class: "related-title" }, item.title),
-        el("span", { class: "related-meta" },
-          item.author, " · ", formatDuration(item.durationSeconds)))));
-    }
-  } catch { /* Nachbarschaft ist Zugabe. */ }
+      if (others.length) {
+        document.getElementById("related-title").textContent =
+          byTag ? "More “" + relatedTag + "”" : "Popular right now";
+        related.hidden = false;
+        relatedList.replaceChildren(...others.map((item) => el("a", {
+          class: "related-item",
+          href: "/clip.html?p=" + encodeURIComponent(item.slug),
+        },
+          el("span", { class: "related-title" }, item.title),
+          el("span", { class: "related-meta" },
+            item.author, " · ", formatDuration(item.durationSeconds)))));
+      }
+    } catch { /* Nachbarschaft ist Zugabe. */ }
+  }
 })();

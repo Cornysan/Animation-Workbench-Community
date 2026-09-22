@@ -138,8 +138,8 @@
   </section>
 </main>
 <footer th:replace="~{fragments/shell :: footer}"></footer>
-<script src="/assets/app.js"></script>
-<script src="/assets/viewer.js"></script>
-<script type="module" src="/assets/pages/landing.js"></script>
+<script th:src="|${@buildStamp.assets}/app.js|"></script>
+<script th:src="|${@buildStamp.assets}/viewer.js|"></script>
+<script type="module" th:src="|${@buildStamp.assets}/pages/landing.js|"></script>
 </body>
 </html>

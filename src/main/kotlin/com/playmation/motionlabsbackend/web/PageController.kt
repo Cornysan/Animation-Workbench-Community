@@ -108,6 +108,10 @@ class PageController(
         //  dass sich das nicht umrechnen laesst.
         model.addAttribute("clipRig", clip?.rig ?: AwclipSchema.RIG_HUMANOID)
 
+        //  Fuer die Vorab-Anfrage der Vorschau im Kopf der Seite (clip.html):
+        //  nur wenn der Clip hier auch sichtbar ist, sonst holte sie eine 404.
+        clip?.let { model.addAttribute("clipSlug", it.slug) }
+
         //  Ein privater Clip bekommt keine eigene Vorschau. Wer „nicht gelistet
         //  und nicht auffindbar" waehlt, hat keine Karte bestellt, die seine
         //  Bewegung in jedem Kanal zeigt, in den der Link geraet.

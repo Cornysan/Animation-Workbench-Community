@@ -5,6 +5,18 @@
 // erlaubt nur Skripte von dieser Adresse.
 
 const AW = (() => {
+  /**
+   * Wo dieses Skript liegt - `/assets/v/<commit>/`, mit Schraegstrich am Ende.
+   * Nachgeladene Module muessen unter DERSELBEN Version geholt werden, sonst
+   * mischt eine Seite zwei Staende (siehe StaticAssets.kt). Gelesen wird es aus
+   * der eigenen Adresse, solange das Skript noch laeuft: `currentScript` ist
+   * nur waehrend der ersten Ausfuehrung gesetzt.
+   */
+  const assetBase = (() => {
+    const src = document.currentScript && document.currentScript.src;
+    return src ? src.replace(/[^/]*$/, "") : "/assets/";
+  })();
+
   function cookie(name) {
     const match = document.cookie.match(new RegExp("(?:^|; )" + name + "=([^;]*)"));
     return match ? decodeURIComponent(match[1]) : null;
@@ -226,7 +238,7 @@ const AW = (() => {
   let cardStageModule = null;
   function cardStage() {
     if (!cardStageModule) {
-      cardStageModule = import("/assets/card-stage.js").catch((error) => {
+      cardStageModule = import(assetBase + "card-stage.js").catch((error) => {
         console.warn("[cards] no figure, drawing stick figures", error);
         return null;
       });

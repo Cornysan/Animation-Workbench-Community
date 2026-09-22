@@ -66,9 +66,13 @@ async function mountOverview() {
   }
 }
 
-/** Eine Reihe Karten. Leer heisst: der Abschnitt bleibt weg. */
-async function mountRow(sort, containerId, sectionId, stateId) {
-  const page = await api('GET', `/api/v1/packages?sort=${sort}&size=6`);
+/**
+ * Eine Reihe Karten. Leer heisst: der Abschnitt bleibt weg. `page` reicht eine
+ * schon geholte Seite durch - die Popular-Reihe fragt vorher, ob sie sich
+ * ueberhaupt lohnt, und muss dann nicht zweimal dasselbe holen.
+ */
+async function mountRow(sort, containerId, sectionId, stateId, page = null) {
+  page = page || await api('GET', `/api/v1/packages?sort=${sort}&size=6`);
   const container = document.getElementById(containerId);
 
   if (page.items.length === 0) {
@@ -102,7 +106,7 @@ function mountHeroStage() {
   import('../hero-stage.js')
     .then(({ createStage }) => {
       const stage = createStage(canvas, {
-        modelUrl: '/models/aw-mannequin.glb',
+        modelUrl: new URL('../models/aw-mannequin.glb', import.meta.url).href,
         onReady: () => frame.classList.add('is-ready'),
         onError: (error) => console.warn('[landing] mannequin unavailable', error),
       });
@@ -141,5 +145,5 @@ whenIdle(mountHeroStage);
 api('GET', '/api/v1/packages?sort=popular&size=6').then((page) => {
   const used = page.items.filter((item) => item.downloads > 0);
   if (used.length < 3) return null;
-  return mountRow('popular', 'popular', 'popular-section', null);
+  return mountRow('popular', 'popular', 'popular-section', null, page);
 }).catch((error) => console.warn('[landing] no popular row', error));
