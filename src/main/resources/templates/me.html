@@ -17,7 +17,7 @@
 <head th:replace="~{fragments/shell :: head('Your account')}"></head>
 <body th:attr="data-signed-in=${user != null}">
 <header th:replace="~{fragments/shell :: header}"></header>
-<main>
+<main id="main">
   <div th:replace="~{fragments/shell :: paused}"></div>
   <h1>Your account</h1>
   <p class="lead">Only you see this page: your messages, what each of your clips is doing, and the

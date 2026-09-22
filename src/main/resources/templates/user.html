@@ -16,7 +16,7 @@
 <head th:replace="~{fragments/shell :: head('Profile')}"></head>
 <body th:attr="data-signed-in=${user != null}">
 <header th:replace="~{fragments/shell :: header}"></header>
-<main class="wide">
+<main id="main" class="wide">
   <div th:replace="~{fragments/shell :: paused}"></div>
   <div id="state"></div>
 

@@ -3,7 +3,7 @@
 <head th:replace="~{fragments/shell :: head('Connect the Workbench')}"></head>
 <body th:attr="data-signed-in=${user != null},data-discord-sign-in=${discordSignIn},data-dev-login=${devLogin}">
 <header th:replace="~{fragments/shell :: header}"></header>
-<main>
+<main id="main">
   <div th:replace="~{fragments/shell :: paused}"></div>
   <div class="panel prose">
     <h1>Connect the Animation Workbench</h1>

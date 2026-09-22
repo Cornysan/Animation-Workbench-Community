@@ -14,7 +14,7 @@
 <head th:replace="~{fragments/shell :: head('Browse clips')}"></head>
 <body th:attr="data-signed-in=${user != null}">
 <header th:replace="~{fragments/shell :: header}"></header>
-<main class="wide">
+<main id="main" class="wide">
   <div th:replace="~{fragments/shell :: paused}"></div>
 
   <h1>Community clips</h1>

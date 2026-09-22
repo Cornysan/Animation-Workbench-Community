@@ -263,10 +263,27 @@
 
   let current = TABS.some((tab) => tab.id === param("tab")) ? param("tab") : "clips";
 
+  //  Reiter, wie ein Vorleser sie kennt: eine Tabliste, der aktive traegt
+  //  `aria-selected`, und Pfeil links/rechts wechselt - vorher waren es vier
+  //  Knoepfe in einer Gruppe, und welcher galt, stand nur in einer Klasse.
+  tabsBox.setAttribute("role", "tablist");
+  panel.setAttribute("role", "tabpanel");
+  tabsBox.addEventListener("keydown", (event) => {
+    if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+    const index = TABS.findIndex((tab) => tab.id === current);
+    const next = TABS[(index + (event.key === "ArrowRight" ? 1 : TABS.length - 1)) % TABS.length];
+    event.preventDefault();
+    tabsBox.querySelector('[data-tab="' + next.id + '"]').click();
+    tabsBox.querySelector('[data-tab="' + next.id + '"]').focus();
+  });
+
   const drawTabs = () => {
     tabsBox.replaceChildren(...TABS.map((tab) => {
-      const button = el("button", { type: "button", class: tab.id === current ? "active" : null },
-        tab.label, tab.count ? el("span", { class: "tag-count" }, tab.count) : null);
+      const active = tab.id === current;
+      const button = el("button", {
+        type: "button", class: active ? "active" : null, role: "tab", "data-tab": tab.id,
+        "aria-selected": String(active), tabindex: active ? "0" : "-1",
+      }, tab.label, tab.count ? el("span", { class: "tag-count" }, tab.count) : null);
       button.addEventListener("click", () => {
         if (current === tab.id) return;
         current = tab.id;

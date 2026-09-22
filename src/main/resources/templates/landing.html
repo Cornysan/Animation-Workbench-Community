@@ -41,7 +41,7 @@
 <head th:replace="~{fragments/shell :: head('Animation Workbench Community (Beta)')}"></head>
 <body th:attr="data-signed-in=${user != null}">
 <header th:replace="~{fragments/shell :: header}"></header>
-<main class="landing wide">
+<main id="main" class="landing wide">
   <div th:replace="~{fragments/shell :: paused}"></div>
 
   <section class="hero">

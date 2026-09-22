@@ -92,6 +92,28 @@ a:hover { text-decoration: underline; }
 
 .hidden { display: none !important; }
 
+/* TASTATUR-FOKUS. Eingabefelder hatten einen eigenen Ring, Icon-Knoepfe,
+   Schlagworte, Chips und Reiter nur den des Browsers - auf diesem Grund
+   praktisch unsichtbar. Jetzt ein Ring fuer alles, was man anfassen kann,
+   aber nur fuer die Tastatur (:focus-visible), nicht nach jedem Mausklick. */
+a:focus-visible, button:focus-visible, summary:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.skip-link {
+  position: absolute;
+  left: 12px;
+  top: -48px;
+  z-index: 100;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+.skip-link:focus-visible { top: 12px; }
+
 /* ── Kopfleiste ────────────────────────────────────────────────────────
    Oben statt links. Die feste Spalte links war das Muster einer App; das
    Portal ist aber das Schaufenster vor der App, und der Katalog ist die
@@ -1477,6 +1499,7 @@ table.list tr:hover td { background: rgba(255, 255, 255, 0.02); }
   min-width: 0;
 }
 .picker-search input:focus { outline: none; }
+.picker-search:focus-within { border-color: var(--accent-line); }
 
 .picker-list { display: flex; flex-direction: column; gap: 2px; max-height: 232px; overflow: auto; }
 .picker-list p { margin: 0; padding: 10px; }

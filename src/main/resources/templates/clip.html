@@ -30,7 +30,7 @@
 <link rel="preload" as="fetch" crossorigin th:if="${clipRig != 'generic'}"
       th:href="|${@buildStamp.assets}/models/aw-mannequin.glb|">
 <header th:replace="~{fragments/shell :: header}"></header>
-<main class="wide">
+<main id="main" class="wide">
   <div th:replace="~{fragments/shell :: paused}"></div>
   <div id="state"></div>
 

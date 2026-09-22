@@ -638,11 +638,13 @@ const AW = (() => {
     //  Solange der Kasten offen ist, schweigt der Tooltip des Knopfes: er
     //  stuende sonst als Zettel ueber dem Kasten, den er erklaert.
     anchor.classList.add("tip-off");
+    anchor.setAttribute("aria-expanded", "true");
 
     openPopover = () => {
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("keydown", onKey);
       anchor.classList.remove("tip-off");
+      anchor.setAttribute("aria-expanded", "false");
       box.remove();
     };
 

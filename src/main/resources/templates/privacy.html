@@ -3,7 +3,7 @@
 <head th:replace="~{fragments/shell :: head('Privacy')}"></head>
 <body th:attr="data-signed-in=${user != null}">
 <header th:replace="~{fragments/shell :: header}"></header>
-<main>
+<main id="main">
   <div th:replace="~{fragments/shell :: paused}"></div>
   <div class="prose">
   <h1>Privacy</h1>

@@ -3,7 +3,7 @@
 <head th:replace="~{fragments/shell :: head('Moderation')}"></head>
 <body th:attr="data-signed-in=${user != null}">
 <header th:replace="~{fragments/shell :: header}"></header>
-<main>
+<main id="main">
   <div th:replace="~{fragments/shell :: paused}"></div>
   <h1>Moderation</h1>
   <p class="lead">Reported clips are already hidden. Decide in your own time.</p>

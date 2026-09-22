@@ -11,7 +11,7 @@
 <head th:replace="~{fragments/shell :: head('Not found')}"></head>
 <body th:attr="data-signed-in=${user != null}">
 <header th:replace="~{fragments/shell :: header}"></header>
-<main>
+<main id="main">
   <div class="notfound">
     <p class="notfound-code">404</p>
     <h1>That page is not here.</h1>
