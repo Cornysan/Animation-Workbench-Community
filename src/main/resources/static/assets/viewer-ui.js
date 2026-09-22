@@ -272,6 +272,10 @@ export async function mountViewer(box, preview, options = {}) {
     if (event.metaKey || event.ctrlKey || event.altKey) return;
     const target = event.target;
     if (target && (target.closest('input, textarea, select, [contenteditable]'))) return;
+    //  Die Leertaste auf einem fokussierten Knopf oder Link gehoert dem Knopf.
+    //  Vorher schaltete sie die Wiedergabe um und schluckte den Druck - wer
+    //  per Tastatur auf das Herz oder den Download ging, drueckte ins Leere.
+    if (event.key === ' ' && target && target.closest('button, a[href], summary, [role="button"]')) return;
     const action = keys.get(event.key.toLowerCase());
     if (!action) return;
     event.preventDefault();

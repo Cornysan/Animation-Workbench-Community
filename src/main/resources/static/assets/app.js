@@ -255,9 +255,11 @@ const AW = (() => {
   function cardPreview(canvas) {
     let viewer = null;
     let visible = true;
+    let destroyed = false;
 
     api("GET", "/api/v1/packages/" + canvas.dataset.slug + "/preview")
       .then(async (preview) => {
+        if (destroyed) return;
         //  Ein generischer Clip bekommt die Figur gar nicht erst zu sehen -
         //  auf seinem Skelett waere sie erfunden. Die Begruendung steht ganz
         //  bei `mountViewer` in viewer-ui.js.
@@ -274,6 +276,13 @@ const AW = (() => {
               console.warn("[cards] falling back to the skeleton", error);
             }
           }
+        }
+
+        //  Waehrend des Wartens abgeraeumt: die Figur gleich wieder abbauen,
+        //  sonst haengt sie an der gemeinsamen Flaeche, ohne je gezeigt zu werden.
+        if (destroyed) {
+          if (viewer) viewer.destroy();
+          return;
         }
 
         if (!viewer) {
@@ -293,7 +302,27 @@ const AW = (() => {
         visible = on;
         if (viewer) viewer.setVisible(on);
       },
+      destroy() {
+        destroyed = true;
+        if (viewer) viewer.destroy();
+        viewer = null;
+      },
     };
+  }
+
+  /**
+   * Die Vorschauen unter `root` abbauen, bevor die Karten verschwinden.
+   *
+   * Eine Karte, die einfach aus dem DOM faellt, nimmt ihre Figur nicht mit:
+   * die Szene haengt weiter an der gemeinsamen Flaeche (card-stage.js), und der
+   * Beobachter haelt die Leinwand fest. Wer Karten ersetzt, ruft vorher das hier.
+   */
+  function releasePreviews(root) {
+    root.querySelectorAll("canvas").forEach((canvas) => {
+      if (canvas.__observer) canvas.__observer.unobserve(canvas);
+      if (canvas.__preview) canvas.__preview.destroy();
+      canvas.__preview = null;
+    });
   }
 
   /**
@@ -771,7 +800,10 @@ const AW = (() => {
     const canvas = el("canvas", {
       "data-slug": item.slug, "data-rig": item.rig || "humanoid", width: 560, height: 420,
     });
-    if (item.hasPreview && observer) observer.observe(canvas);
+    if (item.hasPreview && observer) {
+      observer.observe(canvas);
+      canvas.__observer = observer;
+    }
 
     const fresh = Date.now() - new Date(item.createdAt).getTime() < WEEK;
 
@@ -892,6 +924,6 @@ const AW = (() => {
     api, ApiError, ensureCsrf, me, el, notice, formatDuration, formatDate, formatRelative,
     copyText, param, signInUrl, signInButton, clipCard, collectionCard, previewObserver,
     icon, iconButton, setIconState, popover, closePopover, signInHint, signedIn,
-    likeButton, saveButton, collectionDialog, profileHref,
+    likeButton, saveButton, collectionDialog, profileHref, releasePreviews,
   };
 })();

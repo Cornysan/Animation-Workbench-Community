@@ -57,9 +57,31 @@ class SkeletonViewer {
 
     if (this.interactive) this.attachInput();
     this.resize();
-    new ResizeObserver(() => this.resize()).observe(canvas);
+    this.resizeObserver = new ResizeObserver(() => this.resize());
+    this.resizeObserver.observe(canvas);
     this.loop = this.loop.bind(this);
+    this.running = false;
+    this.drawnKey = null;
+    this.start();
+  }
+
+  /**
+   * Die Schleife anwerfen, falls sie steht. Sie haelt von selbst an, sobald
+   * die Leinwand aus dem Bild ist - vorher lief sie auf jeder Karte weiter,
+   * auch zwanzig Bildschirme weiter oben, und rechnete nur nicht mehr.
+   */
+  start() {
+    if (this.running || this.destroyed) return;
+    this.running = true;
+    this.lastTimestamp = null;
     requestAnimationFrame(this.loop);
+  }
+
+  /** Fuer immer anhalten - eine Karte, die ersetzt wird. */
+  destroy() {
+    this.destroyed = true;
+    this.visible = false;
+    this.resizeObserver.disconnect();
   }
 
   // ── Mathematik ────────────────────────────────────────────────────────
@@ -146,6 +168,7 @@ class SkeletonViewer {
   attachInput() {
     let dragging = null;
     this.canvas.addEventListener("pointerdown", (e) => {
+      this.wheelArmed = true;
       dragging = { x: e.clientX, y: e.clientY, yaw: this.yaw, pitch: this.pitch };
       this.canvas.setPointerCapture(e.pointerId);
     });
@@ -178,7 +201,13 @@ class SkeletonViewer {
       this.pitch = Math.max(-0.9, Math.min(1.1, dragging.pitch + (e.clientY - dragging.y) * 0.01));
     });
     this.canvas.addEventListener("pointerup", () => (dragging = null));
+    this.canvas.addEventListener("pointercancel", () => (dragging = null));
+    //  Das Rad zoomt erst, wenn man die Figur angefasst hat (oder mit Strg).
+    //  Vorher fing die Leinwand JEDES Rad ab, und wer ueber die Seite
+    //  scrollte, blieb an der Figur haengen. Wie in stage.js.
+    this.canvas.addEventListener("pointerleave", () => (this.wheelArmed = false));
     this.canvas.addEventListener("wheel", (e) => {
+      if (!this.wheelArmed && !e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
       this.zoom = Math.max(0.3, Math.min(4, this.zoom * (e.deltaY > 0 ? 0.9 : 1.1)));
     }, { passive: false });
@@ -189,24 +218,27 @@ class SkeletonViewer {
     const rect = this.canvas.getBoundingClientRect();
     this.canvas.width = Math.max(1, Math.round(rect.width * ratio));
     this.canvas.height = Math.max(1, Math.round(rect.height * ratio));
+    //  Breite setzen leert die Leinwand, auch bei gleichem Wert - also neu
+    //  zeichnen, selbst wenn der Schluessel in [loop] derselbe bliebe.
+    this.drawnKey = null;
   }
 
   setTime(t) {
     this.time = Math.max(0, Math.min(this.duration, t));
   }
 
-  /** Ausserhalb des Bildes wird weder gerechnet noch gezeichnet - die Schleife
-   *  laeuft weiter, damit die Karte sofort wieder anspringt. */
+  /** Ausserhalb des Bildes wird weder gerechnet noch gezeichnet, und die
+   *  Schleife steht; kommt die Leinwand zurueck, springt sie wieder an. */
   setVisible(on) {
     this.visible = on;
+    if (on) this.start();
   }
 
   // ── Zeichnen ──────────────────────────────────────────────────────────
 
   loop(timestamp) {
     if (!this.visible) {
-      this.lastTimestamp = timestamp;
-      requestAnimationFrame(this.loop);
+      this.running = false;
       return;
     }
 
@@ -216,7 +248,15 @@ class SkeletonViewer {
     }
     this.lastTimestamp = timestamp;
 
-    this.draw();
+    //  Nur zeichnen, was sich geaendert hat. Eine angehaltene Figur, die
+    //  niemand dreht, ist jedes Mal dasselbe Bild.
+    const frame = Math.min(this.frameCount - 1, Math.round(this.time * this.fps));
+    const key = frame + "|" + this.yaw + "|" + this.pitch + "|" + this.zoom + "|"
+      + this.canvas.width + "x" + this.canvas.height;
+    if (key !== this.drawnKey) {
+      this.draw();
+      this.drawnKey = key;
+    }
     if (this.onFrame) this.onFrame(this.time, this.duration);
     requestAnimationFrame(this.loop);
   }

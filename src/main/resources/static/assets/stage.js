@@ -477,8 +477,30 @@ export class MannequinStage {
     this.observer.observe(canvas);
 
     this.last = null;
+    this.drawnKey = null;
     this.loop = this.loop.bind(this);
-    if (!this.surface) this.renderer.setAnimationLoop(this.loop);
+    if (!this.surface) {
+      this.renderer.setAnimationLoop(this.loop);
+      this.pauseWhenHidden();
+    }
+  }
+
+  /**
+   * Aus dem Bild heisst: keine Schleife. Vorher lief sie weiter, samt
+   * Schattendurchgang, auch wenn man laengst bei den Kommentaren war.
+   *
+   * `last` wird dabei vergessen, damit die Zeit nach der Rueckkehr dort
+   * weiterlaeuft, wo sie stand, statt um die Abwesenheit zu springen.
+   */
+  pauseWhenHidden() {
+    if (typeof IntersectionObserver !== 'function') return;
+    this.visibility = new IntersectionObserver(([entry]) => {
+      if (!this.renderer) return;
+      this.last = null;
+      this.drawnKey = null;
+      this.renderer.setAnimationLoop(entry.isIntersecting ? this.loop : null);
+    });
+    this.visibility.observe(this.canvas);
   }
 
   /**
@@ -501,6 +523,7 @@ export class MannequinStage {
   attachInput() {
     let drag = null;
     this.canvas.addEventListener('pointerdown', (e) => {
+      this.wheelArmed = true;
       drag = { x: e.clientX, y: e.clientY, yaw: this.yaw, pitch: this.pitch };
       this.canvas.setPointerCapture(e.pointerId);
     });
@@ -511,7 +534,13 @@ export class MannequinStage {
     });
     this.canvas.addEventListener('pointerup', () => (drag = null));
     this.canvas.addEventListener('pointercancel', () => (drag = null));
+    //  DAS RAD ZOOMT ERST NACH DEM ANFASSEN. Vorher fing die Buehne jedes Rad
+    //  ab, und wer ueber die Clip-Seite scrollte, blieb an 480 Pixeln Figur
+    //  haengen. Jetzt: einmal hineinklicken oder Strg halten, und das Rad
+    //  gehoert der Figur, bis der Zeiger die Buehne verlaesst.
+    this.canvas.addEventListener('pointerleave', () => (this.wheelArmed = false));
     this.canvas.addEventListener('wheel', (e) => {
+      if (!this.wheelArmed && !e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
       this.zoom = Math.max(0.35, Math.min(4, this.zoom * (e.deltaY > 0 ? 0.9 : 1.1)));
     }, { passive: false });
@@ -1246,7 +1275,9 @@ export class MannequinStage {
   applyFrame(frame) {
     const rot = this.solved.rotations[frame];
     const pos = this.solved.positions[frame];
-    const desired = new Quaternion();
+    //  Wiederverwendet statt je Bild neu angelegt - das hier laeuft 60-mal in
+    //  der Sekunde.
+    const desired = this._desired || (this._desired = new Quaternion());
 
     for (const i of this.order) {
       const parent = this.parentIndex[i];
@@ -1263,7 +1294,7 @@ export class MannequinStage {
       }
     }
 
-    const hips = pos[0].clone().multiplyScalar(this.scale);
+    const hips = (this._hips || (this._hips = new Vector3())).copy(pos[0]).multiplyScalar(this.scale);
     hips.y += this.offsetY;
     this.hipsBone.position.copy(hips.applyMatrix4(this.hipsParentInverse));
 
@@ -1356,9 +1387,27 @@ export class MannequinStage {
   }
 
   loop(timestamp) {
-    this.step(timestamp);
-    this.renderer.render(this.scene, this.camera);
+    const frame = this.step(timestamp);
+
+    //  NUR ZEICHNEN, WENN SICH ETWAS GEAENDERT HAT. Eine angehaltene Figur,
+    //  die niemand dreht, ist Bild fuer Bild dasselbe - vorher wurde es
+    //  trotzdem jedes Mal gerendert, Schatten inklusive. Der Schluessel haelt
+    //  alles fest, was das Bild veraendert; wer von aussen etwas umstellt,
+    //  das hier fehlt, ruft [invalidate].
+    const c = this.renderer.domElement;
+    const key = frame + '|' + this.yaw + '|' + this.pitch + '|' + this.zoom + '|'
+      + this.cameraFollow + '|' + this._showMesh + '|' + this._showGrid + '|'
+      + this.proportions + '|' + c.width + 'x' + c.height;
+    if (key !== this.drawnKey) {
+      this.renderer.render(this.scene, this.camera);
+      this.drawnKey = key;
+    }
     if (this.onFrame) this.onFrame(this.time, this.duration);
+  }
+
+  /** Das naechste Bild auf jeden Fall zeichnen. */
+  invalidate() {
+    this.drawnKey = null;
   }
 
   /**
@@ -1373,6 +1422,7 @@ export class MannequinStage {
   dispose() {
     if (!this.surface) this.renderer.setAnimationLoop(null);
     if (this.observer) this.observer.disconnect();
+    if (this.visibility) this.visibility.disconnect();
 
     const shared = new Set();
     this.model.traverse((node) => { if (node.geometry) shared.add(node.geometry); });

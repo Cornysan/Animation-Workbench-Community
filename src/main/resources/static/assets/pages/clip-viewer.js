@@ -43,7 +43,10 @@ function message(text) {
     //  zweiten Aufruf. Fehlt es - etwa bei einem privaten Clip, den der
     //  Server ohne Anmeldung nicht sieht -, bleibt es bei `humanoid`, und
     //  scheitert die Umrechnung, faengt sie das Strichmaennchen auf.
-    const viewer = await mountViewer(box, preview, { rig: box.dataset.rig });
+    //  Wer weniger Bewegung eingestellt hat, bekommt die Figur stehend; der
+    //  Knopf zum Abspielen ist einen Klick entfernt. Die Karten tun das schon.
+    const calm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const viewer = await mountViewer(box, preview, { rig: box.dataset.rig, autoplay: !calm });
 
     //  WEITERSAGEN, DASS DIE BUEHNE STEHT. Die Ausgabe als .glb "mit Figur"
     //  schreibt die Pose dieser Buehne heraus, Bild fuer Bild - sie braucht

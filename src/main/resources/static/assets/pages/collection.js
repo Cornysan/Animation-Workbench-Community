@@ -11,7 +11,7 @@
 (async () => {
   const {
     api, ensureCsrf, el, notice, icon, iconButton, formatDate, copyText, param,
-    clipCard, previewObserver, collectionDialog,
+    clipCard, previewObserver, collectionDialog, releasePreviews,
   } = AW;
 
   const slug = param("c");
@@ -34,7 +34,11 @@
   document.title = collection.title + " - Animation Workbench Community (Beta)";
   document.getElementById("collection").classList.remove("hidden");
 
-  const draw = () => {
+  //  Kopf und Wand getrennt: eine Umbenennung beruehrt die Karten nicht, und
+  //  ein herausgenommener Clip nimmt nur SEINE Karte mit. Vorher baute beides
+  //  die ganze Wand neu - jede Vorschau noch einmal geholt, jede Figur noch
+  //  einmal aufgestellt.
+  const drawHead = () => {
     document.getElementById("title").textContent = collection.title;
 
     const owner = collection.ownerHandle
@@ -57,9 +61,12 @@
       description.hidden = false;
       description.textContent = collection.description;
     }
+  };
 
+  const drawGrid = () => {
     const results = document.getElementById("results");
     const empty = document.getElementById("empty");
+    releasePreviews(results);
 
     if (!collection.items.length) {
       results.replaceChildren();
@@ -91,7 +98,10 @@
               await api("DELETE", "/api/v1/collections/" + encodeURIComponent(collection.slug) +
                 "/items/" + encodeURIComponent(item.slug));
               collection.items = collection.items.filter((entry) => entry.slug !== item.slug);
-              draw();
+              releasePreviews(card);
+              card.remove();
+              drawHead();
+              if (!collection.items.length) drawGrid();
             } catch (e) {
               notice(actionState, e.message, "error");
               remove.disabled = false;
@@ -103,6 +113,11 @@
 
       return card;
     }));
+  };
+
+  const draw = () => {
+    drawHead();
+    drawGrid();
   };
 
   // ── Handgriffe im Kopf ───────────────────────────────────────────────
@@ -130,7 +145,7 @@
         collection.description = saved.description;
         collection.visibility = saved.visibility;
         document.getElementById("description").hidden = !saved.description;
-        draw();
+        drawHead();
       },
     }));
 
