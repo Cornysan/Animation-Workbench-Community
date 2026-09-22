@@ -152,3 +152,14 @@ api('GET', '/api/v1/packages?sort=popular&size=6').then((page) => {
   if (used.length < 3) return null;
   return mountRow('popular', 'popular', 'popular-section', null, page);
 }).catch((error) => console.warn('[landing] no popular row', error));
+
+//  Die oeffentlichen Sammlungen - nur, wenn es welche gibt, und nur die mit
+//  Inhalt: eine leere Sammlung ist auf der Startseite ein leerer Kasten.
+api('GET', '/api/v1/collections?limit=12').then((all) => {
+  const filled = all.filter((item) => item.items > 0).slice(0, 6);
+  if (!filled.length) return;
+  const observer = AW.previewObserver();
+  document.getElementById('collections').replaceChildren(
+    ...filled.map((item) => AW.collectionCard(item, observer)));
+  document.getElementById('collections-section').hidden = false;
+}).catch((error) => console.warn('[landing] no collections', error));
