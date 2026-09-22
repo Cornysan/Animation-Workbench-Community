@@ -76,6 +76,12 @@ html { font-feature-settings: 'cv05' 1, 'cv08' 1, 'ss03' 1; }
 * { box-sizing: border-box; }
 
 html, body { margin: 0; padding: 0; }
+/* Unsichtbare Tooltips (`[data-tip]::after`) liegen mit voller Breite im
+   Layout; an einem Knopf am rechten Rand schoben sie die Seite 35 px ueber
+   den Bildschirm hinaus - ein waagerechter Scrollbalken auf jedem Telefon.
+   `clip` statt `hidden`: es macht kein Scroll-Element daraus, der klebende
+   Kopf klebt weiter. */
+html { overflow-x: clip; }
 
 body {
   background: var(--bg);
@@ -1404,6 +1410,12 @@ table.list tr:hover td { background: rgba(255, 255, 255, 0.02); }
 
 /* Am oberen Rand kippt er nach unten - sonst steht er ausserhalb des Bildes. */
 [data-tip-below]::after { bottom: auto; top: calc(100% + 9px); }
+
+/* Am Seitenrand haengt er nach innen statt mittig (app.js setzt das Attribut
+   beim Hinzeigen) - sonst schnitte der Rand ihn ab. */
+[data-tip-edge="end"]::after { left: auto; right: 0; transform: translateY(3px); }
+[data-tip-edge="start"]::after { left: 0; transform: translateY(3px); }
+[data-tip-edge]:hover::after, [data-tip-edge]:focus-visible::after { transform: none; }
 
 /* Wer gerade einen Kasten geoeffnet hat, braucht keinen Zettel darueber. */
 [data-tip].tip-off::after { content: none; }

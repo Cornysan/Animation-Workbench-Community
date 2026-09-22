@@ -1065,6 +1065,21 @@ const AW = (() => {
     return image;
   }
 
+  //  Ein Tooltip am Seitenrand haengt nach innen (app.css, `data-tip-edge`).
+  //  Gemessen wird beim Hinzeigen, nicht beim Bauen: wo ein Knopf steht,
+  //  entscheidet das Layout, und das aendert sich mit der Fensterbreite.
+  const alignTip = (event) => {
+    const target = event.target.closest && event.target.closest("[data-tip]");
+    if (!target) return;
+    const rect = target.getBoundingClientRect();
+    const room = 140;
+    const edge = rect.right > window.innerWidth - room ? "end" : rect.left < room ? "start" : null;
+    if (edge) target.setAttribute("data-tip-edge", edge);
+    else target.removeAttribute("data-tip-edge");
+  };
+  document.addEventListener("mouseover", alignTip);
+  document.addEventListener("focusin", alignTip);
+
   //  Dasselbe fuer Bilder, die schon im ausgelieferten HTML stehen (Kopf).
   document.querySelectorAll("img.avatar[data-initial]").forEach((image) => {
     const fallBack = () => image.replaceWith(el("span", { class: "avatar" }, image.dataset.initial));
