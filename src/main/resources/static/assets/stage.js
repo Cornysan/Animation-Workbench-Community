@@ -1376,7 +1376,8 @@ export class MannequinStage {
    */
   step(timestamp) {
     if (this.last !== null && this.playing) {
-      this.time += (timestamp - this.last) / 1000;
+      //  `speed`: 0.25 bis 2 aus der Transportleiste (viewer-ui.js).
+      this.time += ((timestamp - this.last) / 1000) * (this.speed || 1);
       if (this.time > this.duration) this.time %= this.duration;
     }
     this.last = timestamp;

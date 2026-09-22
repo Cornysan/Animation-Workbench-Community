@@ -243,7 +243,7 @@ class SkeletonViewer {
     }
 
     if (this.lastTimestamp !== null && this.playing) {
-      this.time += (timestamp - this.lastTimestamp) / 1000;
+      this.time += ((timestamp - this.lastTimestamp) / 1000) * (this.speed || 1);
       if (this.time > this.duration) this.time = this.time % this.duration;
     }
     this.lastTimestamp = timestamp;

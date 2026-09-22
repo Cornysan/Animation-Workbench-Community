@@ -23,7 +23,12 @@ const ICONS = {
   reset: '<path d="M4.5 12a7.5 7.5 0 1 1 2.2 5.3"/><path d="M4 7.5V12h4.5"/>',
   play: '<path d="M8 5.5v13l10-6.5z" fill="currentColor" stroke="none"/>',
   pause: '<path d="M9 5.5v13M15 5.5v13"/>',
+  expand: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
+  shrink: '<path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/>',
 };
+
+/** Die Tempostufen der Transportleiste - ein Klick geht eine weiter. */
+const SPEEDS = [1, 2, 0.25, 0.5];
 
 function icon(name) {
   return `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
@@ -159,7 +164,18 @@ export async function mountViewer(box, preview, options = {}) {
   const time = document.createElement('span');
   time.className = 'muted small time';
   time.textContent = '0.00 s';
-  controls.append(play, scrub, time);
+
+  /*
+   * TEMPO UND VOLLBILD - die zwei Dinge, die man an einer Bewegung wirklich
+   * braucht, wenn man sie beurteilen will: einen schnellen Schlag langsam
+   * sehen, und die Figur gross. Einzelbilder gehen ueber `,` und `.`.
+   */
+  const speed = document.createElement('button');
+  speed.type = 'button';
+  speed.className = 'hud-toggle speed-toggle';
+  const fullscreen = hudButton('expand', 'Full screen (F)');
+  controls.append(play, scrub, time, speed);
+  if (box.requestFullscreen) controls.append(fullscreen);
 
   box.replaceChildren(wrap, controls);
 
@@ -248,6 +264,41 @@ export async function mountViewer(box, preview, options = {}) {
     mode = 'skeleton';
   }
 
+  const setSpeed = (value) => {
+    stage.speed = value;
+    speed.textContent = value + '×';
+    speed.title = 'Speed: ' + value + '× (click to change)';
+    speed.setAttribute('aria-label', speed.title);
+    speed.classList.toggle('on', value !== 1);
+  };
+  setSpeed(1);
+  speed.addEventListener('click', () => {
+    setSpeed(SPEEDS[(SPEEDS.indexOf(stage.speed) + 1) % SPEEDS.length]);
+  });
+
+  /** Ein Bild weiter oder zurueck - angehalten, am Ende herum. */
+  const stepFrame = (delta) => {
+    setPlaying(false);
+    const fps = stage.fps || preview.frameRate || 30;
+    const frames = Math.max(1, Math.round(stage.duration * fps) + 1);
+    const current = Math.round(stage.time * fps);
+    stage.setTime((((current + delta) % frames + frames) % frames) / fps);
+    onFrame(stage.time, stage.duration);
+  };
+
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else if (box.requestFullscreen) box.requestFullscreen().catch(() => {});
+  };
+  fullscreen.addEventListener('click', toggleFullscreen);
+  const onFullscreen = () => {
+    const on = document.fullscreenElement === box;
+    fullscreen.innerHTML = icon(on ? 'shrink' : 'expand');
+    fullscreen.title = on ? 'Leave full screen (F)' : 'Full screen (F)';
+    fullscreen.setAttribute('aria-label', fullscreen.title);
+  };
+  document.addEventListener('fullscreenchange', onFullscreen);
+
   const setPlaying = (on) => {
     stage.playing = on;
     play.innerHTML = icon(on ? 'pause' : 'play');
@@ -264,7 +315,12 @@ export async function mountViewer(box, preview, options = {}) {
   });
   scrub.addEventListener('change', () => (scrubbing = false));
 
-  const keys = new Map([[' ', () => setPlaying(!stage.playing)]]);
+  const keys = new Map([
+    [' ', () => setPlaying(!stage.playing)],
+    [',', () => stepFrame(-1)],
+    ['.', () => stepFrame(1)],
+    ['f', toggleFullscreen],
+  ]);
 
   // Die Tasten gehoeren der Seite, aber nicht, solange jemand tippt - ein "g"
   // im Suchfeld darf das Raster nicht umschalten.
@@ -284,6 +340,7 @@ export async function mountViewer(box, preview, options = {}) {
 
   const destroy = () => {
     document.removeEventListener('keydown', onKey);
+    document.removeEventListener('fullscreenchange', onFullscreen);
     if (stage.dispose) stage.dispose();
   };
 
