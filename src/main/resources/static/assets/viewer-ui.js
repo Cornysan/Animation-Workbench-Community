@@ -30,9 +30,31 @@ const ICONS = {
 /** Die Tempostufen der Transportleiste - ein Klick geht eine weiter. */
 const SPEEDS = [1, 2, 0.25, 0.5];
 
+/**
+ * Der EINZIGE Weg, auf dem in dieser Datei Text zu DOM wird - siehe die
+ * ausfuehrliche Begruendung bei `iconHtml` in `app.js`.
+ *
+ * Eigener Policy-Name, weil dies ein Modul ist und den Abschluss von app.js
+ * nicht sehen kann. Die Content Security Policy nennt beide Namen einzeln
+ * (`trusted-types aw-icons aw-hud`); ein dritter waere nicht erlaubt, und ein
+ * zweiter mit demselben Namen auch nicht.
+ */
+const iconHtml = (() => {
+  const pass = { createHTML: (markup) => markup };
+  let policy = pass;
+  try {
+    if (window.trustedTypes) policy = window.trustedTypes.createPolicy('aw-hud', pass);
+  } catch {
+    //  Name nicht erlaubt oder schon vergeben - dann sind Policy und Code
+    //  auseinandergelaufen. Die Seite soll trotzdem laden.
+    policy = pass;
+  }
+  return (markup) => policy.createHTML(markup);
+})();
+
 function icon(name) {
-  return `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
-    stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;
+  return iconHtml(`<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
+    stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICONS[name] || ''}</svg>`);
 }
 
 function hudButton(name, label, pressed) {

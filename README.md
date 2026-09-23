@@ -69,6 +69,17 @@ Kein Framework, kein Build-Schritt fuer die Seiten: Thymeleaf liefert den
 Rahmen, `static/assets/*.js` sind gewoehnliche Skripte, und die Content
 Security Policy erlaubt nur Skripte von dieser Adresse.
 
+**Und sie verbietet, Text zu Markup zu machen.** Die Policy traegt
+`require-trusted-types-for 'script'`: in Chromium wirft jede Zuweisung an
+`innerHTML`, `outerHTML`, `insertAdjacentHTML` - und auch
+`DOMParser.parseFromString`. Wer eine Seite schreibt, baut DOM (`AW.el`,
+`textContent`, `append`) und keine Zeichenketten. Zwei Ausnahmen sind
+namentlich erlaubt (`trusted-types aw-icons aw-hud`): die Icon-Tabellen in
+`app.js` und `viewer-ui.js`, beide in einem Abschluss, an den von aussen
+niemand herankommt. Ein dritter Name waere nicht erlaubt - das ist der Punkt.
+Firefox und Safari ignorieren die Regel bisher, entwickelt wird aber in
+Chromium, und dort faellt ein neuer Einstieg sofort auf.
+
 | Adresse | Vorlage | |
 |---|---|---|
 | `/` | `landing.html` | Startseite: ein Clip auf der Figur, drei Schritte, die neuesten Clips. |

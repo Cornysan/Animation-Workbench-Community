@@ -21,6 +21,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository
 import org.springframework.security.web.csrf.CsrfToken
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler
+import org.springframework.security.web.header.writers.CrossOriginOpenerPolicyHeaderWriter
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter
 import org.springframework.security.web.util.matcher.RequestMatcher
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
@@ -62,7 +64,12 @@ class SecurityConfig {
 
         http {
             csrf {
+                //  SameSite ausdruecklich: ohne das Attribut entscheidet der
+                //  Browser, und "keins" heisst bei aelteren Staenden "None".
+                //  Lax, nicht Strict - sonst faehrt jemand, der einem Clip-Link
+                //  aus Discord folgt, ohne Token an und das erste Herz scheitert.
                 csrfTokenRepository = CookieCsrfTokenRepository.withHttpOnlyFalse()
+                    .apply { setCookieCustomizer { it.sameSite("Lax") } }
                 csrfTokenRequestHandler = CsrfTokenRequestAttributeHandler()
                 requireCsrfProtectionMatcher = csrfRequired
             }
@@ -119,6 +126,17 @@ class SecurityConfig {
                 authorize("/api/v1/dev/**", permitAll)
                 authorize("/api/**", authenticated)
                 authorize("/v3/api-docs/**", permitAll)
+
+                //  Vom Actuator ist genau EINER offen, und der sagt "UP".
+                //  `management.endpoints.web.exposure.include: health` haelt die
+                //  anderen schon zurueck, aber das ist eine Einstellung, die
+                //  jemand erweitert, um lokal etwas nachzusehen - und dann steht
+                //  sie in der Produktion. Die Sperre gehoert dahin, wo sie beim
+                //  Erweitern auffaellt. Der Healthcheck des Containers fragt
+                //  genau diese eine Adresse.
+                authorize("/actuator/health", permitAll)
+                authorize("/actuator/**", denyAll)
+
                 authorize(anyRequest, permitAll)
             }
             oauth2Login {
@@ -146,11 +164,87 @@ class SecurityConfig {
                     // wieder weg: sie gehen jetzt ueber diesen Server (AvatarCache),
                     // damit Discord nicht die IP jedes Lesers erfaehrt. Solange die
                     // Regel fehlt, kann auch kein neuer Hotlink unbemerkt einziehen.
+                    //
+                    // WAS DIE VIER NEUEN ZEILEN SCHLIESSEN, und warum `default-src`
+                    // sie NICHT schon abdeckte:
+                    //
+                    //   form-action faellt auf NICHTS zurueck. Ohne die Regel darf
+                    //   ein eingeschleustes <form> auf eine fremde Adresse zeigen -
+                    //   und ein "dangling markup"-Schnipsel (ein offenes Attribut,
+                    //   das den Rest der Seite verschluckt) braucht genau das, um
+                    //   das CSRF-Token mitzunehmen. Das ist die einzige Luecke hier,
+                    //   die ohne ein zweites Loch schon etwas wert waere.
+                    //
+                    //   frame-src erbt von default-src und stuende damit auf 'self':
+                    //   ein eigener Rahmen im eigenen Rahmen ist nichts, was diese
+                    //   Seite je braucht. 'none' nimmt einem Clickjacking-Versuch
+                    //   von INNEN die Buehne - frame-ancestors deckt nur die
+                    //   Richtung von aussen ab.
+                    //
+                    //   connect-src und media-src stehen als Aussage da, nicht als
+                    //   Reparatur: die Seite spricht mit dieser Adresse und mit
+                    //   keiner anderen, und sie spielt keinen Ton. Wer das eines
+                    //   Tages aendert, aendert es hier sichtbar mit.
+                    //
+                    //   require-trusted-types-for ist der Riegel, nicht die
+                    //   Regel: in Chromium wirft ab hier JEDE Zuweisung an
+                    //   innerHTML und Verwandte, ganz gleich, was darin steht.
+                    //   `trusted-types aw-icons aw-hud` zaehlt die Ausnahmen
+                    //   namentlich auf. Genau zwei, je einmal vergebbar, beide
+                    //   in einem Abschluss, an den von aussen niemand
+                    //   herankommt - die Icon-Tabellen in `app.js` und
+                    //   `viewer-ui.js`. Ein dritter Name waere nicht erlaubt,
+                    //   ein zweiter mit demselben Namen auch nicht: wer Text
+                    //   zu Markup machen will, kann sich die Erlaubnis dafuer
+                    //   nicht selbst schreiben.
+                    //
+                    //   ES REICHT NICHT, innerHTML ZU MEIDEN. Der erste
+                    //   Versuch hier baute die Icons mit `DOMParser` - und der
+                    //   ist selbst ein solcher Einstieg, was erst der Browser
+                    //   sagte. Genau dafuer ist die Regel da: sie kennt die
+                    //   Liste, wir nicht.
+                    //
+                    //   Firefox und Safari ignorieren beide Direktiven bis
+                    //   heute. Das macht sie nicht wertlos: die Luecke, die
+                    //   sie schliessen, entsteht beim SCHREIBEN von Code, und
+                    //   geschrieben wird er in genau einem Browser bemerkt.
                     policyDirectives = "default-src 'self'; img-src 'self' data:; " +
                         "style-src 'self'; script-src 'self'; font-src 'self'; " +
-                        "object-src 'none'; frame-ancestors 'none'; base-uri 'self'"
+                        "connect-src 'self'; media-src 'none'; " +
+                        "object-src 'none'; frame-src 'none'; frame-ancestors 'none'; " +
+                        "base-uri 'self'; form-action 'self'; " +
+                        "require-trusted-types-for 'script'; trusted-types aw-icons aw-hud"
                 }
                 frameOptions { deny = true }
+
+                //  KEIN Referrer, nirgendwohin.
+                //
+                //  Die uebliche Wahl waere strict-origin-when-cross-origin. Hier
+                //  ist sie falsch, und zwar wegen einer Eigenschaft dieses
+                //  Portals: ein privater Clip ist "nicht gelistet, nur ueber
+                //  seinen Link erreichbar" - der Link IST das Geheimnis, und er
+                //  steht in der Adresse (/clip.html?p=<slug>). Jede Seite
+                //  verlinkt nach draussen (creativecommons.org, Discord), und
+                //  jeder dieser Klicks haette den Slug im Referer mitgenommen.
+                referrerPolicy { policy = ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER }
+
+                //  Was diese Seite nicht braucht, soll sie auch nicht fragen
+                //  duerfen. `fullscreen=(self)` ist die eine Ausnahme: der
+                //  Viewer hat einen Vollbildknopf (viewer-ui.js).
+                permissionsPolicy {
+                    policy = "accelerometer=(), autoplay=(), camera=(), display-capture=(), " +
+                        "encrypted-media=(), fullscreen=(self), geolocation=(), gyroscope=(), " +
+                        "magnetometer=(), microphone=(), midi=(), payment=(), " +
+                        "picture-in-picture=(), publickey-credentials-get=(), " +
+                        "screen-wake-lock=(), usb=(), xr-spatial-tracking=()"
+                }
+
+                //  Ein fremdes Fenster, das diese Seite aufmacht, behaelt keinen
+                //  Griff auf sie. Die Anmeldung beim Anbieter ist eine Weiterleitung
+                //  im selben Fenster, kein Popup - ihr nimmt das nichts.
+                crossOriginOpenerPolicy {
+                    policy = CrossOriginOpenerPolicyHeaderWriter.CrossOriginOpenerPolicy.SAME_ORIGIN
+                }
             }
             addFilterBefore<UsernamePasswordAuthenticationFilter>(tokenFilter)
             addFilterAfter<UsernamePasswordAuthenticationFilter>(CsrfCookieFilter())

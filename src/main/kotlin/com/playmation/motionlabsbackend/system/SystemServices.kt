@@ -142,7 +142,13 @@ class AlertService(
             sender.send(SimpleMailMessage().apply {
                 setTo(*alerts.mailTo.split(',').map { it.trim() }.toTypedArray())
                 if (alerts.mailFrom.isNotBlank()) from = alerts.mailFrom
-                subject = "[AW Community] $title"
+                //  Eine Betreffzeile ist EINE Zeile. In `title` steckt unter
+                //  anderem ein Clip-Titel, also fremder Text - und ein
+                //  Zeilenumbruch darin ist der klassische Weg, einem Mail-Kopf
+                //  weitere Felder unterzuschieben. JavaMail kodiert das heute
+                //  weg; darauf zu bauen heisst, die Sicherheit einer fremden
+                //  Bibliothek zu ueberlassen, die davon nichts weiss.
+                subject = "[AW Community] " + title.replace(Regex("[\r\n]+"), " ").take(200)
                 text = body
             })
             true

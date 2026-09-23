@@ -243,6 +243,28 @@ class ProfileService(
     data class ProfileEdit(val handle: String? = null, val bio: String? = null)
 
     /**
+     * Die Bio, so wie sie gespeichert wird.
+     *
+     * DAS KUERZEN ALLEIN REICHTE NICHT. Dieser Text erscheint an zwei sehr
+     * verschiedenen Orten: im Profil (dort setzt ihn JavaScript als Textknoten,
+     * da kann nichts passieren) UND als `og:description` im Kopf jeder
+     * Profilseite. Der Kopf ist eine Zeile fuer eine Maschine; ein Umbruch oder
+     * ein Steuerzeichen darin ist nichts, was ein Mensch gemeint haben kann,
+     * und je nach Leser am anderen Ende ist es die Stelle, an der ein Feld
+     * endet und ein neues anfaengt.
+     *
+     * Also dieselbe Regel wie bei einem Kommentar-Titel: Umbrueche werden zu
+     * Leerzeichen, alle anderen Steuerzeichen fallen weg.
+     */
+    private fun cleanBio(raw: String): String? =
+        raw.map { if (it.isWhitespace()) ' ' else it }
+            .filterNot { it.isISOControl() }
+            .joinToString("")
+            .trim()
+            .take(500)
+            .ifBlank { null }
+
+    /**
      * Handle und Bio aendern.
      *
      * Der Handle darf gewechselt werden, weil der erste aus einem Namen beim
@@ -257,7 +279,7 @@ class ProfileService(
     fun edit(principal: PortalPrincipal, edit: ProfileEdit, ip: String): ProfileView {
         val me = accountService.requireUsable(principal.accountId)
 
-        edit.bio?.let { me.bio = it.trim().take(500).ifBlank { null } }
+        edit.bio?.let { me.bio = cleanBio(it) }
 
         edit.handle?.let { requested ->
             val handle = AccountHandles.validate(requested)

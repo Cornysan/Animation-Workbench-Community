@@ -547,6 +547,40 @@ const AW = (() => {
     dots: '<circle cx="6" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="18" cy="12" r="1.4"/>',
   };
 
+  /**
+   * Der EINZIGE Weg, auf dem in dieser Datei Text zu DOM wird.
+   *
+   * Die Content Security Policy traegt `require-trusted-types-for 'script'`:
+   * in Chromium wirft ab dort JEDE Zuweisung an innerHTML - und, was beim
+   * ersten Versuch hier auffiel, auch `DOMParser.parseFromString`. Es gibt
+   * keinen stillen Umweg; wer Text zu Markup machen will, muss es SAGEN, und
+   * das hier ist die Stelle, an der es gesagt wird.
+   *
+   * WARUM EINE ERLAUBNIS UND NICHT NULL SINKS. Die Zeichen oben sind ein
+   * fester Vorrat in dieser Datei - sie von Hand als Knoten zu bauen waere
+   * moeglich, kostete dreissig Zeilen und sicherte nichts dazu. Der Gewinn
+   * liegt woanders: `trusted-types aw-icons aw-hud` nennt in der Policy GENAU
+   * ZWEI Namen, jeder darf einmal vergeben werden, und beide liegen in einem
+   * Abschluss, an den von aussen niemand herankommt. Was heisst: ein
+   * eingeschleuster Wert kann nirgends mehr zu Markup werden - nicht, weil
+   * jede Stelle geprueft waere, sondern weil es keine zweite Stelle gibt.
+   *
+   * Darum nimmt diese Tuer auch keinen `name` entgegen und schlaegt nichts
+   * nach: was durch sie geht, kommt aus ICONS, und ICONS steht direkt darueber.
+   */
+  const iconHtml = (() => {
+    const pass = { createHTML: (markup) => markup };
+    let policy = pass;
+    try {
+      if (window.trustedTypes) policy = window.trustedTypes.createPolicy("aw-icons", pass);
+    } catch {
+      //  Name nicht erlaubt oder schon vergeben - dann sind Policy und Code
+      //  auseinandergelaufen. Die Seite soll trotzdem laden.
+      policy = pass;
+    }
+    return (markup) => policy.createHTML(markup);
+  })();
+
   /** Ein Zeichen aus dem Vorrat. `filled` fuellt die Flaeche - fuer Zustaende. */
   function icon(name, filled) {
     const node = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -558,9 +592,7 @@ const AW = (() => {
     node.setAttribute("stroke-width", "1.7");
     node.setAttribute("stroke-linejoin", "round");
     node.setAttribute("stroke-linecap", "round");
-    //  Fester Vorrat aus dieser Datei, kein fremder Text - deshalb reicht
-    //  innerHTML, und die Content Security Policy hat nichts dagegen.
-    node.innerHTML = ICONS[name] || "";
+    node.innerHTML = iconHtml(ICONS[name] || "");
     return node;
   }
 

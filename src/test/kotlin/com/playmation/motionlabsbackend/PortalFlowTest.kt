@@ -164,12 +164,54 @@ class PortalFlowTest {
 
     @Test
     fun `web pages are served with a strict content security policy`() {
+        fun csp(contains: String) = org.hamcrest.Matchers.containsString(contains)
+
         mvc.get("/index.html").andExpect {
             status { isOk() }
-            header { string("Content-Security-Policy", org.hamcrest.Matchers.containsString("script-src 'self'")) }
+            header { string("Content-Security-Policy", csp("script-src 'self'")) }
+
+            //  form-action faellt auf nichts zurueck - ohne die Regel duerfte
+            //  ein eingeschleustes Formular auf eine fremde Adresse zeigen und
+            //  das CSRF-Token mitnehmen.
+            header { string("Content-Security-Policy", csp("form-action 'self'")) }
+            header { string("Content-Security-Policy", csp("frame-ancestors 'none'")) }
+            header { string("Content-Security-Policy", csp("object-src 'none'")) }
+            header { string("Content-Security-Policy", csp("base-uri 'self'")) }
+
+            //  KEIN unsafe-inline, in keiner Richtung. Kaeme es je hinein,
+            //  waere die ganze Policy ein Schild aus Papier - und es kommt
+            //  leise hinein, naemlich als schnelle Loesung fuer ein Styling.
+            header { string("Content-Security-Policy", org.hamcrest.Matchers.not(csp("unsafe-inline"))) }
+            header { string("Content-Security-Policy", org.hamcrest.Matchers.not(csp("unsafe-eval"))) }
+
             header { string("X-Frame-Options", "DENY") }
+            header { string("X-Content-Type-Options", "nosniff") }
+
+            //  Ein privater Clip ist nur ueber seinen Link erreichbar - der
+            //  Link IST das Geheimnis, und er steht in der Adresse. Er darf
+            //  keinem Ausgangslink hinterherreisen.
+            header { string("Referrer-Policy", "no-referrer") }
+
+            header { string("Permissions-Policy", csp("camera=()")) }
+            header { string("Cross-Origin-Opener-Policy", "same-origin") }
         }
         mvc.get("/assets/viewer.js").andExpect { status { isOk() } }
+    }
+
+    /**
+     * Vom Actuator ist genau einer offen - der, den der Container fragt.
+     * Alles andere ist zu, auch wenn jemand die Freigabe in der
+     * `application.yaml` erweitert, um lokal etwas nachzusehen.
+     */
+    @Test
+    fun `only the health endpoint is reachable from outside`() {
+        mvc.get("/actuator/health").andExpect { status { isOk() } }
+
+        //  4xx, nicht genau 403: ob die Kette "nicht angemeldet" (401) oder
+        //  "nicht erlaubt" (403) sagt, haengt am Einstiegspunkt und ist hier
+        //  gleichgueltig. Der Test haelt fest, dass nichts AUSGELIEFERT wird.
+        mvc.get("/actuator/env").andExpect { status { is4xxClientError() } }
+        mvc.get("/actuator/beans").andExpect { status { is4xxClientError() } }
     }
 
     /**
