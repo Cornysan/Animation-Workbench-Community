@@ -40,6 +40,21 @@
   <title th:text="|${title} - Animation Workbench Community (Beta)|">Animation Workbench Community (Beta)</title>
   <link rel="icon" href="/favicon.ico">
   <link rel="stylesheet" th:href="|${@buildStamp.assets}/app.css|">
+
+  <!--
+    HELL ODER DUNKEL, bevor das erste Pixel steht. Das Skript laeuft
+    SYNCHRON - kein `defer`, kein `async` -, sonst blitzt bei jedem
+    Seitenwechsel die falsche Farbe auf, und die Seiten wechseln hier oft.
+
+    Warum es eine Datei ist und kein Inline-Skript im Kopf: die Richtlinie
+    traegt `script-src 'self'` ohne Nonce. Die laengere Fassung dieser
+    Begruendung steht in theme.js selbst.
+
+    Die Startfarbe des Meta-Felds ist die dunkle - das Skript setzt sie
+    sofort um, wenn es hell wird.
+  -->
+  <meta name="theme-color" content="#0e0d12">
+  <script th:src="|${@buildStamp.assets}/theme.js|"></script>
   <!--
     Die Schrift VOR dem Stylesheet anfordern: sonst entdeckt der Browser sie
     erst beim Auswerten von app.css, und jede Seite erscheint einen Moment in
@@ -188,6 +203,31 @@
     </form>
 
     <div class="header-account">
+
+      <!--
+        Der Umschalter steht vor dem Kontoblock, weil er fuer JEDEN da ist -
+        auch fuer den, der nicht angemeldet ist. Er traegt beide Zeichen und
+        zeigt per Stylesheet immer das, WOHIN es geht: in Dunkel die Sonne,
+        in Hell den Mond.
+
+        `hidden` steht hier und nicht im Stylesheet: ohne theme.js schaltet
+        nichts, und ein Knopf, der nichts tut, ist schlimmer als keiner. Das
+        Skript nimmt es weg, sobald es laeuft.
+      -->
+      <button type="button" class="theme-toggle" hidden
+              aria-label="Switch to light theme" title="Switch to light theme">
+        <svg class="theme-sun" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
+             stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
+          <circle cx="12" cy="12" r="4"></circle>
+          <path d="M12 3.2v2M12 18.8v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4"></path>
+          <path d="M3.2 12h2M18.8 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>
+        </svg>
+        <svg class="theme-moon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
+             stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M20 14.2A8.2 8.2 0 0 1 9.8 4a7.2 7.2 0 1 0 10.2 10.2z"></path>
+        </svg>
+      </button>
+
       <div class="account" th:if="${user != null}">
         <a class="badge" href="/me.html" title="Notifications"
            th:if="${user.unread > 0}" th:text="${user.unreadLabel}">1 message</a>

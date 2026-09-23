@@ -95,7 +95,108 @@
   --page-wide: 1640px;
   --gutter: 28px;
 
+  /* Was vorher als Literal in einzelnen Regeln stand und in Hell etwas
+     anderes sein muss. */
+  --accent-lift: #b3a3ff;
+  --accent-cast: rgba(142, 119, 255, 0.75);
+  --accent-cast-strong: rgba(142, 119, 255, 0.9);
+  --header-bg: rgba(14, 13, 18, 0.72);
+  --row-hover: rgba(255, 255, 255, 0.02);
+  --selection-bg: rgba(142, 119, 255, 0.38);
+  --selection-ink: #ffffff;
+
+  /* ── AUF DER BUEHNE ──────────────────────────────────────────────────
+     Diese Werte wechseln NICHT mit dem Thema, und das ist ihr ganzer
+     Sinn. Die Buehne bleibt dunkel - ein Viewport, wie ihn Blender und
+     Unity zwei Fenster weiter auch haben -, und was auf ihr liegt, muss
+     mit ihr lesbar bleiben: die Dauerpille auf einer Vorschau, die
+     Schalter am Rand, der leere Rahmen, wenn ein Clip nicht laedt.
+
+     Ohne sie stuende in Hell heller Text auf einem dunklen Bild - nicht
+     als Fehler in einer Regel, sondern als Folge davon, dass dieselbe
+     Marke zwei verschiedene Untergruende meinen muesste. */
+  --on-stage-ink: #eeecf3;
+  --on-stage-dim: #a9a4b6;
+  --on-stage-faint: #8a8497;
+  --on-stage-line: #3a3747;
+  --on-stage-accent: #8e77ff;
+  --on-stage-accent-line: rgba(142, 119, 255, 0.38);
+  --on-stage-accent-veil: rgba(142, 119, 255, 0.14);
+  --on-stage-scrim: rgba(14, 13, 18, 0.72);
+  --on-stage-scrim-strong: rgba(14, 13, 18, 0.84);
+  --stage-void: #0e0d12;
+
   color-scheme: dark;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   HELL
+
+   Kein zweites Stylesheet und keine Kopie der Regeln: derselbe Satz
+   Marken, andere Werte. Was hier NICHT noch einmal steht, gilt weiter -
+   Radien, Schriftgroessen, Bewegung, und die Buehnenfarben.
+
+   WER UMSCHALTET, STEHT IN `theme.js`. Das Attribut ist die einzige
+   Weiche; eine zweite Fassung dieser Werte unter `prefers-color-scheme`
+   waere dieselbe Palette an zwei Orten und liefe beim ersten Nachbessern
+   auseinander.
+
+   DIE ZAHLEN SIND GEMESSEN, nicht geschaetzt - der dunkle Satz traegt an
+   `--text-faint` eine Notiz darueber, dass 3.6:1 zu wenig waren, und
+   dieselbe Latte gilt hier. Auf `--bg`: Text 16.8:1, `--text-dim` 6.6:1,
+   `--text-faint` 5.4:1, Akzent 6.2:1, Gruen 5.4:1, Orange 5.5:1, Rot
+   5.4:1. Weiss auf dem Akzentknopf 6.6:1, auf seinem hellsten
+   Verlaufsende noch 4.9:1.
+
+   DER AKZENT IST EIN ANDERER. #8E77FF steht auf Weiss bei 2.6:1 - als
+   Flaeche schoen, als Link unlesbar. Hell traegt deshalb ein dunkleres
+   Violett derselben Familie. Die Marke selbst bleibt beim hellen Ton;
+   sie liegt nie auf Weiss.
+   ══════════════════════════════════════════════════════════════════════ */
+:root[data-theme="light"] {
+  --accent: #5f3fd6;
+  --accent-strong: #6b4ae0;
+  --accent-lift: #7358e6;
+  --accent-soft: rgba(95, 63, 214, 0.10);
+  --accent-line: rgba(95, 63, 214, 0.30);
+  --accent-ink: #ffffff;
+  --accent-cast: rgba(95, 63, 214, 0.30);
+  --accent-cast-strong: rgba(95, 63, 214, 0.40);
+
+  --bg: #f7f6fa;
+  --bg-soft: #f1eff6;
+  --surface: #ffffff;
+  --surface-2: #f4f2f9;
+  --surface-hover: #ebe8f3;
+  --line: #e2dfec;
+  --line-strong: #cdc8dc;
+  --text: #17151f;
+  --text-dim: #5b5570;
+  --text-faint: #676180;
+
+  --ok: #0a7355;
+  --warn: #9a5205;
+  --danger: #bd302b;
+  --danger-soft: rgba(189, 48, 43, 0.10);
+  --danger-line: rgba(189, 48, 43, 0.30);
+
+  /* Schatten auf Hell sind eine Frage der Dosis: derselbe Schwarzanteil
+     wie in Dunkel waere ein Schmutzrand. Ein Hauch Violett darin, damit
+     sie neben dem Grund nicht grau stehen. */
+  --shadow-sm: 0 1px 2px rgba(28, 22, 50, 0.06), 0 4px 12px -4px rgba(28, 22, 50, 0.10);
+  --shadow: 0 1px 2px rgba(28, 22, 50, 0.06), 0 22px 44px -14px rgba(28, 22, 50, 0.16);
+  /* Die Lichtkante dreht sich um: auf Dunkel hebt sie die Oberseite an,
+     auf Hell ist sie das Weiss, mit dem eine Flaeche vom Grund abhebt. */
+  --highlight: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  --glow: 0 0 0 1px var(--accent-line), 0 18px 40px -14px rgba(95, 63, 214, 0.28);
+  --scrim: rgba(24, 20, 40, 0.42);
+
+  --header-bg: rgba(247, 246, 250, 0.78);
+  --row-hover: rgba(24, 20, 40, 0.035);
+  --selection-bg: rgba(95, 63, 214, 0.22);
+  --selection-ink: #17151f;
+
+  color-scheme: light;
 }
 
 html { font-feature-settings: 'cv05' 1, 'cv08' 1, 'ss03' 1; }
@@ -109,14 +210,14 @@ html, body { margin: 0; padding: 0; }
    `clip` statt `hidden`: es macht kein Scroll-Element daraus, der klebende
    Kopf klebt weiter. */
 html { overflow-x: clip; scrollbar-color: var(--line-strong) transparent; }
-::selection { background: rgba(142, 119, 255, 0.38); color: #fff; }
+::selection { background: var(--selection-bg); color: var(--selection-ink); }
 
 body {
   /* Ein Schein im Akzent ganz oben - er gibt der Seite eine Lichtquelle, statt
      sie als flaches Schwarz stehen zu lassen. Er scrollt mit und ist nach
      einem Bildschirm vorbei. */
   background:
-    radial-gradient(1100px 520px at 50% -200px, rgba(142, 119, 255, 0.12), transparent 70%),
+    radial-gradient(1100px 520px at 50% -200px, color-mix(in srgb, var(--accent) 12%, transparent), transparent 70%),
     var(--bg);
   color: var(--text);
   font: 16px/1.6 'Inter Variable', Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -169,7 +270,7 @@ a:focus-visible, button:focus-visible, summary:focus-visible, [tabindex]:focus-v
   position: sticky;
   top: 0;
   z-index: 30;
-  background: rgba(14, 13, 18, 0.72);
+  background: var(--header-bg);
   backdrop-filter: saturate(150%) blur(16px);
   border-bottom: 1px solid var(--line);
 }
@@ -201,6 +302,18 @@ a:focus-visible, button:focus-visible, summary:focus-visible, [tabindex]:focus-v
 /* Das Lockup haelt seinen Freiraum: ein Viertel der eigenen Hoehe ringsum. */
 .brand-lockup { width: 150px; height: auto; display: block; }
 .brand-mark { width: 28px; height: 28px; display: none; }
+
+/* DIE MARKE IN TINTE. Die ausgelieferte Datei ist die weisse - sie steht auf
+   dem dunklen Grund, und das ist der Normalfall. Auf Hell waere sie weiss auf
+   fast weiss, also unsichtbar.
+
+   `content` tauscht das Bild, statt ein zweites in den Kopf zu legen: so
+   bleibt EIN Element im Dokument und der Browser holt nur die Fassung, die er
+   zeigt. Die Adresse ist relativ zu DIESER Datei und traegt damit denselben
+   Stempel wie alles andere unter /assets - eine absolute stuende ohne ihn da
+   und laege nach dem naechsten Build im Cache fest. */
+:root[data-theme="light"] .brand-lockup { content: url("brand/aw-lockup-tinte.svg"); }
+:root[data-theme="light"] .brand-mark { content: url("brand/aw-mark-tinte.svg"); }
 .brand small {
   color: var(--text-faint);
   font-weight: 600;
@@ -278,6 +391,34 @@ a:focus-visible, button:focus-visible, summary:focus-visible, [tabindex]:focus-v
 
 .header-account { flex: none; display: flex; align-items: center; gap: 8px; margin-left: 4px; }
 
+/* DER UMSCHALTER. Er traegt beide Zeichen im Markup und zeigt immer das,
+   WOHIN es geht - in Dunkel die Sonne, in Hell den Mond. Das spart das
+   Nachmalen per Skript und damit die Trusted-Types-Frage; die Auswahl ist
+   eine Regel, kein Austausch.
+
+   `hidden` steht im HTML: ohne `theme.js` schaltet hier nichts, und ein
+   Knopf, der nichts tut, ist schlimmer als keiner. Das Skript nimmt es
+   weg, sobald es laeuft. */
+.theme-toggle {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+.theme-toggle:hover { color: var(--text); border-color: var(--line-strong); }
+.theme-toggle svg { width: 18px; height: 18px; }
+.theme-toggle .theme-moon { display: none; }
+:root[data-theme="light"] .theme-toggle .theme-moon { display: block; }
+:root[data-theme="light"] .theme-toggle .theme-sun { display: none; }
+
 .account { display: flex; align-items: center; gap: 8px; }
 
 .account-name {
@@ -319,7 +460,7 @@ img.avatar { object-fit: cover; padding: 0; background: var(--surface-2); }
   font-weight: 600;
   white-space: nowrap;
 }
-.badge:hover { text-decoration: none; background: rgba(142, 119, 255, 0.26); }
+.badge:hover { text-decoration: none; background: color-mix(in srgb, var(--accent) 26%, transparent); }
 
 .icon-button { min-height: 32px; padding: 0 10px; font-size: 14px; }
 
@@ -427,7 +568,7 @@ main > h1::after, .prose > h1::after {
   height: 3px;
   margin-top: 14px;
   border-radius: var(--radius-pill);
-  background: linear-gradient(90deg, var(--accent), rgba(142, 119, 255, 0));
+  background: linear-gradient(90deg, var(--accent), transparent);
 }
 
 /* ── Knöpfe ────────────────────────────────────────────────────────────── */
@@ -457,15 +598,15 @@ main > h1::after, .prose > h1::after {
   background: linear-gradient(180deg, var(--accent-strong), var(--accent));
   border-color: var(--accent);
   color: var(--accent-ink);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 8px 22px -10px rgba(142, 119, 255, 0.75);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 8px 22px -10px var(--accent-cast);
 }
 .button.primary:hover, button.primary:hover {
-  background: linear-gradient(180deg, #b3a3ff, var(--accent-strong));
+  background: linear-gradient(180deg, var(--accent-lift), var(--accent-strong));
   border-color: var(--accent-strong);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.26), 0 10px 28px -10px rgba(142, 119, 255, 0.9);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.26), 0 10px 28px -10px var(--accent-cast-strong);
 }
 
-.button.danger, button.danger { border-color: rgba(242, 112, 107, 0.5); color: var(--danger); background: transparent; box-shadow: none; }
+.button.danger, button.danger { border-color: color-mix(in srgb, var(--danger) 50%, transparent); color: var(--danger); background: transparent; box-shadow: none; }
 .button.danger:hover, button.danger:hover { background: var(--danger-soft); }
 
 .button.ghost, button.ghost { background: transparent; border-color: var(--line); color: var(--text-dim); box-shadow: none; }
@@ -613,7 +754,7 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
   font-size: 13px;
   max-width: 320px;
 }
-.chip:hover { text-decoration: none; background: rgba(142, 119, 255, 0.26); }
+.chip:hover { text-decoration: none; background: color-mix(in srgb, var(--accent) 26%, transparent); }
 .chip-x { color: var(--text-faint); font-size: 15px; line-height: 1; }
 .chip:hover .chip-x { color: var(--accent); }
 
@@ -681,7 +822,7 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
   background: radial-gradient(120% 90% at 50% 20%, #1e1c28 0%, #100f15 70%);
   display: block;
 }
-.card .viewer-empty { display: flex; align-items: center; justify-content: center; color: var(--text-faint); font-size: 13px; }
+.card .viewer-empty { display: flex; align-items: center; justify-content: center; color: var(--on-stage-faint); font-size: 13px; }
 
 .card-body { padding: 13px 15px 16px; display: flex; flex-direction: column; gap: 5px; flex: 1; }
 
@@ -722,9 +863,9 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
 .card-flag, .card-duration {
   position: absolute;
   top: 11px;
-  background: rgba(14, 13, 18, 0.84);
-  border: 1px solid var(--line-strong);
-  color: var(--text);
+  background: var(--on-stage-scrim-strong);
+  border: 1px solid var(--on-stage-line);
+  color: var(--on-stage-ink);
   border-radius: var(--radius-pill);
   padding: 2px 10px;
   font-size: 12px;
@@ -955,7 +1096,7 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
 .speed-toggle.on { color: var(--accent); border-color: var(--accent-line); }
 
 /* Vollbild: die Buehne nimmt alles, die Leiste bleibt unten. */
-.viewer:fullscreen { display: flex; flex-direction: column; border-radius: 0; border: 0; background: var(--bg); }
+.viewer:fullscreen { display: flex; flex-direction: column; border-radius: 0; border: 0; background: var(--stage-void); }
 .viewer:fullscreen .stage { flex: 1; min-height: 0; }
 .viewer:fullscreen canvas { height: 100%; max-height: none; aspect-ratio: auto; }
 
@@ -977,21 +1118,21 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
   padding: 0;
   display: grid;
   place-items: center;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--on-stage-line);
   border-radius: var(--radius-sm);
-  background: rgba(14, 13, 18, 0.72);
-  color: var(--text-dim);
+  background: var(--on-stage-scrim);
+  color: var(--on-stage-dim);
   backdrop-filter: blur(6px);
   cursor: pointer;
   transition: color 120ms ease, border-color 120ms ease, background-color 120ms ease;
 }
 
 .hud-toggle svg { width: 20px; height: 20px; }
-.hud-toggle:hover { color: var(--text); border-color: var(--accent-line); }
+.hud-toggle:hover { color: var(--on-stage-ink); border-color: var(--on-stage-accent-line); }
 .hud-toggle[aria-pressed='true'] {
-  color: var(--accent);
-  border-color: var(--accent-line);
-  background: rgba(142, 119, 255, 0.14);
+  color: var(--on-stage-accent);
+  border-color: var(--on-stage-accent-line);
+  background: var(--on-stage-accent-veil);
 }
 
 /* Die Proportionen liegen rechts unten - was links liegt, schaltet die
@@ -1081,7 +1222,7 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
   border: none;
 }
 .viewer-controls input[type=range]:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 4px; }
-.viewer-empty { height: 480px; display: flex; align-items: center; justify-content: center; color: var(--text-dim); }
+.viewer-empty { height: 480px; display: flex; align-items: center; justify-content: center; color: var(--on-stage-dim); }
 
 dl.facts { display: grid; grid-template-columns: auto 1fr; gap: 8px 18px; margin: 18px 0; font-size: 15px; }
 dl.facts dt { color: var(--text-dim); }
@@ -1114,7 +1255,7 @@ dialog h2 { margin-top: 0; }
 table.list { width: 100%; border-collapse: collapse; font-size: 15px; }
 table.list th, table.list td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
 table.list th { color: var(--text-faint); font-weight: 500; font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; }
-table.list tr:hover td { background: rgba(255, 255, 255, 0.02); }
+table.list tr:hover td { background: var(--row-hover); }
 
 .status {
   font-size: 12px;
@@ -1173,8 +1314,8 @@ table.list tr:hover td { background: rgba(255, 255, 255, 0.02); }
 .prose h2 { margin-top: 34px; }
 .prose li { margin: 6px 0; }
 .todo {
-  border: 1px dashed rgba(251, 146, 60, 0.45);
-  background: rgba(251, 146, 60, 0.07);
+  border: 1px dashed color-mix(in srgb, var(--warn) 45%, transparent);
+  background: color-mix(in srgb, var(--warn) 7%, transparent);
   border-radius: var(--radius-sm);
   padding: 12px 16px;
   color: var(--warn);
@@ -1735,7 +1876,7 @@ dialog.sheet form > p:last-of-type { margin-bottom: 20px; }
 .collection-copy p { margin: 8px 0 0; color: var(--text-dim); max-width: 70ch; white-space: pre-wrap; }
 .collection-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
-.collection-card .card-duration { background: rgba(14, 13, 18, 0.82); }
+.collection-card .card-duration { background: var(--on-stage-scrim-strong); }
 
 @media (max-width: 720px) {
   .profile-head { gap: 16px; }
@@ -1757,7 +1898,7 @@ dialog.sheet form > p:last-of-type { margin-bottom: 20px; }
 }
 .figure-drop p { margin: 0 0 6px; }
 .figure-drop .button { margin-top: 10px; }
-.figure-drop.on { border-color: var(--accent); background: rgba(142, 119, 255, 0.08); }
+.figure-drop.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
 
 .figure-grid {
   display: grid;
@@ -1783,7 +1924,7 @@ dialog.sheet form > p:last-of-type { margin-bottom: 20px; }
   height: auto;
   aspect-ratio: 1;
   display: block;
-  background: linear-gradient(180deg, rgba(142, 119, 255, 0.10), transparent 70%);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 10%, transparent), transparent 70%);
 }
 
 .figure-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 4px; }
@@ -1807,8 +1948,8 @@ dialog.sheet form > p:last-of-type { margin-bottom: 20px; }
 
 /* Eine geratene Zuordnung ist ein Vorschlag, und ein Vorschlag darf nicht
    aussehen wie eine Tatsache. Gelb: angesehen werden. Rot: geht so nicht. */
-.figure-card.figure-unsure { border-color: rgba(251, 146, 60, 0.45); }
-.figure-card.figure-broken { border-color: rgba(242, 112, 107, 0.5); }
+.figure-card.figure-unsure { border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
+.figure-card.figure-broken { border-color: color-mix(in srgb, var(--danger) 50%, transparent); }
 
 .figure-flag {
   margin-top: 6px;
@@ -1863,10 +2004,10 @@ dialog.bone-sheet .bone-scroll { overflow-y: auto; flex: 1 1 auto; padding-right
 .bone-pick { width: 100%; min-height: 30px; font-size: 13px; }
 
 .bone-row.was-guessed .bone-name { color: var(--text); }
-.bone-row.bone-gap { background: rgba(242, 112, 107, 0.10); }
-.bone-row.bone-gap .bone-pick { border-color: rgba(242, 112, 107, 0.55); }
-.bone-row.bone-clash { background: rgba(251, 146, 60, 0.10); }
-.bone-row.bone-clash .bone-pick { border-color: rgba(251, 146, 60, 0.55); }
+.bone-row.bone-gap { background: color-mix(in srgb, var(--danger) 10%, transparent); }
+.bone-row.bone-gap .bone-pick { border-color: color-mix(in srgb, var(--danger) 55%, transparent); }
+.bone-row.bone-clash { background: color-mix(in srgb, var(--warn) 10%, transparent); }
+.bone-row.bone-clash .bone-pick { border-color: color-mix(in srgb, var(--warn) 55%, transparent); }
 
 /* ── Bewegung ──────────────────────────────────────────────────────────── */
 /* Alles hier ist Zugabe: nimmt man den Abschnitt heraus, funktioniert jede
