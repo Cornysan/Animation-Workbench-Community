@@ -398,18 +398,13 @@
         ? award.description + "  Next: " + award.goal.toLocaleString()
         : award.description,
     },
-      icon(award.key === "veteran" ? "clock" : award.key === "beta" ? "award" : awardIcon(award.key), award.earned),
+      icon(award.icon, award.earned),
       el("span", {},
         el("div", { class: "award-name" }, award.name),
         el("div", { class: "award-sub" },
           award.earned && award.tiers > 1
             ? "Tier " + award.tier + " of " + award.tiers
             : award.earned ? "Earned" : award.progress.toLocaleString() + " / " + award.goal.toLocaleString())))));
-  }
-
-  function awardIcon(key) {
-    return { clips: "share", likes: "heart", unlocks: "download", collections: "folder",
-      comments: "comment", followers: "users" }[key] || "award";
   }
 
   drawTabs();

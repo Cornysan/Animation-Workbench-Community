@@ -25,15 +25,27 @@ data class AchievementView(
     val earned: Boolean,
 )
 
-/** Was eine Auszeichnung braucht, um sich auszurechnen - alles vorhandene Zahlen. */
+/**
+ * Was eine Auszeichnung braucht, um sich auszurechnen - alles vorhandene Zahlen.
+ *
+ * Die Haelfte davon sagt, was die Clips dieses Kontos ausgeloest haben; die
+ * andere, was das Konto selbst getan hat. Beides steht hier, weil eine Seite,
+ * die nur das Herstellen auszeichnet, allen anderen eine leere Wand zeigt.
+ */
 data class ProfileStats(
     val clips: Long,
     val collections: Long,
     val likesReceived: Long,
     val takes: Long,
+    /** In wie vielen fremden Sammlungen Clips dieses Kontos liegen. */
+    val saves: Long,
     val unlocksEarned: Long,
     val comments: Long,
     val followers: Long,
+    /** Herzen, die dieses Konto FREMDEN Clips gegeben hat. */
+    val likesGiven: Long,
+    /** Clips, die dieses Konto selbst geholt hat - eigene sind nie dabei. */
+    val unlocksUsed: Long,
     val joinedAt: Instant,
 )
 
@@ -85,17 +97,47 @@ class AchievementService(
             { goal -> "Clips from this account were unlocked $goal times." },
             { it.unlocksEarned }),
 
+        Family("saves", "Kept", "star", listOf(10, 100, 1000),
+            { goal -> "Clips from this account were saved to a collection $goal times." },
+            { it.saves }),
+
         Family("collections", "Curator", "folder", listOf(1, 5, 20),
             { goal -> if (goal == 1L) "Published a collection." else "Published $goal collections." },
             { it.collections }),
 
+        //  NICHT "under other people's clips", wie es hier zuerst stand:
+        //  gezaehlt wird jeder sichtbare Kommentar dieses Kontos, auch der
+        //  unter dem eigenen Clip. Von beiden Wegen aus der Falschaussage ist
+        //  das der, der niemandem etwas wegnimmt - die Zahl zu verschaerfen
+        //  haette Konten eine bereits erreichte Stufe gekostet.
         Family("comments", "In the conversation", "comment", listOf(10, 100),
-            { goal -> "Left $goal comments under other people's clips." },
+            { goal -> "Left $goal comments in the community." },
             { it.comments }),
 
         Family("followers", "Followed", "users", listOf(1, 10, 100),
             { goal -> if (goal == 1L) "Someone follows this account." else "$goal people follow this account." },
             { it.followers }),
+
+        //  Dasselbe Zeichen wie "Well liked" und "In use", weil es dieselbe
+        //  Sache in der anderen Richtung ist: gegeben statt bekommen. Ein
+        //  eigenes Symbol dafuer zu erfinden hiesse, einen Unterschied zu
+        //  behaupten, den es nicht gibt.
+        Family("supporter", "Supporter", "heart", listOf(10, 100, 1000),
+            { goal -> "Gave $goal hearts to other people's clips." },
+            { it.likesGiven }),
+
+        Family("collector", "Collector", "download", listOf(10, 100, 500),
+            { goal -> "Unlocked $goal clips from the community." },
+            { it.unlocksUsed }),
+
+        //  Die einzige Familie, deren Zahl von selbst waechst - und die
+        //  einzige, die nicht in [ProfileStats] steht: aus dem Beitritt und
+        //  der Uhr wird sie hier gerechnet, damit niemand sie mitfuehren muss.
+        //  Stufen statt eines einzelnen Abzeichens aus demselben Grund wie
+        //  ueberall: das zweite Jahr ist dasselbe wie das erste, nur laenger.
+        Family("veteran", "Still here", "clock", listOf(365, 730, 1095),
+            { goal -> if (goal == 365L) "One year with the community." else "${goal / 365} years with the community." },
+            { Duration.between(it.joinedAt, clock.instant()).toDays().coerceAtLeast(0) }),
     )
 
     /**
@@ -127,7 +169,7 @@ class AchievementService(
             )
         }
 
-        return result + beta(stats) + veteran(stats)
+        return result + beta(stats)
     }
 
     /**
@@ -140,28 +182,11 @@ class AchievementService(
             key = "beta",
             name = "Early access",
             description = "Joined while the community was in closed beta.",
-            icon = "star",
+            icon = "award",
             tier = if (earned) 1 else 0,
             tiers = 1,
             progress = if (earned) 1 else 0,
             goal = if (earned) null else 1,
-            earned = earned,
-        )
-    }
-
-    /** Ein Jahr dabei. Die einzige Auszeichnung, die von selbst kommt. */
-    private fun veteran(stats: ProfileStats): AchievementView {
-        val days = Duration.between(stats.joinedAt, clock.instant()).toDays().coerceAtLeast(0)
-        val earned = days >= 365
-        return AchievementView(
-            key = "veteran",
-            name = "A year in",
-            description = "One year with the community.",
-            icon = "clock",
-            tier = if (earned) 1 else 0,
-            tiers = 1,
-            progress = days,
-            goal = if (earned) null else 365,
             earned = earned,
         )
     }

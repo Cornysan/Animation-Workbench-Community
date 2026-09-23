@@ -48,6 +48,24 @@ interface PackageUnlockRepository : JpaRepository<PackageUnlock, PackageUnlockId
     fun existsByPackageIdAndAccountId(packageId: UUID, accountId: UUID): Boolean
     fun countByPackageId(packageId: UUID): Long
 
+    /**
+     * Wie viele Clips dieses Konto geholt hat - die Auszeichnung "Collector".
+     *
+     * Ohne Filter, und das ist kein Versehen: am eigenen Clip entsteht nie
+     * eine Zeile (Regel 1), und ob der geholte Clip oeffentlich stand, geht
+     * den an, der ihn geteilt hat - nicht den, der ihn benutzt.
+     */
+    fun countByAccountId(accountId: UUID): Long
+
+    /**
+     * Wie viele Clips dieses Konto geholt hat - die Auszeichnung "Collector".
+     *
+     * Ohne Filter, und das ist kein Versehen: am eigenen Clip entsteht nie
+     * eine Zeile (Regel 1), und ob der geholte Clip oeffentlich stand, geht
+     * den an, der ihn geteilt hat - nicht den, der ihn benutzt.
+     */
+    fun countByAccountId(accountId: UUID): Long
+
     @Query("select u.packageId from PackageUnlock u where u.accountId = :accountId and u.packageId in :packageIds")
     fun unlockedAmong(
         @Param("accountId") accountId: UUID,

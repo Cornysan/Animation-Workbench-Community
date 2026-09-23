@@ -242,6 +242,41 @@ class ProfileFlowTest {
     }
 
     /**
+     * "Supporter" zaehlt Herzen an FREMDEN Clips.
+     *
+     * Das Herz am eigenen Clip darf gesetzt werden - es traegt nur keine
+     * Auszeichnung. Sonst waere die erste Stufe zehn eigene Uploads und zehn
+     * Klicks weit weg, und die Auszeichnung sagte nichts mehr ueber Zuspruch.
+     * Es ist dieselbe Regel wie beim Holen (`UnlockService`, Regel 1), nur
+     * dass sie dort schon beim Schreiben greift und hier erst beim Zaehlen.
+     */
+    @Test
+    fun `hearts on your own clips do not make you a supporter`() {
+        val owner = "selfliker" + unique()
+        val ownerToken = login(owner)
+        val slug = uploadOk(ownerToken, "Own clip")
+
+        fun heart(token: String) = mvc.post("/api/v1/packages/$slug/like") {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"liked":true}"""
+            header("Authorization", "Bearer $token")
+        }.andExpect { status { isOk() } }
+
+        fun supporter(handle: String, token: String) =
+            profile(handle, token).body()["achievements"].first { it["key"].asString() == "supporter" }
+
+        heart(ownerToken)
+        assertEquals(0, supporter(owner, ownerToken)["progress"].asInt(),
+            "Das Herz am eigenen Clip darf die eigene Auszeichnung nicht fuellen")
+
+        val fan = "fan" + unique()
+        val fanToken = login(fan)
+        heart(fanToken)
+        assertEquals(1, supporter(fan, fanToken)["progress"].asInt(),
+            "Das Herz an einem fremden Clip zaehlt")
+    }
+
+    /**
      * Das Konto schliessen: der Name geht, das Gespraech bleibt lesbar.
      *
      * Der Test haelt genau die Abwaegung fest, um die es dabei geht - was

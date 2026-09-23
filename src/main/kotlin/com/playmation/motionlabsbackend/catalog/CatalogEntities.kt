@@ -143,10 +143,11 @@ interface AnimationPackageRepository : JpaRepository<AnimationPackage, UUID>, Jp
     fun countByOwnerIdAndStatusAndLicense(ownerId: UUID, status: PackageStatus, license: String): Long
 
     /**
-     * Herzen und Uebernahmen ueber alle Clips eines Kontos - zwei der Zahlen
-     * im Kopf des Profils. Zwei schlichte Abfragen statt einer mit zwei
-     * Spalten: die zusammengesetzte braeuchte eine Projektion, und die waere
-     * hier mehr Erklaerung als Ersparnis.
+     * Herzen, Uebernahmen und Sternchen ueber alle Clips eines Kontos - die
+     * Zahlen im Kopf des Profils und unter seinen Auszeichnungen. Drei
+     * schlichte Abfragen statt einer mit drei Spalten: die zusammengesetzte
+     * braeuchte eine Projektion, und die waere hier mehr Erklaerung als
+     * Ersparnis.
      */
     @Query(
         "select coalesce(sum(p.likeCount), 0) from AnimationPackage p " +
@@ -163,6 +164,21 @@ interface AnimationPackageRepository : JpaRepository<AnimationPackage, UUID>, Jp
             "where p.ownerId = :ownerId and p.status = :status and p.license = :license"
     )
     fun sumTakesForOwner(
+        @Param("ownerId") ownerId: UUID,
+        @Param("status") status: PackageStatus,
+        @Param("license") license: String,
+    ): Long
+
+    /**
+     * Wie oft Clips dieses Kontos in fremden Sammlungen liegen - die
+     * Auszeichnung "Kept". Gezaehlt werden Personen je Clip, nicht Zeilen;
+     * das steht schon in [AnimationPackage.saveCount] und gilt hier weiter.
+     */
+    @Query(
+        "select coalesce(sum(p.saveCount), 0) from AnimationPackage p " +
+            "where p.ownerId = :ownerId and p.status = :status and p.license = :license"
+    )
+    fun sumSavesForOwner(
         @Param("ownerId") ownerId: UUID,
         @Param("status") status: PackageStatus,
         @Param("license") license: String,
@@ -201,6 +217,22 @@ interface PackageLikeRepository : JpaRepository<PackageLike, PackageLikeId> {
     fun findByAccountId(accountId: UUID): List<PackageLike>
     fun deleteByPackageIdAndAccountId(packageId: UUID, accountId: UUID): Long
     fun countByPackageId(packageId: UUID): Long
+
+    /**
+     * Wie viele Herzen dieses Konto FREMDEN Clips gegeben hat - die
+     * Auszeichnung "Supporter".
+     *
+     * Das eigene Werk zaehlt nicht. Ein Herz am eigenen Clip ist kein
+     * Zuspruch, und zehn davon waeren in einer Minute geklickt - dieselbe
+     * Ueberlegung wie Regel 1 in `UnlockService`, nur dass sie dort schon
+     * beim Schreiben greift und hier erst beim Zaehlen: das Herz am eigenen
+     * Clip darf gesetzt werden, es traegt nur keine Auszeichnung.
+     */
+    @Query(
+        "select count(l) from PackageLike l, AnimationPackage p " +
+            "where l.packageId = p.id and l.accountId = :accountId and p.ownerId <> :accountId"
+    )
+    fun countGivenBy(@Param("accountId") accountId: UUID): Long
 
     @Query("select l.packageId from PackageLike l where l.accountId = :accountId and l.packageId in :packageIds")
     fun likedAmong(

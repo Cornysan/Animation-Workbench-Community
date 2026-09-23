@@ -11,6 +11,7 @@ import com.playmation.motionlabsbackend.auth.PortalPrincipal
 import com.playmation.motionlabsbackend.catalog.AnimationPackageRepository
 import com.playmation.motionlabsbackend.catalog.CommentStatus
 import com.playmation.motionlabsbackend.catalog.PackageCommentRepository
+import com.playmation.motionlabsbackend.catalog.PackageLikeRepository
 import com.playmation.motionlabsbackend.catalog.PackageStatus
 import com.playmation.motionlabsbackend.common.PortalException
 import com.playmation.motionlabsbackend.common.RateLimiter
@@ -83,6 +84,7 @@ class ProfileService(
     private val follows: AccountFollowRepository,
     private val packages: AnimationPackageRepository,
     private val comments: PackageCommentRepository,
+    private val likes: PackageLikeRepository,
     private val unlocks: PackageUnlockRepository,
     private val achievements: AchievementService,
     private val notifications: NotificationRepository,
@@ -291,9 +293,16 @@ class ProfileService(
             account.id, PackageStatus.PUBLISHED, AwclipSchema.LICENSE_PUBLIC),
         takes = packages.sumTakesForOwner(
             account.id, PackageStatus.PUBLISHED, AwclipSchema.LICENSE_PUBLIC),
+        saves = packages.sumSavesForOwner(
+            account.id, PackageStatus.PUBLISHED, AwclipSchema.LICENSE_PUBLIC),
         unlocksEarned = unlocks.countEarnedForOwner(account.id),
         comments = comments.countByAccountIdAndStatus(account.id, CommentStatus.VISIBLE),
         followers = follows.countByFolloweeId(account.id),
+        //  Was das Konto SELBST getan hat. Hier faellt die Einschraenkung von
+        //  oben weg: dass ein Clip inzwischen privat oder zurueckgezogen ist,
+        //  aendert nichts daran, dass jemand ihm ein Herz gegeben hat.
+        likesGiven = likes.countGivenBy(account.id),
+        unlocksUsed = unlocks.countByAccountId(account.id),
         joinedAt = account.createdAt,
     )
 
