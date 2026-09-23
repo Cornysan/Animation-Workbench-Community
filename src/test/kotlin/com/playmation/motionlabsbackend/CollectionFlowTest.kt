@@ -253,6 +253,52 @@ class CollectionFlowTest {
         assertFalse(clip(clip, me).body()["savedByMe"].asBoolean())
     }
 
+    /**
+     * Die zweite Reihe in der Workbench: die Sammlungen der Leute, denen man
+     * folgt. Oeffentliche ja, nicht gelistete nein, fremde gar nicht - und
+     * die Zahl der Gefolgten sagt, warum eine leere Liste leer ist.
+     */
+    @Test
+    fun `following shows the public collections of the people you follow`() {
+        val friend = login("friend" + unique())
+        val stranger = login("stranger" + unique())
+        val me = login("follower" + unique())
+
+        val clip = uploadOk(friend, "Friendly wave")
+        val shown = createCollection(friend, "Waves I like")
+        val hidden = createCollection(friend, "Only by link", visibility = "UNLISTED")
+        val empty = createCollection(friend, "Nothing yet")
+        addItem(friend, shown, clip).andExpect { status { isOk() } }
+        addItem(friend, hidden, clip).andExpect { status { isOk() } }
+
+        val elsewhere = createCollection(stranger, "Not followed")
+        addItem(stranger, elsewhere, uploadOk(stranger, "Stranger clip")).andExpect { status { isOk() } }
+
+        fun following() = mvc.get("/api/v1/me/collections/following") {
+            header("Authorization", "Bearer $me")
+        }.andExpect { status { isOk() } }.body()
+
+        val before = following()
+        assertEquals(0, before["following"].asInt(), "Noch folgt niemand")
+        assertEquals(0, before["collections"].size())
+
+        mvc.post("/api/v1/users/${curatorHandleOf(shown)}/follow") {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"following":true}"""
+            header("Authorization", "Bearer $me")
+        }.andExpect { status { isOk() } }
+
+        val after = following()
+        val slugs = after["collections"].map { it["slug"].asString() }
+        assertEquals(1, after["following"].asInt())
+        assertTrue(shown in slugs, "Die oeffentliche Sammlung steht da")
+        assertFalse(hidden in slugs, "Folgen ist kein Link - nicht gelistete bleiben draussen")
+        assertFalse(empty in slugs, "Leere Sammlungen auch, wie im Katalog")
+        assertFalse(elsewhere in slugs, "Und wem man nicht folgt, der fehlt")
+
+        mvc.get("/api/v1/me/collections/following").andExpect { status { isUnauthorized() } }
+    }
+
     /** Ohne Konto gibt es keine Sammlung - Bauen ist ein Handgriff, kein Ansehen. */
     @Test
     fun `building a collection needs an account`() {

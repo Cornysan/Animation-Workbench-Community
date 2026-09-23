@@ -104,6 +104,13 @@ interface ClipCollectionRepository : JpaRepository<ClipCollection, UUID> {
         status: CollectionStatus,
         visibility: CollectionVisibility,
     ): List<ClipCollection>
+
+    /** Die Sammlungen mehrerer Besitzer auf einmal - die der Leute, denen jemand folgt. */
+    fun findByOwnerIdInAndStatusAndVisibilityOrderByUpdatedAtDesc(
+        ownerIds: Collection<UUID>,
+        status: CollectionStatus,
+        visibility: CollectionVisibility,
+    ): List<ClipCollection>
 }
 
 interface CollectionItemRepository : JpaRepository<CollectionItem, CollectionItemId> {

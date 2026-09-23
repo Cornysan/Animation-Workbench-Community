@@ -112,4 +112,18 @@ class MyCollectionsController(private val collections: CollectionService) {
         @RequestParam(required = false) contains: String?,
         authentication: Authentication?,
     ) = collections.choices(authentication.requirePrincipal(), contains)
+
+    /**
+     * Die Sammlungen der Leute, denen man folgt - die zweite Reihe unter
+     * "Collections" in der Workbench.
+     *
+     * Ein eigener Pfad statt `?following=true` an `/api/v1/collections`: ein
+     * Server, der den Parameter nicht kennt, ignoriert ihn und liefert ALLE
+     * oeffentlichen Sammlungen - die Workbench zeigte dann Fremde unter
+     * "Following". Ein unbekannter Pfad dagegen ist ein 404, und das laesst
+     * sich ehrlich melden.
+     */
+    @GetMapping("/following")
+    fun following(authentication: Authentication?) =
+        collections.ofFollowed(authentication.requirePrincipal())
 }

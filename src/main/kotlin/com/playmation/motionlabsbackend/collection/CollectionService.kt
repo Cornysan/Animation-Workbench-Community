@@ -11,6 +11,7 @@ import com.playmation.motionlabsbackend.common.Crypto
 import com.playmation.motionlabsbackend.common.PortalException
 import com.playmation.motionlabsbackend.common.RateLimiter
 import com.playmation.motionlabsbackend.format.AwclipSchema
+import com.playmation.motionlabsbackend.profile.AccountFollowRepository
 import com.playmation.motionlabsbackend.profile.CollectionCounter
 import com.playmation.motionlabsbackend.system.AuditService
 import org.springframework.stereotype.Service
@@ -49,6 +50,17 @@ data class CollectionDetail(
     val updatedAt: Instant,
 )
 
+/**
+ * Die Sammlungen der Leute, denen man folgt. [following] zaehlt die Leute,
+ * nicht die Sammlungen: eine leere Liste heisst sonst zweierlei - "du folgst
+ * niemandem" und "niemand, dem du folgst, hat eine" -, und die Workbench sagt
+ * zu beidem etwas anderes.
+ */
+data class FollowedCollections(
+    val following: Long,
+    val collections: List<CollectionSummary>,
+)
+
 /** Fuer den Stern an einem Clip: meine Sammlungen, und ob dieser Clip drin ist. */
 data class CollectionChoice(
     val slug: String,
@@ -83,6 +95,7 @@ class CollectionService(
     private val catalog: CatalogService,
     private val accounts: AccountRepository,
     private val accountService: AccountService,
+    private val follows: AccountFollowRepository,
     private val audit: AuditService,
     private val rateLimiter: RateLimiter,
     private val clock: Clock,
@@ -170,6 +183,33 @@ class CollectionService(
             .filter { it.itemCount > 0 }
             .take(limit.coerceIn(1, 100))
             .map { summary(it, principal) }
+
+    /**
+     * Die oeffentlichen Sammlungen der Leute, denen [principal] folgt -
+     * neueste Aenderung zuerst.
+     *
+     * Das ist, was die Workbench unter "Collections" neben den eigenen zeigt.
+     * Den ganzen Katalog der Sammlungen zeigt sie bewusst nicht: eine Sammlung
+     * teilt man mit Leuten, die man kennt, und wer fremde sehen will, schaut
+     * auf dem Profil ihres Besitzers nach. Nicht gelistete bleiben draussen -
+     * Folgen ist kein Link.
+     */
+    @Transactional(readOnly = true)
+    fun ofFollowed(principal: PortalPrincipal, limit: Int = 48): FollowedCollections {
+        val followees = follows.findByFollowerIdOrderByCreatedAtDesc(principal.accountId)
+            .map { it.followeeId }
+
+        if (followees.isEmpty())
+            return FollowedCollections(0, emptyList())
+
+        val found = collections.findByOwnerIdInAndStatusAndVisibilityOrderByUpdatedAtDesc(
+            followees, CollectionStatus.PUBLISHED, CollectionVisibility.PUBLIC)
+            .filter { it.itemCount > 0 }
+            .take(limit.coerceIn(1, 100))
+            .map { summary(it, principal) }
+
+        return FollowedCollections(followees.size.toLong(), found)
+    }
 
     /**
      * Meine Sammlungen fuer den Stern an einem Clip - mit der Angabe, ob
