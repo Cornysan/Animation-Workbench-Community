@@ -38,7 +38,9 @@
   werden: eine Zeile unter der Ueberschrift, drei Marken, drei Zahlen.
 -->
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments/shell :: head('Animation Workbench Community (Beta)')}"></head>
+<!-- Der Rahmen haengt den Portalnamen selbst an; hier stand er noch einmal,
+     und der Reiter hiess "... (Beta) - ... (Beta)". -->
+<head th:replace="~{fragments/shell :: head('Free humanoid animation clips')}"></head>
 <body th:attr="data-signed-in=${user != null}">
 <header th:replace="~{fragments/shell :: header}"></header>
 <main id="main" class="landing wide">
@@ -47,11 +49,16 @@
   <section class="hero">
     <div class="hero-copy">
       <h1>Humanoid clips,<br>free to use.</h1>
-      <p class="lead">Motion only - no FBX, no rig, no model.</p>
+      <!-- Hier stand "Motion only - no FBX, no rig, no model". Das Download-Menue
+           jedes Clips bietet aber FBX und GLB samt Figur an - der Satz sagte
+           ueber die Seite das Gegenteil dessen, was sie tut. -->
+      <p class="lead">Motion for any humanoid rig - import it in Unity, or take it as FBX or GLB.</p>
 
       <div class="hero-actions">
         <a class="button primary" href="/browse.html">Browse clips</a>
-        <a class="button" href="/rules.html">How sharing works</a>
+        <!-- Fuehrte auf die Regeln. Wie das Teilen geht, steht unten auf
+             dieser Seite, in drei Schritten. -->
+        <a class="button" href="#how">How sharing works</a>
       </div>
 
       <!-- Drei Marken statt dreier Saetze. Die Lizenz fuehrt zu ihrer Seite. -->
@@ -122,7 +129,7 @@
     Der Weg, in drei Zeilen. Er stand vorher als Kapitel VOR den Clips; wer
     Bewegungen sucht, braucht keine Anleitung, bevor er die erste gesehen hat.
   -->
-  <section class="how">
+  <section class="how" id="how">
     <ol class="steps">
       <li>
         <svg class="step-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
