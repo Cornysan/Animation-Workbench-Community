@@ -318,18 +318,55 @@ function solvePreview(preview) {
   return { rotations, positions, floorY, frames, count };
 }
 
-let groundTextureCache = null;
+/** Kantenlaenge des Bodens und Zahl der Rasterfelder darauf - ein Feld misst
+ *  also 0,32 Meter. */
+const GROUND_SIZE = 6.4;
+const GRID_CELLS = 20;
+const GRID_COLOR = 0xa894ff;
 
-/** Den Boden zeichnen wir einmal in eine Leinwand - der Abfall kostet dann pro
- *  Bild nichts, und ein Rand entsteht gar nicht erst.
+/** Den Boden zeichnen wir in Leinwaende - der Abfall kostet dann pro Bild
+ *  nichts, und ein Rand entsteht gar nicht erst.
  *
  *  EINMAL FUER ALLE BUEHNEN, seit der Katalog seine Karten auf der Figur
  *  zeigt: 24 Karten waeren sonst 24 Leinwaende von 1024 Pixeln - 96 MiB
- *  Grafikspeicher fuer denselben Boden. */
-function groundTexture(size = 1024) {
-  if (groundTextureCache) return groundTextureCache;
+ *  Grafikspeicher fuer denselben Boden.
+ *
+ *  DREI Leinwaende statt einer, seit das Raster in der Welt steht: Schein und
+ *  Abfall wandern mit der Figur, das Raster nicht. Beides in einem Bild
+ *  haette nur EINEN Versatz, und dann laeuft entweder der Lichtkegel davon
+ *  oder das Raster mit - und genau das Zweite hat jede Root Motion
+ *  verschluckt: Figur, Kamera und Raster gingen gleich schnell, die Figur lief
+ *  auf der Stelle. */
+const groundTextures = {};
+
+function groundCanvas(size) {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
+  return canvas;
+}
+
+// Die Fahne muss WEIT vor dem Rand auf null sein. Eine Ebene unter diesem
+// Winkel presst ihre letzte Tiefe in ein paar Pixel, und ein Verlauf, der
+// dort noch bei einem Zehntel steht, kommt als gezogener Strich an.
+//
+// Der Rand ist ausserdem der Platz, in den das Raster beim Verschieben greift
+// (siehe [MannequinStage.placeCamera]) - dort muss die Fahne null sein.
+function fadeOut(ctx, size) {
+  const mid = size / 2;
+  const fade = ctx.createRadialGradient(mid, mid, 0, mid, mid, size * 0.3);
+  fade.addColorStop(0, 'rgba(0,0,0,1)');
+  fade.addColorStop(0.55, 'rgba(0,0,0,0.92)');
+  fade.addColorStop(0.8, 'rgba(0,0,0,0.35)');
+  fade.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.globalCompositeOperation = 'destination-in';
+  ctx.fillStyle = fade;
+  ctx.fillRect(0, 0, size, size);
+}
+
+/** Der Lichtschein unter der Figur, schon mit Abfall. Wandert mit. */
+function poolTexture(size = 1024) {
+  if (groundTextures.pool) return groundTextures.pool;
+  const canvas = groundCanvas(size);
   const ctx = canvas.getContext('2d');
   const mid = size / 2;
 
@@ -339,36 +376,60 @@ function groundTexture(size = 1024) {
   pool.addColorStop(1, 'rgba(18, 16, 28, 0)');
   ctx.fillStyle = pool;
   ctx.fillRect(0, 0, size, size);
+  fadeOut(ctx, size);
 
-  ctx.strokeStyle = 'rgba(168, 148, 255, 0.5)';
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  texture.anisotropy = 4;
+  return (groundTextures.pool = texture);
+}
+
+/** Nur der Abfall: weiss, die Deckung im Alpha. Legt das Fenster fest, in dem
+ *  das Raster zu sehen ist, und wandert mit der Figur. */
+function fadeTexture(size = 1024) {
+  if (groundTextures.fade) return groundTextures.fade;
+  const canvas = groundCanvas(size);
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, size, size);
+  fadeOut(ctx, size);
+
+  const texture = new CanvasTexture(canvas);
+  texture.anisotropy = 4;
+  return (groundTextures.fade = texture);
+}
+
+/** Nur die Linien, als Graustufen auf Schwarz - die Buehne nimmt es als
+ *  `alphaMap`, die Farbe kommt aus dem Material.
+ *
+ *  UNDURCHSICHTIG, nicht Linien auf Transparenz: eine Leinwand vergisst die
+ *  Farbe durchsichtiger Pixel, und beim Filtern und in den Mipmaps zoegen die
+ *  schwarzen Nachbarn die Linien dunkel. Graustufen mitteln sich richtig. */
+function gridTexture(size = 1024) {
+  if (groundTextures.grid) return groundTextures.grid;
+  const canvas = groundCanvas(size);
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, size, size);
+
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
   ctx.lineWidth = Math.max(1, size / 512);
-  const step = size / 20;
+  const step = size / GRID_CELLS;
   ctx.beginPath();
-  for (let i = 0; i <= 20; i++) {
+  for (let i = 0; i <= GRID_CELLS; i++) {
     const p = Math.round(i * step) + 0.5;
     ctx.moveTo(p, 0); ctx.lineTo(p, size);
     ctx.moveTo(0, p); ctx.lineTo(size, p);
   }
   ctx.stroke();
 
-  // Die Fahne muss WEIT vor dem Rand auf null sein. Eine Ebene unter diesem
-  // Winkel presst ihre letzte Tiefe in ein paar Pixel, und ein Verlauf, der
-  // dort noch bei einem Zehntel steht, kommt als gezogener Strich an.
-  const fade = ctx.createRadialGradient(mid, mid, 0, mid, mid, size * 0.3);
-  fade.addColorStop(0, 'rgba(0,0,0,1)');
-  fade.addColorStop(0.55, 'rgba(0,0,0,0.92)');
-  fade.addColorStop(0.8, 'rgba(0,0,0,0.35)');
-  fade.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.globalCompositeOperation = 'destination-in';
-  ctx.fillStyle = fade;
-  ctx.fillRect(0, 0, size, size);
-
   const texture = new CanvasTexture(canvas);
-  texture.colorSpace = SRGBColorSpace;
   texture.anisotropy = 4;
-  groundTextureCache = texture;
-  return texture;
+  return (groundTextures.grid = texture);
 }
+
+/** Nachkommateil, auch fuer negative Zahlen in [0, 1). */
+const frac = (x) => x - Math.floor(x);
 
 let dotTextureCache = null;
 
@@ -621,12 +682,23 @@ export class MannequinStage {
     fill.position.set(-2.6, 1.0, -2.2);
     this.scene.add(fill);
 
-    this.groundMap = groundTexture();
-    this.ground = new Mesh(
-      new PlaneGeometry(6.4, 6.4),
-      new MeshBasicMaterial({ map: this.groundMap, transparent: true, depthWrite: false, toneMapped: false }),
-    );
-    this.ground.rotation.x = -Math.PI / 2;
+    //  Schein und Raster als zwei Ebenen - warum, steht bei [groundTextures].
+    //  Das Raster bekommt eine EIGENE Kopie seiner Textur, weil der Versatz an
+    //  der Textur haengt und jede Karte im Katalog woanders steht. Die Kopie
+    //  teilt sich das Bild mit dem Original, auf der Grafikkarte liegt es
+    //  trotzdem nur einmal.
+    const plane = new PlaneGeometry(GROUND_SIZE, GROUND_SIZE);
+    const pool = new Mesh(plane,
+      new MeshBasicMaterial({ map: poolTexture(), transparent: true, depthWrite: false, toneMapped: false }));
+    this.gridMap = gridTexture().clone();
+    const grid = new Mesh(plane, new MeshBasicMaterial({
+      color: GRID_COLOR, map: fadeTexture(), alphaMap: this.gridMap,
+      transparent: true, depthWrite: false, toneMapped: false,
+    }));
+    pool.rotation.x = grid.rotation.x = -Math.PI / 2;
+    grid.renderOrder = 0.5;
+    this.ground = new Group();
+    this.ground.add(pool, grid);
     this.scene.add(this.ground);
 
     this.contact = new Mesh(new PlaneGeometry(3.2, 3.2), new ShadowMaterial({ opacity: 0.5 }));
@@ -638,7 +710,8 @@ export class MannequinStage {
     this.scene.add(this.contact);
 
     // Die Buehne folgt der Huefte; damit Boden und Schatten mitgehen, haengen
-    // sie an einem eigenen Knoten statt an der Welt.
+    // sie an einem eigenen Knoten statt an der Welt. Die Linien des Rasters
+    // haelt [placeCamera] trotzdem in der Welt fest.
     this.floor = new Group();
     this.floor.add(this.ground, this.contact);
     this.scene.add(this.floor);
@@ -1398,6 +1471,22 @@ export class MannequinStage {
     // Boden und Schatten wandern mit, damit der Lichtkegel unter der Figur
     // bleibt statt am Ursprung zu kleben.
     this.floor.position.set(hips.x * this.scale, 0, hips.z * this.scale);
+
+    // DAS RASTER BLEIBT STEHEN. Die Ebene wandert mit, ihre Linien werden um
+    // genau den Rest zurueckgeschoben, den die Figur in ein Feld hineingelaufen
+    // ist - so liegt jede Linie auf einem festen Vielfachen von 0,32 Metern,
+    // und wer geht, laeuft sichtbar ueber den Boden. Hoechstens ein Feld
+    // Versatz, also greift die Textur nie weiter als in den Rand, wo der
+    // Abfall schon null ist.
+    //
+    // Die Vorzeichen folgen der Ebene: u laeuft mit Welt-x, v gegen Welt-z
+    // (die Ebene liegt um -90 Grad gekippt).
+    const cell = GROUND_SIZE / GRID_CELLS;
+    this.gridMap.offset.set(
+      frac(this.floor.position.x / cell) / GRID_CELLS,
+      frac(-this.floor.position.z / cell) / GRID_CELLS,
+    );
+
     this.key.position.set(this.floor.position.x + 2.1, 4.9, this.floor.position.z - 2.4);
     this.key.target.position.copy(this.floor.position);
     this.key.target.updateMatrixWorld();
@@ -1477,6 +1566,9 @@ export class MannequinStage {
    * anderen Buehne auf der Seite. Wer sie hier freigibt, nimmt sie den anderen
    * weg. Dasselbe gilt fuer den Boden, der seit dem Katalog allen gehoert, und
    * fuer den Renderer, wenn er geliehen ist.
+   *
+   * Nur die Rasterkopie ist eigen. Sie teilt ihr Bild mit den anderen, three.js
+   * zaehlt die Nutzer aber mit und loescht es erst mit der letzten.
    */
   dispose() {
     if (!this.surface) this.renderer.setAnimationLoop(null);
@@ -1492,6 +1584,7 @@ export class MannequinStage {
         (Array.isArray(node.material) ? node.material : [node.material]).forEach((m) => m.dispose());
       }
     });
+    this.gridMap.dispose();
 
     if (!this.surface) this.renderer.dispose();
   }
