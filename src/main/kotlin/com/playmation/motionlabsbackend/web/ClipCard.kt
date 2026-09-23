@@ -218,7 +218,7 @@ class ClipCardRenderer {
         //  Der Rahmen, den die Figur fuellen darf. Nicht das ganze Bild: eine
         //  Vorschau wird klein angezeigt, und eine Figur am Rand wirkt darin
         //  gedraengt.
-        val scale = min(HEIGHT * 0.72 / spanY, WIDTH * 0.46 / spanX)
+        val scale = min(HEIGHT * 0.78 / spanY, WIDTH * 0.52 / spanX)
         val centerX = (minX + maxX) / 2 * scale
         val centerY = (minFlatY + maxFlatY) / 2 * scale
 
@@ -235,64 +235,108 @@ class ClipCardRenderer {
 
         val lineWidth = WIDTH / 150f
 
+        //  Ein weicher Fleck unter dem tiefsten Punkt. Kein Schattenwurf -
+        //  dafuer muesste man wissen, wo das Licht steht und wo der Boden ist,
+        //  und bei einem Sprung waere beides gelogen. Es ist ein Halt: ohne
+        //  ihn haengt die Figur in einem leeren Rechteck.
+        //  Unter den TIEFSTEN PUNKT, nicht unter die Bildmitte: bei einem
+        //  ausgestreckten Arm liegt die Mitte des Bildes neben der Figur, und
+        //  der Fleck stuende dann als Schmutz daneben.
+        val lowest = projected.indices.maxBy { projected[it][1] }
+        val ground = projected[lowest][1]
+        val shadowWidth = max(150.0, (maxX - minX) * scale * 0.55)
+        g.paint = RadialGradientPaint(
+            java.awt.geom.Point2D.Float(projected[lowest][0].toFloat(), ground.toFloat()),
+            (shadowWidth / 2).toFloat(),
+            floatArrayOf(0f, 1f),
+            arrayOf(Color(0, 0, 0, 130), Color(0, 0, 0, 0)),
+        )
+        g.fill(Ellipse2D.Double(projected[lowest][0] - shadowWidth / 2, ground - 17, shadowWidth, 34.0))
+
         for (i in order) {
             val parent = parents[i]
             if (parent < 0) continue
             val name = bones[i]
-            val fine = DETAIL.containsMatchIn(name)
+            if (hidden(name)) continue
 
             //  Seitenfarben aus der Marke: Akzentviolett links, Warmton rechts.
-            val base = when {
+            g.color = when {
                 name.startsWith("Left") -> Color(0x8e, 0x77, 0xff)
                 name.startsWith("Right") -> Color(0xfb, 0x92, 0x3c)
                 else -> Color(0xd9, 0xd5, 0xe4)
             }
-            //  Feine Knochen duenner und blasser - sie sollen die Silhouette
-            //  ergaenzen, nicht mit ihr konkurrieren.
-            g.color = if (fine) Color(base.red, base.green, base.blue, 115) else base
-            g.stroke = BasicStroke(if (fine) lineWidth * 0.55f else lineWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
+            g.stroke = BasicStroke(lineWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
             g.draw(Line2D.Double(projected[parent][0], projected[parent][1], projected[i][0], projected[i][1]))
         }
 
         g.color = Color(0xee, 0xec, 0xf3)
         for (i in order) {
-            if (DETAIL.containsMatchIn(bones[i])) continue
+            if (hidden(bones[i])) continue
             val radius = if (bones[i] == "Head") lineWidth * 3.2 else lineWidth * 0.9
             g.fill(Ellipse2D.Double(projected[i][0] - radius, projected[i][1] - radius, radius * 2, radius * 2))
         }
     }
 
     /**
-     * Die Marke, unten links: das Lambda mit der Keyframe-Raute (Variante E).
+     * Was auf dieser Karte NICHT gezeichnet wird.
      *
-     * Als Pfad, nicht als Wort - siehe oben. Die Raute greift in die Schenkel,
-     * wie sie es im Lockup tut; sie darf nicht daneben schweben.
+     * Beides steckt in etwas anderem drin und macht es kaputt. Kiefer und
+     * Augen liegen INNERHALB des Kopfkreises: gezeichnet werden sie zu einer
+     * Beule an der Schaedeldecke, die wie ein Fehler aussieht. Und die Finger
+     * sind bei 1200 Pixeln noch drei Striche, in der Vorschaugroesse eines
+     * Chats aber ein Kratzer neben der Hand.
+     *
+     * Der Viewer im Browser zeigt beides weiter, und das ist kein
+     * Widerspruch: dort ist die Figur gross, drehbar und der Gegenstand der
+     * Seite. Hier ist sie einen Daumennagel gross.
+     */
+    private fun hidden(bone: String) = DETAIL.containsMatchIn(bone) || INSIDE_HEAD.matches(bone)
+
+    /**
+     * Die Marke, unten links.
+     *
+     * NICHT NACHGEBAUT, SONDERN ABGESCHRIEBEN: die Zahlen unten sind Zeile
+     * fuer Zeile die aus `assets/brand/aw-mark-dark.svg`, nur durch 64
+     * geteilt. Der erste Versuch hier zeichnete ein einzelnes Lambda mit der
+     * Raute in der Mitte - das ergab ein plumpes "A" mit einem Punkt drin,
+     * und es war keinem Blick anzusehen, dass es die Marke sein sollte. Die
+     * Marke sind ZWEI Lambdas, das hintere versetzt und halb durchsichtig,
+     * und die Raute sitzt nicht in der Mitte, sondern auf dem rechten
+     * Schenkel des vorderen.
+     *
+     * Wer die SVG aendert, aendert sie hier mit. Das ist derselbe Handel wie
+     * bei der Kinematik weiter oben, und er steht aus demselben Grund: auf
+     * dem Server laeuft kein Browser, der eine SVG zeichnen koennte.
      */
     private fun drawMark(g: java.awt.Graphics2D) {
-        val size = 54.0
-        val x = 64.0
-        val y = HEIGHT - 64.0
+        val size = 72.0
+        val unit = size / 64.0
+        val left = 56.0
+        val top = HEIGHT - 56.0 - size
+        fun px(x: Double) = left + x * unit
+        fun py(y: Double) = top + y * unit
 
-        val stroke = BasicStroke((size / 7).toFloat(), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
-        g.stroke = stroke
-        g.color = Color(0xd9, 0xd5, 0xe4, 190)
+        g.stroke = BasicStroke((8 * unit).toFloat(), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
 
-        val lambda = GeneralPath()
-        lambda.moveTo(x, y)
-        lambda.lineTo(x + size * 0.5, y - size)
-        lambda.lineTo(x + size, y)
-        g.draw(lambda)
+        fun lambda(footLeft: Double, apex: Double, footRight: Double) = GeneralPath().apply {
+            moveTo(px(footLeft), py(54.0))
+            lineTo(px(apex), py(10.0))
+            lineTo(px(footRight), py(54.0))
+        }
 
-        //  Die Raute sitzt auf halber Hoehe, wo die Schenkel sind.
-        val r = size * 0.19
-        val cx = x + size * 0.5
-        val cyMark = y - size * 0.46
-        val diamond = GeneralPath()
-        diamond.moveTo(cx, cyMark - r)
-        diamond.lineTo(cx + r, cyMark)
-        diamond.lineTo(cx, cyMark + r)
-        diamond.lineTo(cx - r, cyMark)
-        diamond.closePath()
+        //  0.42 Deckung wie in der Datei.
+        g.color = Color(0xff, 0xff, 0xff, 107)
+        g.draw(lambda(11.0, 28.0, 45.0))
+        g.color = Color(0xff, 0xff, 0xff)
+        g.draw(lambda(19.0, 36.0, 53.0))
+
+        val diamond = GeneralPath().apply {
+            moveTo(px(36.0), py(33.0))
+            lineTo(px(44.4), py(40.0))
+            lineTo(px(36.0), py(47.0))
+            lineTo(px(27.6), py(40.0))
+            closePath()
+        }
         g.color = Color(0x8e, 0x77, 0xff)
         g.fill(diamond)
     }
@@ -356,6 +400,9 @@ class ClipCardRenderer {
 
         /** Dieselben Prefixe wie `SkeletonViewer.DETAIL` und die Workbench. */
         private val DETAIL = Regex("^(Left|Right)(Thumb|Index|Middle|Ring|Little)")
+
+        /** Kiefer und Augen - sie sitzen im Kopf, siehe [hidden]. */
+        private val INSIDE_HEAD = Regex("^(Jaw|(Left|Right)Eye)$")
 
         private const val MAX_CACHED = 200
     }
