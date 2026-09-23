@@ -618,10 +618,28 @@ const AW = (() => {
     const width = box.offsetWidth;
     const left = Math.min(Math.max(8, rect.left + rect.width / 2 - width / 2), window.innerWidth - width - 8);
 
-    //  Nach unten, ausser es ist unten kein Platz mehr.
-    const below = rect.bottom + 8 + box.offsetHeight < window.innerHeight;
+    //  Nach unten, sonst nach oben - aber nur, wenn er dort auch GANZ
+    //  hinpasst. Vorher klappte er nach oben, sobald unten der Platz fehlte,
+    //  und lief dabei ueber den Rand: bei 455 px Hoehe stand die Download-
+    //  Liste bei top -176, und ihre erste Zeile (.awclip) war nicht zu
+    //  erreichen. Oben endet der Platz am Kopf der Seite, der liegt darueber.
+    const header = document.querySelector(".site-header");
+    const ceiling = Math.max(8, (header ? header.getBoundingClientRect().bottom : 0) + 8);
+    const spaceBelow = window.innerHeight - rect.bottom - 16;
+    const spaceAbove = rect.top - 8 - ceiling;
+    const height = box.offsetHeight;
+
+    const below = height <= spaceBelow || (height > spaceAbove && spaceBelow >= spaceAbove);
+    const room = Math.max(120, below ? spaceBelow : spaceAbove);
+
+    //  Passt er auf keiner Seite, scrollt er in sich, statt aus dem Bild zu laufen.
+    if (height > room) {
+      box.style.maxHeight = room + "px";
+      box.style.overflowY = "auto";
+    }
+
     box.style.left = left + window.scrollX + "px";
-    box.style.top = (below ? rect.bottom + 8 : rect.top - box.offsetHeight - 8) + window.scrollY + "px";
+    box.style.top = (below ? rect.bottom + 8 : rect.top - 8 - Math.min(height, room)) + window.scrollY + "px";
 
     const onDown = (event) => {
       if (!box.contains(event.target) && !anchor.contains(event.target)) closePopover();
