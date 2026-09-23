@@ -427,6 +427,9 @@ export class MannequinStage {
     this.zoom = 1;
     this.defaults = { yaw: this.yaw, pitch: this.pitch, zoom: 1 };
 
+    /** Um wie viel die mittlere Maustaste das Kameraziel verschoben hat (Welt, Meter). */
+    this.pan = new Vector3();
+
     this.proportions = PROPORTIONS[options.proportions] ? options.proportions : 'default';
 
     /**
@@ -522,18 +525,43 @@ export class MannequinStage {
    */
   attachInput() {
     let drag = null;
+
+    //  DIE MITTLERE TASTE VERSCHIEBT - wie in der Single Clip View der
+    //  Workbench (PanCamera im Vorschau-Renderer). Ohne das hier startet
+    //  Chrome unter Windows beim Druck auf das Rad das Auto-Scrollen, und
+    //  die Seite faehrt davon, statt dass sich die Kamera bewegt.
+    this.canvas.addEventListener('mousedown', (e) => {
+      if (e.button === 1) e.preventDefault();
+    });
+
     this.canvas.addEventListener('pointerdown', (e) => {
       this.wheelArmed = true;
-      drag = { x: e.clientX, y: e.clientY, yaw: this.yaw, pitch: this.pitch };
+      if (e.button === 1) {
+        e.preventDefault();
+        drag = { pan: true, x: e.clientX, y: e.clientY };
+        this.canvas.classList.add('is-panning');
+      } else {
+        drag = { x: e.clientX, y: e.clientY, yaw: this.yaw, pitch: this.pitch };
+      }
       this.canvas.setPointerCapture(e.pointerId);
     });
     this.canvas.addEventListener('pointermove', (e) => {
       if (!drag) return;
+      if (drag.pan) {
+        this.panBy(e.clientX - drag.x, e.clientY - drag.y);
+        drag.x = e.clientX;
+        drag.y = e.clientY;
+        return;
+      }
       this.yaw = drag.yaw - (e.clientX - drag.x) * 0.01;
       this.pitch = Math.max(-0.9, Math.min(1.1, drag.pitch + (e.clientY - drag.y) * 0.01));
     });
-    this.canvas.addEventListener('pointerup', () => (drag = null));
-    this.canvas.addEventListener('pointercancel', () => (drag = null));
+    const release = () => {
+      drag = null;
+      this.canvas.classList.remove('is-panning');
+    };
+    this.canvas.addEventListener('pointerup', release);
+    this.canvas.addEventListener('pointercancel', release);
     //  DAS RAD ZOOMT ERST NACH DEM ANFASSEN. Vorher fing die Buehne jedes Rad
     //  ab, und wer ueber die Clip-Seite scrollte, blieb an 480 Pixeln Figur
     //  haengen. Jetzt: einmal hineinklicken oder Strg halten, und das Rad
@@ -1239,6 +1267,33 @@ export class MannequinStage {
     this.yaw = this.defaults.yaw;
     this.pitch = this.defaults.pitch;
     this.zoom = this.defaults.zoom;
+    this.pan.set(0, 0, 0);
+  }
+
+  /**
+   * Das Kameraziel in der Bildebene verschieben, um so viele CSS-Pixel, wie
+   * die Maus gezogen wurde.
+   *
+   * GENAU UNTER DER MAUS, nicht mit einem Faktor. Die Workbench nimmt
+   * 0,002 x Abstand je Pixel, und das passt dort zu einer festen Brennweite;
+   * hier rechnet die Kamera aus Abstand und Oeffnungswinkel, wie viele Meter
+   * ein Pixel in der Tiefe des Ziels misst. Was man anfasst, bleibt unter dem
+   * Zeiger - die Szene folgt der Hand, wie in der Workbench auch.
+   *
+   * Der Versatz liegt auf dem Ziel und bleibt beim Mitfuehren der Kamera
+   * erhalten: ist "Follow" an, folgt die Kamera der Huefte mit diesem Versatz.
+   */
+  panBy(dx, dy) {
+    const height = this.canvas.clientHeight || 1;
+    const perPixel = (2 * (this.distance || 1) * Math.tan((this.camera.fov * Math.PI) / 360)) / height;
+
+    this.camera.updateMatrixWorld();
+    const right = (this._panRight || (this._panRight = new Vector3()))
+      .setFromMatrixColumn(this.camera.matrixWorld, 0);
+    const up = (this._panUp || (this._panUp = new Vector3()))
+      .setFromMatrixColumn(this.camera.matrixWorld, 1);
+
+    this.pan.addScaledVector(right, -dx * perPixel).addScaledVector(up, dy * perPixel);
   }
 
   setTime(t) { this.time = Math.max(0, Math.min(this.duration, t)); }
@@ -1338,7 +1393,7 @@ export class MannequinStage {
 
   placeCamera(hips) {
     const follow = this.cameraFollow ? hips : new Vector3(0, 0, 0);
-    this.target.set(follow.x * this.scale, this.height * 0.52, follow.z * this.scale);
+    this.target.set(follow.x * this.scale, this.height * 0.52, follow.z * this.scale).add(this.pan);
 
     // Boden und Schatten wandern mit, damit der Lichtkegel unter der Figur
     // bleibt statt am Ursprung zu kleben.
@@ -1354,6 +1409,8 @@ export class MannequinStage {
       (this.height * 0.70) / half,
       (this.height * 0.46) / half / Math.max(0.35, this.camera.aspect),
     ) / this.zoom;
+    //  Gemerkt fuer [panBy]: wie viele Meter ein Pixel misst, haengt daran.
+    this.distance = distance;
     const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
     this.camera.position.set(
       this.target.x + Math.sin(this.yaw) * cp * distance,
@@ -1397,6 +1454,7 @@ export class MannequinStage {
     //  das hier fehlt, ruft [invalidate].
     const c = this.renderer.domElement;
     const key = frame + '|' + this.yaw + '|' + this.pitch + '|' + this.zoom + '|'
+      + this.pan.x + ',' + this.pan.y + ',' + this.pan.z + '|'
       + this.cameraFollow + '|' + this._showMesh + '|' + this._showGrid + '|'
       + this.proportions + '|' + c.width + 'x' + c.height;
     if (key !== this.drawnKey) {
