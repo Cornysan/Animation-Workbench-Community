@@ -81,6 +81,32 @@ object AwclipSchema {
     const val RIG_GENERIC = "generic"
 
     val RIGS = listOf(RIG_HUMANOID, RIG_GENERIC)
+
+    /**
+     * Was das PORTAL annimmt - nicht, was das Format kann.
+     *
+     * [RIGS] bleibt vollständig: eine generische Datei, die jemand schon
+     * geschrieben hat, muss weiter LESBAR sein, sonst würde aus einer Absage
+     * ein Formatfehler, und die Testdateien prüfen genau diesen Unterschied.
+     * Der Leser sagt, ob eine Datei heil ist; diese Liste sagt, ob wir sie
+     * haben wollen. Zwei Fragen, zwei Orte.
+     *
+     * ANGENOMMEN wird vorerst nur `humanoid`. Die Community fängt mit dem
+     * einen Fall an, der auf jeder fremden Figur läuft - ein generischer Clip
+     * hängt an SEINEM Skelett, und alles, was das Portal darum herum baut
+     * (Mannequin, Proportionen, eigene Figuren, Match Score), hat für ihn
+     * keine Antwort.
+     *
+     * Diese Liste ist der Schalter, und sie ist der einzige. Kommt
+     * [RIG_GENERIC] zurück, geht alles wieder auf, was hier gerade zu ist -
+     * die Annahme beim Upload und die Auslage im Katalog. Die Workbench hat
+     * dieselbe Liste als `AWClipSchema.AcceptedRigs`, damit die Absage schon
+     * dort kommt; das letzte Wort hat diese hier.
+     */
+    val ACCEPTED_RIGS = listOf(RIG_HUMANOID)
+
+    fun isAcceptedRig(rig: String) = rig in ACCEPTED_RIGS
+
     val ORIGINS = listOf("own", "unknown")
 
     /**

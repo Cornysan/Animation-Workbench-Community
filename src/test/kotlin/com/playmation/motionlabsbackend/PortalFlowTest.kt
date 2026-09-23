@@ -2,6 +2,8 @@ package com.playmation.motionlabsbackend
 
 import com.playmation.motionlabsbackend.catalog.Declaration
 import com.playmation.motionlabsbackend.catalog.UploadDeclarationRepository
+import com.playmation.motionlabsbackend.format.AwclipReadResult
+import com.playmation.motionlabsbackend.format.AwclipReader
 import com.playmation.motionlabsbackend.format.AwclipSchema
 import com.playmation.motionlabsbackend.system.IpRetentionJob
 import org.junit.jupiter.api.Test
@@ -68,6 +70,27 @@ class PortalFlowTest {
              "curves":[{"attribute":"Head Nod Down-Up","keys":[[0,$seed,0,0],[1,0.25,0,0]]}],
              "preview":{"frameRate":15,"bones":["Hips","Spine"],"parents":[-1,0],"rest":[[0,1,0],[0,0.1,0]],
                         "hips":[[0,1,0]],"rotations":[[0,0,0,1,0,0,0,1]]}}
+        """.trimIndent()
+        val out = ByteArrayOutputStream()
+        GZIPOutputStream(out).use { it.write(doc.toByteArray()) }
+        return out.toByteArray()
+    }
+
+    /**
+     * Ein GUELTIGES .awclip mit generischem Rig - eine Tuer an ihrem Scharnier.
+     *
+     * Der Leser nimmt diese Datei an, und das soll er: sie ist heil. Das
+     * Portal nimmt sie trotzdem nicht - siehe [AwclipSchema.ACCEPTED_RIGS].
+     * Genau dieser Unterschied ist das, was der Test festhaelt.
+     */
+    private fun genericAwclip(seed: Double): ByteArray {
+        val doc = """
+            {"format":"awclip","version":1,
+             "manifest":{"title":"Door Swing","tags":["prop"],"license":"CC-BY-4.0","rig":"generic","frameRate":30,"duration":1},
+             "origin":"own",
+             "curves":[{"attribute":"Hinge/Panel.m_LocalRotation.y","keys":[[0,$seed,0,0],[1,0.7071068,0,0]]}],
+             "preview":{"frameRate":30,"bones":["Hinge","Panel"],"parents":[-1,0],"rest":[[0,0,0],[0,0.9,0]],
+                        "hips":[[0,0,0]],"rotations":[[0,0,0,1,0,0,0,1]]}}
         """.trimIndent()
         val out = ByteArrayOutputStream()
         GZIPOutputStream(out).use { it.write(doc.toByteArray()) }
@@ -242,6 +265,32 @@ class PortalFlowTest {
             status { isBadRequest() }
             jsonPath("$.error.code") { value("invalid-awclip") }
         }
+    }
+
+    /**
+     * Humanoid ja, generisch noch nicht.
+     *
+     * DER TEST PRUEFT ZWEI DINGE AUF EINMAL, und das zweite ist das wichtigere:
+     * dass die Absage NICHT `invalid-awclip` heisst. Die Datei ist in Ordnung -
+     * derselbe Leser, der sie hier durchlaesst, laesst sie auch in der
+     * Workbench durch, und die Testdateien unter `awclip/` bestehen darauf.
+     * Abgelehnt wird sie vom Portal, nicht vom Format, und wer sie geschrieben
+     * hat, soll nicht anfangen, in seiner Datei nach einem Fehler zu suchen.
+     */
+    @Test
+    fun `a generic clip is a valid file the portal still does not take`() {
+        val token = login("generic-${unique()}")
+
+        upload(token, genericAwclip(0.41)).andExpect {
+            status { isBadRequest() }
+            jsonPath("$.error.code") { value("unsupported-rig") }
+        }
+
+        //  Und der Leser? Der haette sie genommen.
+        assertTrue(
+            AwclipReader.readFile(genericAwclip(0.41).inputStream()) is AwclipReadResult.Ok,
+            "Die Testdatei ist kaputt - dann prueft der Test oben etwas anderes als gemeint",
+        )
     }
 
     @Test

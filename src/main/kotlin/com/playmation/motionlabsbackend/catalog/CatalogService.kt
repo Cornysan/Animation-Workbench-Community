@@ -178,6 +178,23 @@ class CatalogService(
             is AwclipReadResult.Rejected -> throw PortalException.badRequest("invalid-awclip", read.error.toString())
         }
 
+        //  DIE TUER: humanoid ja, generisch noch nicht.
+        //
+        //  Sie steht HIER und nicht im Leser. Der Leser sagt, ob eine Datei
+        //  heil ist - das ist eine Frage ueber die Datei und hat dieselbe
+        //  Antwort wie in der Workbench, Fehlercode fuer Fehlercode. OB wir
+        //  eine heile Datei haben wollen, ist eine Frage ueber das PORTAL, und
+        //  die aendert sich, wenn wir es uns anders ueberlegen. Zwei Fragen,
+        //  zwei Orte: was sich aendern darf, steht nicht dort, wo nichts sich
+        //  aendern darf.
+        //
+        //  Eigener Code, nicht `invalid-awclip`: die Datei ist in Ordnung, und
+        //  wer sie geschrieben hat, soll nicht nach einem Fehler darin suchen.
+        if (!AwclipSchema.isAcceptedRig(doc.manifest.rig))
+            throw PortalException.badRequest(
+                "unsupported-rig",
+                "The community takes humanoid clips only for now. This one animates its own skeleton.")
+
         val hash = AwclipHash.compute(doc)
         checkNotAlreadyThere(hash, account.id)
 
@@ -328,7 +345,7 @@ class CatalogService(
         val authorIds = author?.trim()?.takeIf { it.isNotEmpty() }?.take(60)
             ?.let { name -> accountRepository.findByDisplayName(name).map { it.id }.ifEmpty { listOf(NO_ACCOUNT) } }
 
-        val spec = Specification<AnimationPackage> { root, _, cb ->
+        val spec = Specification<AnimationPackage> { root, query, cb ->
             val predicates = mutableListOf(
                 cb.equal(root.get<PackageStatus>("status"), PackageStatus.PUBLISHED),
                 // Der Katalog zeigt nur, was öffentlich geteilt wurde. Private
@@ -336,6 +353,34 @@ class CatalogService(
                 // erreichen - sie tauchen in keiner Liste und keiner Suche auf.
                 cb.equal(root.get<String>("license"), AwclipSchema.LICENSE_PUBLIC),
             )
+
+            //  Nur Rigs, die das Portal annimmt - und zwar HIER, in der
+            //  Abfrage, nicht erst beim Bauen der Karten.
+            //
+            //  WARUM DAS EIN UNTERSCHIED IST: [cardsFor] wirft so eine Karte
+            //  ohnehin weg, aber die Zahl daneben („3 clips") kommt aus
+            //  `totalElements`, und die haette weiter mitgezaehlt. Genau das
+            //  war im Entwicklungsstand zu sehen: drei versprochen, zwei
+            //  gezeigt. Und auf Seite zwei kaemen dann 23 Karten statt 24.
+            //
+            //  `rig` haengt an der Fassung, nicht am Paket, und
+            //  `currentVersionId` ist eine blanke Spalte ohne Beziehung -
+            //  deshalb eine korrelierte EXISTS-Unterabfrage statt eines Joins.
+            //
+            //  `query` ist in der Signatur nullbar und in der Praxis nie null;
+            //  faellt es doch einmal weg, bleibt [cardsFor] die Sperre und nur
+            //  die Zahl daneben waere zu gross. Kein Grund, eine Auslage mit
+            //  einer Ausnahme abzuwerfen.
+            query?.let { q ->
+                val version = q.subquery(UUID::class.java)
+                val v = version.from(PackageVersion::class.java)
+                version.select(v.get("id"))
+                version.where(
+                    cb.equal(v.get<UUID>("id"), root.get<UUID>("currentVersionId")),
+                    v.get<String>("rig").`in`(AwclipSchema.ACCEPTED_RIGS),
+                )
+                predicates += cb.exists(version)
+            }
 
             q?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }?.take(80)?.let { term ->
                 val pattern = "%" + escapeLike(term) + "%"
@@ -385,6 +430,16 @@ class CatalogService(
 
         return found.mapNotNull { pkg ->
             val version = currentVersions[pkg.currentVersionId] ?: return@mapNotNull null
+
+            //  Was das Portal nicht mehr annimmt, legt es auch nicht mehr aus.
+            //  Der Upload ist zu (siehe [upload]), aber die Beta hat schon
+            //  welche gesehen - und eine Karte, deren Figur nicht auftreten
+            //  kann, ist eine tote Kachel. Sie faellt still heraus, wie ein
+            //  zurueckgezogener Clip: sein Besitzer findet ihn weiter unter
+            //  `/me`, und kommt [AwclipSchema.ACCEPTED_RIGS] zurueck, steht er
+            //  wieder da.
+            if (!AwclipSchema.isAcceptedRig(version.rig)) return@mapNotNull null
+
             val author = authors[pkg.ownerId]
             PackageSummary(pkg.slug, pkg.title, pkg.tagList(), pkg.license,
                 author?.name ?: "unknown", author?.handle,
@@ -427,6 +482,14 @@ class CatalogService(
         if (pkg.license != AwclipSchema.LICENSE_PUBLIC)
             throw PortalException.badRequest(
                 "private-clip", "A private clip cannot go into a collection - it is only shared by link.")
+
+        //  Die Eintrittspruefung fragt, was der Katalog zeigt - und der zeigt
+        //  nur Rigs, die das Portal annimmt. Ohne diese Zeile liesse sich ein
+        //  generischer Clip ueber seinen Slug doch noch in eine Sammlung
+        //  legen, wo er dann als Luecke stuende.
+        val rig = pkg.currentVersionId?.let { versions.findById(it).orElse(null) }?.rig
+        if (rig == null || !AwclipSchema.isAcceptedRig(rig))
+            throw PortalException.notFound("Package not found")
 
         return pkg
     }

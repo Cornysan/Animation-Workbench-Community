@@ -33,6 +33,8 @@ import java.time.Instant
 @Service
 class CatalogOverviewService(
     private val packages: AnimationPackageRepository,
+    /** Nur fuers Rig: die Zahl soll dasselbe zaehlen, was der Katalog zeigt. */
+    private val versions: PackageVersionRepository,
     private val clock: Clock,
 ) {
 
@@ -64,7 +66,18 @@ class CatalogOverviewService(
         val now = clock.instant()
         cached?.let { if (Duration.between(cachedAt, now) < cacheFor) return it }
 
-        val listed = packages.findAllByStatusAndLicense(PackageStatus.PUBLISHED, AwclipSchema.LICENSE_PUBLIC)
+        val published = packages.findAllByStatusAndLicense(PackageStatus.PUBLISHED, AwclipSchema.LICENSE_PUBLIC)
+
+        //  Dieselbe Auslassung wie im Katalog (CatalogService.cardsFor): was
+        //  das Portal gerade nicht annimmt, zeigt es nicht - und darf es dann
+        //  auch nicht mitzaehlen. Eine Startseite, die zwoelf Clips verspricht
+        //  und elf zeigt, ist ein Fehler, den niemand meldet und jeder sieht.
+        val rigOf = versions.findAllById(published.mapNotNull { it.currentVersionId })
+            .associate { it.id to it.rig }
+        val listed = published.filter { pkg ->
+            val rig = rigOf[pkg.currentVersionId]
+            rig != null && AwclipSchema.isAcceptedRig(rig)
+        }
 
         val counts = HashMap<String, Int>()
         for (pkg in listed) for (tag in pkg.tagList()) counts[tag] = (counts[tag] ?: 0) + 1
