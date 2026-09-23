@@ -344,7 +344,7 @@ const AW = (() => {
   }
 
   /**
-   * Rueckweg nach dem Discord-Login: Discord landet auf "/", der Code der
+   * Rueckweg nach der Anmeldung: der Anbieter landet auf "/", der Code der
    * Workbench-Anmeldung wartet in der Sitzung.
    *
    * Frueher hing das am Bauen des Rahmens und damit an der Antwort von

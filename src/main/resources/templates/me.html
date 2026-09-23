@@ -38,6 +38,32 @@
     Workbench: right-click a clip &rarr; <em>Share with the Community</em>.</p>
   <table class="list" id="clips"><thead><tr><th>Title</th><th>Status</th><th>Version</th><th>Downloads</th><th></th></tr></thead><tbody></tbody></table>
 
+  <!--
+    Die Wege hinein. Verbinden geht ueber den Anbieter (me.js legt dafuer einen
+    Vermerk in die Sitzung und schickt den Browser los), loesen geht hier. Die
+    letzte Anmeldung laesst sich nicht loesen - danach kaeme niemand mehr
+    herein, auch nicht, um das Konto zu schliessen.
+  -->
+  <th:block th:if="${signIns != null}">
+    <h2 id="sign-ins">Ways to sign in</h2>
+    <p class="muted small">Any of these gets you into this account. Your name and picture come from
+      the one marked <em>Profile</em> - the one you signed up with.</p>
+    <ul class="signin-list">
+      <li class="signin-row" th:each="row : ${signIns}" th:attr="data-provider=${row.provider},data-label=${row.label}">
+        <th:block th:replace="~{fragments/signin :: icon(${row.provider})}"></th:block>
+        <div class="signin-row-text">
+          <strong th:text="${row.label}">GitHub</strong>
+          <span class="chip" th:if="${row.profileSource}" title="Your name and picture come from here">Profile</span>
+          <span class="muted small" th:if="${row.connected}">Connected
+            <time class="js-date" th:attr="datetime=${row.connectedAt}" th:text="${row.connectedAt}"></time></span>
+          <span class="faint small" th:unless="${row.connected}">Not connected</span>
+        </div>
+        <button type="button" th:if="${row.canConnect}" th:attr="data-connect=${row.provider}">Connect</button>
+        <button type="button" class="ghost" th:if="${row.canDisconnect}" th:attr="data-disconnect=${row.provider}">Disconnect</button>
+      </li>
+    </ul>
+  </th:block>
+
   <h2>Closing your account</h2>
   <p class="muted small">Closing it takes your name, your profile, your collections and your likes
     with it, and withdraws your clips from the catalogue. Comments stay without your name so the

@@ -98,6 +98,12 @@ services:
       PORTAL_ADMIN_DISCORD_IDS: ${PORTAL_ADMIN_DISCORD_IDS:-}
       DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:?DISCORD_CLIENT_ID fehlt in .env}
       DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:?DISCORD_CLIENT_SECRET fehlt in .env}
+      # Freiwillig. "unset" statt leer: eine LEERE Client-ID laesst Spring Boot
+      # beim Start abbrechen, "unset" heisst "nicht anbieten" (SignInProviders).
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-unset}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-unset}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-unset}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-unset}
       PORTAL_ALERT_WEBHOOK: ${PORTAL_ALERT_WEBHOOK:-}
       PORTAL_ALERT_MAIL_TO: ${PORTAL_ALERT_MAIL_TO:-}
       PORTAL_ALERT_MAIL_FROM: ${PORTAL_ALERT_MAIL_FROM:-}

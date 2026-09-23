@@ -23,9 +23,6 @@ class Account(
     @Id
     var id: UUID = UUID.randomUUID(),
 
-    /** Discord-Nutzer-ID; beim Entwickler-Login "dev:<name>". */
-    var discordId: String,
-
     var displayName: String,
 
     /**
@@ -47,12 +44,15 @@ class Account(
     var bio: String? = null,
 
     /**
-     * Discords Avatar-HASH, nicht das Bild. Daraus baut die Seite
-     * `https://cdn.discordapp.com/avatars/<discordId>/<avatar>.png` - das Bild
-     * bleibt bei Discord, wir speichern nur, wie es heisst. Ohne Hash steht
-     * der Buchstabenkreis da, den es ohnehin schon gibt.
+     * Wo das Profilbild beim Anbieter liegt - eine Adresse bei Discord, GitHub
+     * oder Google, nie das Bild selbst. Ausgeliefert wird es trotzdem nur ueber
+     * diesen Server ([avatarPath]); die Adresse verlaesst ihn nicht.
+     *
+     * Sie kommt von der Anmeldung, mit der das Konto angelegt wurde (siehe
+     * `AccountService.login`), und wird beim Speichern gegen `AvatarSources`
+     * geprueft. Ohne Bild steht der Buchstabenkreis da.
      */
-    var avatar: String? = null,
+    var avatarUrl: String? = null,
 
     /**
      * Follower. Abgeleitet aus `account_follow` und in derselben Transaktion
@@ -79,8 +79,6 @@ class Account(
 )
 
 interface AccountRepository : JpaRepository<Account, UUID> {
-    fun findByDiscordId(discordId: String): Account?
-
     /** Die Adresse eines Profils - eindeutig, anders als der Anzeigename. */
     fun findByHandle(handle: String): Account?
 
@@ -102,8 +100,8 @@ interface AccountRepository : JpaRepository<Account, UUID> {
 
 /**
  * Wo das Profilbild dieses Kontos liegt - immer ueber den eigenen Server
- * (`AvatarCache`), nie bei Discord direkt: sonst stuende die Discord-ID im
- * Quelltext, und Discord saehe die IP-Adresse jedes Besuchers.
+ * (`AvatarCache`), nie beim Anbieter direkt: sonst stuende dessen Kennung im
+ * Quelltext, und der Anbieter saehe die IP-Adresse jedes Besuchers.
  *
  * `null`, wenn es kein Bild gibt (und fuer jeden Entwickler-Login); die Seite
  * zeigt dann den Buchstabenkreis. Stand vorher privat im ProfileService - seit
@@ -111,7 +109,6 @@ interface AccountRepository : JpaRepository<Account, UUID> {
  */
 fun Account.avatarPath(): String? {
     val handle = handle ?: return null
-    if (avatar.isNullOrBlank()) return null
-    if (!discordId.all { it.isDigit() }) return null
+    if (avatarUrl.isNullOrBlank()) return null
     return "/avatar/$handle.png"
 }

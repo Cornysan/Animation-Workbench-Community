@@ -1,6 +1,7 @@
 package com.playmation.motionlabsbackend.profile
 
 import com.playmation.motionlabsbackend.account.Account
+import com.playmation.motionlabsbackend.account.AvatarSources
 import com.playmation.motionlabsbackend.common.PortalException
 import org.slf4j.LoggerFactory
 import org.springframework.http.CacheControl
@@ -19,34 +20,35 @@ import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Das Profilbild kommt ueber DIESEN Server, nicht direkt von Discord.
+ * Das Profilbild kommt ueber DIESEN Server, nicht direkt vom Anbieter
+ * (Discord, GitHub, Google).
  *
  * Der kurze Weg waere gewesen, `cdn.discordapp.com/avatars/<id>/<hash>.png` in
  * die Seite zu schreiben - die Content Security Policy erlaubte es sogar
  * schon. Er kostet aber zweierlei:
  *
- *   Die DISCORD-KENNUNG steht dann im Quelltext jeder Profilseite. Sie ist
- *   nicht geheim, aber sie verbindet ein Portal-Konto mit einem Discord-Konto,
- *   und niemand hat darum gebeten.
+ *   Die KENNUNG BEIM ANBIETER steht dann im Quelltext jeder Profilseite. Sie
+ *   ist nicht geheim, aber sie verbindet ein Portal-Konto mit einem Konto
+ *   dort, und niemand hat darum gebeten.
  *
- *   DISCORD SIEHT JEDEN BESUCHER. Das Bild wird vom Browser geholt, also
- *   erfaehrt Discord die IP-Adresse auch derer, die dort gar kein Konto haben
- *   und diese Seite nur lesen.
+ *   DER ANBIETER SIEHT JEDEN BESUCHER. Das Bild wird vom Browser geholt, also
+ *   erfaehrt er die IP-Adresse auch derer, die dort gar kein Konto haben und
+ *   diese Seite nur lesen.
  *
  * Beides faellt weg, wenn der Server das Bild einmal holt und danach selbst
  * ausliefert. Der Preis ist ein Zwischenspeicher, und der ist klein: ein
  * Avatar sind ein paar Kilobyte, und die Zahl der Konten ist ueberschaubar.
  *
- * KEIN OFFENER PROXY: geholt wird ausschliesslich die Adresse, die sich aus
- * einem Konto in DIESER Datenbank ergibt. Der Aufrufer nennt einen Handle,
- * keine URL.
+ * KEIN OFFENER PROXY: geholt wird ausschliesslich die Adresse, die an einem
+ * Konto in DIESER Datenbank steht, und nur bei den drei Servern aus
+ * [AvatarSources.HOSTS]. Der Aufrufer nennt einen Handle, keine URL.
  */
 @Component
 class AvatarCache(private val profiles: ProfileService) {
 
     private val log = LoggerFactory.getLogger(javaClass)
 
-    /** Was ausgeliefert wird: die Bytes und der Typ, den Discord genannt hat. */
+    /** Was ausgeliefert wird: die Bytes und der Typ, den der Anbieter genannt hat. */
     data class Image(val bytes: ByteArray, val contentType: String, val fetchedAt: Long)
 
     private val cache = ConcurrentHashMap<String, Image>()
@@ -65,40 +67,56 @@ class AvatarCache(private val profiles: ProfileService) {
 
         /** So viele Bilder behalten wir; darueber faengt der Speicher von vorn an. */
         const val MAX_ENTRIES = 500
+
+        /**
+         * Welche Bildtypen dieser Server unter SEINER Adresse ausliefert.
+         *
+         * `startsWith("image/")` stand hier und war zu weit: `image/svg+xml`
+         * faengt genauso an, und ein SVG ist kein Bild, sondern ein Dokument
+         * mit Skripten darin. Ausgeliefert von dieser Adresse liefe es im
+         * Ursprung dieser Seite - mit Zugriff auf Cookies und Session.
+         *
+         * Dass kein Anbieter unter seinen Bildadressen ein SVG schickt, ist
+         * wahr und trotzdem kein Grund, sich darauf zu verlassen: dieser
+         * Server ist die letzte Stelle, die den Typ noch pruefen KANN, und er
+         * darf nicht davon ausgehen, dass die andere Seite sich benimmt.
+         */
+        val ALLOWED_TYPES = setOf("image/png", "image/jpeg", "image/gif", "image/webp")
     }
 
     /**
-     * Das Bild zu einem Handle - aus dem Zwischenspeicher oder frisch von
-     * Discord. `null`, wenn dieses Konto kein Bild hat oder Discord nicht
+     * Das Bild zu einem Handle - aus dem Zwischenspeicher oder frisch vom
+     * Anbieter. `null`, wenn dieses Konto kein Bild hat oder der Anbieter nicht
      * antwortet; die Seite zeigt dann den Buchstabenkreis, den es ohnehin gibt.
      */
     fun imageFor(handle: String): Image? {
         val account = profiles.require(handle)
-        val key = cacheKey(account) ?: return null
+        val url = sourceOf(account) ?: return null
 
-        val cached = cache[key]
+        val cached = cache[url]
         if (cached != null && System.currentTimeMillis() - cached.fetchedAt < TTL.toMillis())
             return cached
 
-        val fetched = fetch(account) ?: return cached
+        val fetched = fetch(url, account) ?: return cached
         if (cache.size > MAX_ENTRIES) cache.clear()
-        cache[key] = fetched
+        cache[url] = fetched
         return fetched
     }
 
-    /** Der Schluessel traegt den Hash: ein neues Bild ist ein neuer Eintrag. */
-    private fun cacheKey(account: Account): String? {
-        val hash = account.avatar?.takeIf { it.isNotBlank() } ?: return null
-        if (!account.discordId.all { it.isDigit() }) return null
-        return account.discordId + "/" + hash
-    }
+    /**
+     * Die Adresse beim Anbieter, zugleich der Schluessel im Speicher: ein neues
+     * Bild ist eine neue Adresse und damit ein neuer Eintrag.
+     *
+     * Sie wird HIER noch einmal geprueft, obwohl beim Speichern schon einmal:
+     * aus ihr wird gleich eine Anfrage, und die Datenbank ist nicht die einzige
+     * Quelle, die hineingeschrieben hat - die Migration V8 hat Adressen aus
+     * alten Discord-Hashes zusammengesetzt, ohne sie anzusehen. Wer nicht
+     * durchgeht, behaelt den Buchstabenkreis.
+     */
+    private fun sourceOf(account: Account): String? =
+        account.avatarUrl?.takeIf { it.isNotBlank() && AvatarSources.isAllowed(it) }
 
-    private fun fetch(account: Account): Image? {
-        val key = cacheKey(account) ?: return null
-        //  Animierte Avatare fangen bei Discord mit "a_" an; als .png holt man
-        //  von ihnen das Standbild, und genau das wollen wir.
-        val url = "https://cdn.discordapp.com/avatars/$key.png?size=128"
-
+    private fun fetch(url: String, account: Account): Image? {
         return try {
             val request = HttpRequest.newBuilder(URI.create(url))
                 .timeout(Duration.ofSeconds(6))
@@ -112,8 +130,12 @@ class AvatarCache(private val profiles: ProfileService) {
             val bytes = response.body()
             if (bytes.isEmpty() || bytes.size > MAX_BYTES) return null
 
-            val type = response.headers().firstValue(HttpHeaders.CONTENT_TYPE).orElse(MediaType.IMAGE_PNG_VALUE)
-            if (!type.startsWith("image/")) return null
+            //  Nur der Typ, ohne charset und was sonst dranhaengt - und dann
+            //  gegen die Liste. Was nicht darin steht, wird nicht ausgeliefert.
+            val type = response.headers().firstValue(HttpHeaders.CONTENT_TYPE)
+                .orElse(MediaType.IMAGE_PNG_VALUE)
+                .substringBefore(';').trim().lowercase()
+            if (type !in ALLOWED_TYPES) return null
 
             Image(bytes, type, System.currentTimeMillis())
         } catch (ex: Exception) {
@@ -137,6 +159,10 @@ class AvatarController(private val avatars: AvatarCache) {
             //  jeden Besucher, und der Browser soll es nicht bei jedem
             //  Seitenaufruf neu holen.
             .cacheControl(CacheControl.maxAge(Duration.ofHours(12)).cachePublic())
+            //  Der Typ steht schon fest - [AvatarCache.ALLOWED_TYPES] hat
+            //  entschieden, sonst laege hier nichts. `parseMediaType` bekommt
+            //  deshalb nur noch einen von vier bekannten Werten und kann nicht
+            //  mehr an einem krummen Header des Anbieters scheitern.
             .contentType(MediaType.parseMediaType(image.contentType))
             .body(image.bytes)
     }

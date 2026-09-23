@@ -1,5 +1,6 @@
 package com.playmation.motionlabsbackend.profile
 
+import com.playmation.motionlabsbackend.account.AccountIdentityRepository
 import com.playmation.motionlabsbackend.account.AccountRepository
 import com.playmation.motionlabsbackend.account.AccountService
 import com.playmation.motionlabsbackend.account.AccountStatus
@@ -27,8 +28,8 @@ import java.util.UUID
  * diese Zeilen loescht, loescht auch die Begruendung fuer eine Sperre, die
  * jemand anders betrifft.
  *
- * Also wird die EINE Zeile anonym, an der alles haengt: Name, Handle, Bio,
- * Bild und die Discord-Kennung verschwinden. Alles, was auf dieses Konto
+ * Also wird die EINE Zeile anonym, an der alles haengt: Name, Handle, Bio und
+ * Bild verschwinden, die Anmeldungen (Discord, GitHub, Google) werden geloest. Alles, was auf dieses Konto
  * zeigt, zeigt danach auf niemanden mehr - ein Kommentar steht als "Deleted
  * user" da, eine Meldung hat keinen Namen mehr.
  *
@@ -47,6 +48,7 @@ import java.util.UUID
 @Service
 class AccountDeletionService(
     private val accounts: AccountRepository,
+    private val identities: AccountIdentityRepository,
     private val accountService: AccountService,
     private val packages: AnimationPackageRepository,
     private val likes: PackageLikeRepository,
@@ -131,14 +133,16 @@ class AccountDeletionService(
         // ── Und zuletzt das Konto selbst ─────────────────────────────────
         val marker = UUID.randomUUID().toString().replace("-", "").take(8)
 
-        //  Die Discord-Kennung wird ersetzt, nicht geleert: sie ist eindeutig,
-        //  und nur so kann dieselbe Person spaeter mit einem FRISCHEN Konto
-        //  wiederkommen, statt in diese leere Huelle zurueckzufallen.
-        account.discordId = "deleted:$marker"
+        //  Die Anmeldungen gehen ganz: nur so kann dieselbe Person spaeter mit
+        //  einem FRISCHEN Konto wiederkommen, statt in diese leere Huelle
+        //  zurueckzufallen. Und die Kennungen bei den Anbietern sind genau das,
+        //  was ein geschlossenes Konto mit einer Person verbindet.
+        identities.deleteByAccountId(account.id)
+
         account.displayName = "Deleted user"
         account.handle = "deleted-$marker"
         account.bio = null
-        account.avatar = null
+        account.avatarUrl = null
         account.followerCount = 0
         account.status = AccountStatus.BANNED
         accounts.save(account)

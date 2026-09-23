@@ -33,7 +33,8 @@ import java.util.UUID
  * Ein Profil, so wie die Seite es zeigt.
  *
  * Alles hier ist oeffentlich. Was ein Konto NICHT hergibt, steht auch nicht
- * drin: keine Mail, keine Discord-Kennung, kein Muenzstand, keine Verstoesse.
+ * drin: keine Mail, keine Kennung bei Discord, GitHub oder Google, kein
+ * Muenzstand, keine Verstoesse.
  * Die Zahl der Strikes ist eine Sache zwischen Moderation und Konto - auf
  * einem Profil waere sie ein Pranger.
  */
@@ -41,7 +42,7 @@ data class ProfileView(
     val handle: String,
     val displayName: String,
     val bio: String?,
-    /** Fertige Adresse bei Discord, oder null - dann steht der Buchstabenkreis. */
+    /** Adresse dieses Servers (`/avatar/<handle>.png`), oder null - dann steht der Buchstabenkreis. */
     val avatarUrl: String?,
     val joinedAt: Instant,
     /** Fuers Abzeichen neben dem Namen. */
@@ -244,8 +245,8 @@ class ProfileService(
     /**
      * Handle und Bio aendern.
      *
-     * Der Handle darf gewechselt werden, weil der erste aus einem
-     * Discord-Namen abgeleitet wurde, den sich niemand ausgesucht hat. Der
+     * Der Handle darf gewechselt werden, weil der erste aus einem Namen beim
+     * Anbieter abgeleitet wurde, den sich niemand dafuer ausgesucht hat. Der
      * Preis steht in der Antwort der Seite: der alte Link fuehrt danach ins
      * Leere. Eine Weiterleitung vom alten Handle waere die ehrlichere Loesung
      * und braucht eine Tabelle alter Handles - das ist es an dieser Stelle
@@ -330,9 +331,9 @@ class ProfileService(
     /**
      * Die Adresse des Profilbildes - eine Adresse DIESES Servers.
      *
-     * Der direkte Weg zu `cdn.discordapp.com` waere kuerzer gewesen und kostet
-     * zweierlei: die Discord-Kennung staende im Quelltext jeder Profilseite,
-     * und Discord saehe die IP-Adresse jedes Besuchers - auch der nicht
+     * Der direkte Weg zum Anbieter waere kuerzer gewesen und kostet
+     * zweierlei: die Kennung dort staende im Quelltext jeder Profilseite,
+     * und der Anbieter saehe die IP-Adresse jedes Besuchers - auch der nicht
      * angemeldeten. Das Bild geht deshalb ueber [AvatarCache].
      *
      * Wer kein Bild hat (und jeder Entwickler-Login), bekommt hier `null`; die

@@ -1,5 +1,6 @@
 package com.playmation.motionlabsbackend.web
 
+import com.playmation.motionlabsbackend.auth.SignInProviders
 import com.playmation.motionlabsbackend.catalog.Declaration
 import com.playmation.motionlabsbackend.common.ApiError
 import com.playmation.motionlabsbackend.common.ApiErrorResponse
@@ -9,7 +10,6 @@ import com.playmation.motionlabsbackend.format.AwclipSchema
 import com.playmation.motionlabsbackend.system.SystemSettingsService
 import jakarta.servlet.http.HttpServletRequest
 import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException
@@ -37,9 +37,7 @@ class StatusController(
     private val settings: SystemSettingsService,
     private val portal: PortalProperties,
     private val build: BuildStamp,
-    /** Ohne echte Discord-App steht hier die Vorgabe aus der application.yaml. */
-    @Value("\${spring.security.oauth2.client.registration.discord.client-id:unset}")
-    private val discordClientId: String,
+    private val providers: SignInProviders,
 ) {
 
     data class LicenseInfo(val id: String, val name: String, val summary: String, val url: String)
@@ -53,8 +51,13 @@ class StatusController(
         val declarationText: String,
         val declarationVersion: Int,
         val licenses: List<LicenseInfo>,
-        /** Ohne konfigurierte App fuehrt der Discord-Knopf nur zu Discords Fehlerseite. */
+        /**
+         * Ob Discord angeboten wird. Steht noch hier, weil es in `/api/v1/status`
+         * steht und damit Schnittstelle ist; die Liste darunter sagt mehr.
+         */
         val discordSignIn: Boolean,
+        /** Die angebotenen Anmeldungen, etwa `["discord", "github"]` - siehe [SignInProviders]. */
+        val signInProviders: List<String>,
         val devLogin: Boolean,
         /** Welcher Stand antwortet hier - siehe [BuildStamp]. */
         val build: BuildInfo,
@@ -67,7 +70,8 @@ class StatusController(
         settings.communityEnabled(), settings.uploadsEnabled(), settings.charactersEnabled(),
         AwclipSchema.FORMAT_VERSION,
         Declaration.TEXT, Declaration.VERSION, licenses(),
-        discordSignIn = discordClientId.isNotBlank() && discordClientId != "unset",
+        discordSignIn = providers.isEnabled("discord"),
+        signInProviders = providers.enabled.map { it.id },
         devLogin = portal.devLogin,
         build = BuildInfo(build.number, build.commit, build.time),
     )

@@ -2,9 +2,11 @@ package com.playmation.motionlabsbackend.auth
 
 import com.playmation.motionlabsbackend.account.avatarPath
 import com.playmation.motionlabsbackend.account.AccountService
+import com.playmation.motionlabsbackend.account.SignIn
 import com.playmation.motionlabsbackend.common.PortalException
 import com.playmation.motionlabsbackend.common.clientIp
 import com.playmation.motionlabsbackend.moderation.NotificationRepository
+import com.playmation.motionlabsbackend.system.AuditService
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.slf4j.LoggerFactory
@@ -18,7 +20,9 @@ import org.springframework.security.core.Authentication
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -77,6 +81,8 @@ class MeController(
     private val accounts: AccountService,
     private val notifications: NotificationRepository,
     private val tokens: ApiTokenService,
+    private val providers: SignInProviders,
+    private val audit: AuditService,
 ) {
     data class MeResponse(
         val id: UUID,
@@ -115,10 +121,51 @@ class MeController(
         tokens.revokeAll(authentication.requirePrincipal().accountId)
         return mapOf("status" to "revoked")
     }
+
+    /** Die Anmeldungen dieses Kontos - dieselben Zeilen, die die Kontoseite zeigt. */
+    @GetMapping("/sign-ins")
+    fun signIns(authentication: Authentication?): List<SignInRow> =
+        providers.rows(accounts.signIns(authentication.requirePrincipal().accountId))
+
+    data class ConnectResponse(val redirect: String)
+
+    /**
+     * Eine weitere Anmeldung verbinden, Schritt 1: den Vermerk in die Sitzung
+     * legen und sagen, wohin der Browser jetzt muss. Schritt 2 ist die
+     * Rueckkehr vom Anbieter ([PortalUserService]).
+     *
+     * Ein POST, der die Adresse NENNT, statt ein Formular, das weiterleitet:
+     * ein Formular, das per 302 bei GitHub landet, haelt `form-action 'self'`
+     * in der Content Security Policy auf - zu Recht. Die Seite geht selbst.
+     */
+    @PostMapping("/sign-ins/{provider}/connect")
+    fun connect(@PathVariable provider: String, authentication: Authentication?, request: HttpServletRequest): ConnectResponse {
+        val principal = authentication.requirePrincipal()
+        accounts.requireUsable(principal.accountId)
+
+        if (!providers.isEnabled(provider))
+            throw PortalException.notFound("This sign-in is not offered here.")
+        if (accounts.signIns(principal.accountId).any { it.provider == provider })
+            throw PortalException.conflict("provider-connected", "This sign-in is already connected.")
+
+        request.getSession(true).setAttribute(ConnectIntent.SESSION_KEY,
+            ConnectIntent(principal.accountId, provider, Instant.now().plus(ConnectIntent.LIFETIME)))
+
+        return ConnectResponse("/oauth2/authorization/$provider")
+    }
+
+    @DeleteMapping("/sign-ins/{provider}")
+    fun disconnect(@PathVariable provider: String, authentication: Authentication?, request: HttpServletRequest): List<SignInRow> {
+        val principal = authentication.requirePrincipal()
+        accounts.disconnect(principal.accountId, provider)
+        audit.record(principal.accountId, "account.sign-in.disconnected", "account", principal.accountId.toString(),
+            provider, request.clientIp())
+        return providers.rows(accounts.signIns(principal.accountId))
+    }
 }
 
 /**
- * Anmeldung ohne Discord für lokale Entwicklung und Tests. Existiert nur mit
+ * Anmeldung ohne Anbieter für lokale Entwicklung und Tests. Existiert nur mit
  * `portal.dev-login=true` - die Produktionskonfiguration setzt das nie.
  */
 @RestController
@@ -143,11 +190,11 @@ class DevLoginController(
         if (name.isEmpty() || name.length > 40 || !name.all { it.isLetterOrDigit() || it == '-' || it == '_' })
             throw PortalException.badRequest("invalid-name", "Use letters, digits, '-' and '_'.")
 
-        val account = accounts.login("dev:$name", name)
+        val account = accounts.login(SignIn("dev", name, name))
         val principal = PortalPrincipal(account.id, account.role, account.displayName)
 
         //  Auch als Browser-Session, damit sich die Weboberfläche lokal ohne
-        //  Discord bedienen lässt.
+        //  Anbieter bedienen lässt.
         val context = SecurityContextHolder.createEmptyContext().apply { authentication = PortalAuthentication(principal) }
         SecurityContextHolder.setContext(context)
         HttpSessionSecurityContextRepository().saveContext(context, request, response)

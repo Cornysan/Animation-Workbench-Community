@@ -1,0 +1,58 @@
+<!doctype html>
+<!--
+  Die Anmeldeseite. Es gab keine: "Sign in" fuehrte direkt zu Discord, und
+  jeder Fehler auf der Rueckkehr landete auf Springs eingebauter Seite unter
+  /login - auch "dieses Konto ist gesperrt".
+
+  Mit mehr als einem Anbieter braucht es eine Auswahl. Wer nur einen hat, sieht
+  diese Seite nie (ShellModel.signInUrl fuehrt dann direkt hin); Fehler landen
+  trotzdem hier, weil sie einen Ort brauchen, an dem sie in Worten stehen.
+-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/shell :: head('Sign in')}"></head>
+<body th:attr="data-signed-in=${user != null}">
+<header th:replace="~{fragments/shell :: header}"></header>
+<main id="main">
+  <div th:replace="~{fragments/shell :: paused}"></div>
+  <div class="panel prose signin-panel">
+    <h1>Sign in</h1>
+
+    <div class="notice error" th:if="${signInError != null}" th:text="${signInError}">Sign-in did not work.</div>
+
+    <th:block th:if="${user != null}">
+      <p class="lead">You are signed in as <strong th:text="${user.displayName}">Name</strong>.</p>
+      <p><a class="button" href="/me.html">Your account</a></p>
+    </th:block>
+
+    <th:block th:if="${user == null}">
+      <p class="lead">Pick the account you want to sign in with. The portal never asks for your email
+        address.</p>
+
+      <div class="signin-options" th:unless="${signInProviders.isEmpty() and !devLogin}">
+        <a class="button signin-option" th:each="provider : ${signInProviders}" th:href="${provider.authorizationUrl}">
+          <th:block th:replace="~{fragments/signin :: icon(${provider.id})}"></th:block>
+          <span th:text="|Continue with ${provider.label}|">Continue with Discord</span>
+        </a>
+        <a class="button signin-option" href="/dev.html" th:if="${devLogin}">
+          <th:block th:replace="~{fragments/signin :: icon('dev')}"></th:block>
+          <span>Developer sign-in</span>
+        </a>
+      </div>
+      <p class="faint small" th:if="${signInProviders.isEmpty() and !devLogin}">Sign-in is not set up on this portal.</p>
+
+      <p class="muted small">
+        A new account takes its name and picture from the account you sign up with.
+        Been here before? Use the same one as last time - you can connect the others later under
+        <em>Your account</em>, and then any of them gets you in.
+      </p>
+      <p class="muted small">
+        By signing in you accept the <a href="/terms.html">terms</a>.
+        What is stored: see <a href="/privacy.html">privacy</a>.
+      </p>
+    </th:block>
+  </div>
+  </main>
+<footer th:replace="~{fragments/shell :: footer}"></footer>
+<script th:src="|${@buildStamp.assets}/app.js|"></script>
+</body>
+</html>

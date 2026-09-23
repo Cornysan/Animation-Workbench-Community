@@ -8,7 +8,16 @@ data class PortalProperties(
     val storage: Storage = Storage(),
     val downloadSecret: String = "",
     val pseudonymSecret: String = "",
-    /** Komma-getrennte Discord-IDs, die beim Login Admin werden. */
+    /**
+     * Wer beim Login Moderator wird, komma-getrennt. Eine nackte Zahl ist eine
+     * Discord-Kennung - so stand es hier, als es nur Discord gab, und so steht
+     * es in der `.env` auf dem Server. Andere Anmeldungen mit Anbieter davor:
+     * `github:583231`, `google:1098...`, `dev:admin`.
+     *
+     * Der Name bleibt, damit die `.env` auf dem Server weiter gilt. Noetig ist
+     * ein zweiter Eintrag fuer dieselbe Person ohnehin selten: Moderator ist
+     * das KONTO, sobald irgendeine seiner Anmeldungen hier steht.
+     */
     val adminDiscordIds: String = "",
     /** Entwickler-Login ohne Discord. Nur in den Profilen dev und test. */
     val devLogin: Boolean = false,
@@ -88,5 +97,10 @@ data class PortalProperties(
         val downloadLinkSeconds: Long = 300,
     )
 
-    fun adminIds(): Set<String> = adminDiscordIds.split(',').map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+    /** Als `anbieter:kennung` - siehe [adminDiscordIds]. */
+    fun adminIds(): Set<String> = adminDiscordIds.split(',')
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+        .map { if (':' in it) it else "discord:$it" }
+        .toSet()
 }

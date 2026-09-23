@@ -38,6 +38,12 @@ noetig). Marken: `main` = letzter Stand, `main-<sha>` = eine feste Fassung.
    zeichengleich, sonst bricht der Login mit `redirect_uri mismatch` ab.
    Client-ID und Secret notieren.
 
+   **GitHub und Google** sind freiwillig und kommen spaeter dazu, ohne
+   Neuaufbau: App anlegen, zwei Zeilen in `.env`, `docker compose up -d`.
+   Die Schritte stehen in `.env.example` (Rueckkehradresse jeweils
+   `.../login/oauth2/code/github` bzw. `/google`). Keine Scopes einstellen:
+   GitHub bekommt keinen, Google nur `userinfo.profile`.
+
 3. **Eigene Discord-ID** (P4): in Discord den Entwicklermodus einschalten,
    Rechtsklick auf sich selbst > ID kopieren. Ohne sie kann niemand Meldungen
    bearbeiten.

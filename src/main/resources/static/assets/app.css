@@ -1133,6 +1133,31 @@ table.list tr:hover td { background: rgba(255, 255, 255, 0.02); }
 .case .buttons { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
 .case input.note { width: 100%; margin-top: 10px; }
 
+/* ── Anmeldung ─────────────────────────────────────────────────────────── */
+
+/* Die Knoepfe der Anbieter: im Stil der Seite, nicht in den Farben der
+   Anbieter - ein violettes Portal mit einem blauen, einem schwarzen und einem
+   weissen Knopf darin saehe aus wie drei Werbebanner. Die Farbe steckt im
+   Zeichen, und daran erkennt man sie. */
+.signin-options { display: flex; flex-direction: column; gap: 10px; max-width: 360px; margin: 0 0 26px; }
+.signin-option { justify-content: flex-start; gap: 12px; min-height: 46px; padding: 0 18px; }
+.provider-icon { width: 20px; height: 20px; flex: none; }
+
+/* Die Rueckkehr vom Anbieter springt hierher (#sign-ins) - ohne Abstand
+   laege die Ueberschrift unter dem festen Seitenkopf. */
+#sign-ins { scroll-margin-top: 110px; }
+.signin-list { list-style: none; padding: 0; margin: 0 0 8px; max-width: 620px; }
+.signin-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 4px;
+  border-bottom: 1px solid var(--line);
+}
+.signin-row-text { flex: 1; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; min-width: 0; }
+.signin-row .chip { padding: 1px 9px; font-size: 12px; }
+.signin-row button { flex: none; }
+
 .code-display {
   font: 700 38px/1.2 ui-monospace, "Cascadia Mono", Consolas, monospace;
   letter-spacing: 0.12em;

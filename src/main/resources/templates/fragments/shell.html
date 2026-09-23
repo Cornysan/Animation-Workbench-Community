@@ -67,10 +67,12 @@
     `?client_id=unset`, worauf Discord mit "Invalid Form Body" antwortet: eine
     Fehlerseite ohne Ausweg. Genau das war Befund B6, dort an einer Stelle
     geheilt. Der Server weiss es ohnehin; hier steht es einmal fuer alle Seiten,
-    und `AW.signInUrl` liest es (app.js). Leer heisst: dieses Portal hat keine
-    Anmeldung, und niemand soll so tun als ob.
+    und `AW.signInUrl` liest es (app.js). Seit es mehrere Anbieter gibt, ist es
+    die Auswahlseite - oder direkt der eine, wenn es nur einen gibt
+    (ShellModel.signInUrl). Leer heisst: dieses Portal hat keine Anmeldung, und
+    niemand soll so tun als ob.
   -->
-  <meta name="aw-signin" th:attr="content=${discordSignIn} ? '/oauth2/authorization/discord' : (${devLogin} ? '/dev.html' : '')">
+  <meta name="aw-signin" th:attr="content=${signInUrl}">
 
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Animation Workbench Community (Beta)">
@@ -207,15 +209,15 @@
       </div>
 
       <!--
-        Ohne konfigurierte Discord-App landet der Knopf auf Discords Fehlerseite
+        Ohne konfigurierten Anbieter landet ein Knopf auf dessen Fehlerseite
         ("Ungueltiger Formulartext" - client_id=unset). Dann lieber sagen, woran
         es liegt, und lokal auf die Entwickleranmeldung zeigen.
       -->
       <th:block th:if="${user == null}">
-        <a class="button primary" href="/oauth2/authorization/discord"
-           th:if="${discordSignIn}">Sign in</a>
-        <a class="button" href="/dev.html" th:if="${!discordSignIn and devLogin}">Developer sign-in</a>
-        <span class="faint small" th:unless="${discordSignIn or devLogin}">Sign-in is not set up</span>
+        <a class="button primary" th:href="${signInUrl}"
+           th:if="${!#strings.isEmpty(signInUrl) and signInUrl != '/dev.html'}">Sign in</a>
+        <a class="button" href="/dev.html" th:if="${signInUrl == '/dev.html'}">Developer sign-in</a>
+        <span class="faint small" th:if="${#strings.isEmpty(signInUrl)}">Sign-in is not set up</span>
       </th:block>
     </div>
   </div>

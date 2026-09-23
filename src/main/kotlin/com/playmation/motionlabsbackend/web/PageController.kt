@@ -1,5 +1,8 @@
 package com.playmation.motionlabsbackend.web
 
+import com.playmation.motionlabsbackend.account.AccountService
+import com.playmation.motionlabsbackend.auth.SignInProviders
+import com.playmation.motionlabsbackend.auth.portalPrincipal
 import com.playmation.motionlabsbackend.catalog.CatalogService
 import com.playmation.motionlabsbackend.collection.CollectionService
 import com.playmation.motionlabsbackend.collection.CollectionVisibility
@@ -38,13 +41,18 @@ class PageController(
     private val profiles: ProfileService,
     private val collections: CollectionService,
     private val portal: PortalProperties,
+    private val accounts: AccountService,
+    private val providers: SignInProviders,
 ) {
 
     @ModelAttribute("user")
     fun shellUser(authentication: Authentication?) = shell.user(authentication)
 
-    @ModelAttribute("discordSignIn")
-    fun discordSignIn() = shell.discordSignIn
+    @ModelAttribute("signInUrl")
+    fun signInUrl() = shell.signInUrl
+
+    @ModelAttribute("signInProviders")
+    fun signInProviders() = shell.signInProviders
 
     @ModelAttribute("devLogin")
     fun devLogin() = shell.devLogin
@@ -70,7 +78,7 @@ class PageController(
     @ResponseBody
     fun robots(): String =
         if (portal.searchIndexing)
-            "User-agent: *\nDisallow: /admin.html\nDisallow: /dev.html\nDisallow: /link.html\n"
+            "User-agent: *\nDisallow: /admin.html\nDisallow: /dev.html\nDisallow: /link.html\nDisallow: /signin.html\n"
         else
             "User-agent: *\nDisallow: /\n"
 
@@ -191,7 +199,34 @@ class PageController(
      * hervorheben.
      */
     @GetMapping("/me.html")
-    fun me(model: Model) = view(model, "me")
+    fun me(model: Model, authentication: Authentication?): String {
+        //  Die Anmeldungen kommen gleich mit der Seite: die Zeichen der
+        //  Anbieter stehen als Vorlage da (fragments/signin.html), und ein
+        //  Skript, das sie nachbaute, braeuchte eine dritte Trusted-Types-
+        //  Erlaubnis nur dafuer.
+        authentication.portalPrincipal()?.let {
+            model.addAttribute("signIns", providers.rows(accounts.signIns(it.accountId)))
+        }
+        return view(model, "me")
+    }
+
+    /**
+     * Die Auswahl der Anbieter - und der Ort, an dem eine gescheiterte
+     * Anmeldung in Worten steht. Der Grund kommt als Wort aus einer festen
+     * Liste (`SignInFailureHandler`); was nicht darin steht, bekommt den
+     * allgemeinen Satz, nie den Text aus der Adresse.
+     */
+    @GetMapping("/signin.html")
+    fun signIn(@RequestParam(name = "error", required = false) error: String?, model: Model): String {
+        model.addAttribute("signInError", error?.let {
+            when (it) {
+                "cancelled" -> "Sign-in was cancelled. Pick a way to sign in whenever you are ready."
+                "banned" -> "This account is banned."
+                else -> "Sign-in did not work. Try again, or pick another way."
+            }
+        })
+        return view(model, "signin")
+    }
 
     /**
      * Die eigenen Figuren. Der Server hat damit NICHTS zu tun: die Dateien

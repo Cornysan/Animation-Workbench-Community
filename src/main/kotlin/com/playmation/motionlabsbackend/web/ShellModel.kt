@@ -2,11 +2,12 @@ package com.playmation.motionlabsbackend.web
 
 import com.playmation.motionlabsbackend.account.AccountService
 import com.playmation.motionlabsbackend.account.avatarPath
+import com.playmation.motionlabsbackend.auth.SignInProvider
+import com.playmation.motionlabsbackend.auth.SignInProviders
 import com.playmation.motionlabsbackend.auth.portalPrincipal
 import com.playmation.motionlabsbackend.config.PortalProperties
 import com.playmation.motionlabsbackend.moderation.NotificationRepository
 import com.playmation.motionlabsbackend.system.SystemSettingsService
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.security.core.Authentication
 import org.springframework.stereotype.Component
 
@@ -32,9 +33,7 @@ class ShellModel(
     private val settings: SystemSettingsService,
     private val portal: PortalProperties,
     private val build: BuildStamp,
-    /** Ohne echte Discord-App steht hier die Vorgabe aus der application.yaml. */
-    @Value("\${spring.security.oauth2.client.registration.discord.client-id:unset}")
-    private val discordClientId: String,
+    private val providers: SignInProviders,
 ) {
 
     /**
@@ -78,8 +77,27 @@ class ShellModel(
         )
     }
 
-    val discordSignIn: Boolean get() = discordClientId.isNotBlank() && discordClientId != "unset"
     val devLogin: Boolean get() = portal.devLogin
+
+    /** Die Knoepfe der Anmeldeseite - nur Anbieter mit eingetragener Client-ID. */
+    val signInProviders: List<SignInProvider> get() = providers.enabled
+
+    /**
+     * Wohin "Sign in" fuehrt. Gibt es genau einen Weg, direkt dorthin - ein
+     * Klick weniger, und genau so war es, solange es nur Discord gab. Gibt es
+     * mehrere, auf die Auswahl. Leer heisst: dieses Portal hat keine
+     * Anmeldung, und niemand soll so tun als ob.
+     */
+    val signInUrl: String get() {
+        val enabled = providers.enabled
+        return when {
+            enabled.size == 1 && !portal.devLogin -> enabled.single().authorizationUrl
+            enabled.isEmpty() && portal.devLogin -> "/dev.html"
+            enabled.isEmpty() -> ""
+            else -> "/signin.html"
+        }
+    }
+
     val buildLabel: String get() = build.label
     fun communityEnabled() = settings.communityEnabled()
     fun charactersEnabled() = settings.charactersEnabled()
@@ -125,7 +143,8 @@ class ShellModel(
      */
     fun fill(model: MutableMap<String, Any>, authentication: Authentication?) {
         user(authentication)?.let { model["user"] = it }
-        model["discordSignIn"] = discordSignIn
+        model["signInUrl"] = signInUrl
+        model["signInProviders"] = signInProviders
         model["devLogin"] = devLogin
         model["buildLabel"] = buildLabel
         model["communityEnabled"] = communityEnabled()

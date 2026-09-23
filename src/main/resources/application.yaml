@@ -3,7 +3,7 @@
 #
 # Profile:
 #   (keins)      Produktion - alles Geheime kommt aus der Umgebung
-#   dev          lokal: H2-Datei, Entwickler-Login ohne Discord, Alarme ins Log
+#   dev          lokal: H2-Datei, Entwickler-Login ohne Anbieter, Alarme ins Log
 #   test         Tests: H2 im Speicher
 # ---------------------------------------------------------------------------
 spring:
@@ -38,6 +38,26 @@ spring:
             redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
             # Nur die Discord-ID und der Anzeigename - keine E-Mail.
             scope: identify
+          # GitHub und Google kennt Spring schon (CommonOAuth2Provider) - Adressen
+          # und Kennungsfeld kommen von dort, hier steht nur, was davon abweicht.
+          # Ohne Client-ID bleibt der Anbieter registriert, wird aber nirgends
+          # angeboten (SignInProviders). NIE leer setzen: eine leere Client-ID
+          # laesst Spring Boot beim Start abbrechen - deshalb "unset".
+          github:
+            client-id: ${GITHUB_CLIENT_ID:unset}
+            client-secret: ${GITHUB_CLIENT_SECRET:unset}
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            # KEIN Scope: das oeffentliche Profil (Kennung, Login, Name, Bild)
+            # braucht keinen. Hier laesst sich die Vorgabe read:user aber nicht
+            # leeren - das macht ClientRegistrationConfig (SignInProviders.kt).
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:unset}
+            client-secret: ${GOOGLE_CLIENT_SECRET:unset}
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            # Nur Name und Bild. Die Vorgabe waere "openid, profile, email" - ohne
+            # email fragt niemand nach der Adresse, und ohne openid bleibt es bei
+            # EINEM Anmeldeweg im Server statt einem zweiten fuer OIDC.
+            scope: profile
         provider:
           discord:
             authorization-uri: https://discord.com/oauth2/authorize

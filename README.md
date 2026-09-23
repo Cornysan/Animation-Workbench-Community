@@ -55,7 +55,7 @@ Swagger UI: http://localhost:8080/swagger-ui.html (nur im `dev`-Profil).
 | Paket | Inhalt |
 |---|---|
 | `format` | `.awclip`-Validator und Inhalts-Hash, Portierung von `Editor/Community/Format` der Workbench |
-| `account`, `auth` | Konten, Discord-OAuth2 (Browser), Device Flow + Bearer-Token (Workbench), Entwickler-Login |
+| `account`, `auth` | Konten mit Anmeldungen je Anbieter (`account_identity`), OAuth2 bei Discord/GitHub/Google (Browser), Device Flow + Bearer-Token (Workbench), Entwickler-Login |
 | `catalog` | Upload mit Erklärung, Duplikat- und Wiederupload-Sperre, Suche, Vorschau, signierte Download-Links |
 | `moderation` | Melden → sofort AUTO_HIDDEN, Takedown-Formular ohne Konto, Admin-Entscheidungen, Strikes, Benachrichtigungen |
 | `profile` | Handle als Adresse, Folgen, Bio und Avatar, abgeleitete Auszeichnungen |
@@ -77,6 +77,8 @@ Security Policy erlaubt nur Skripte von dieser Adresse.
 | `/u.html?u=<handle>` | `user.html` | Ein Profil: Clips, Sammlungen, Folgen, Auszeichnungen. Der Handle ist die Adresse, nicht der Anzeigename - er ueberlebt eine Umbenennung. |
 | `/characters.html` | `characters.html` | Die eigenen Figuren. Der Server liefert nur den Rahmen; der Inhalt liegt im Browser. |
 | `/collection.html?c=<slug>` | `collection.html` | Eine Sammlung. Derselbe Aufbau wie der Katalog, nur von Hand ausgesucht. |
+| `/signin.html` | `signin.html` | Die Auswahl der Anbieter und der Ort fuer Anmeldefehler. Gibt es nur einen Anbieter, fuehrt "Sign in" direkt dorthin. |
+| `/me.html` | `me.html` | Das private Fach, darin "Ways to sign in": weitere Anbieter verbinden, loesen (nie den letzten). |
 
 ### Die Figur im Viewer
 
@@ -291,7 +293,9 @@ Alles Geheime kommt aus der Umgebung; `server/docker-compose.yml` liest
 | `PORTAL_DOWNLOAD_SECRET` | HMAC fuer Download-Links (zufaellig, >= 32 Zeichen) |
 | `PORTAL_PSEUDONYM_SECRET` | HMAC fuer IP-Pseudonyme (ein anderer!) |
 | `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET` | Discord-Anwendung, Redirect `.../login/oauth2/code/discord`, Scope `identify` |
-| `PORTAL_ADMIN_DISCORD_IDS` | komma-getrennte Discord-IDs der Moderation |
+| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | freiwillig: GitHub-OAuth-App, Redirect `.../login/oauth2/code/github`, kein Scope |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | freiwillig: Google-OAuth-Client, Redirect `.../login/oauth2/code/google`, Scope `profile` |
+| `PORTAL_ADMIN_DISCORD_IDS` | Moderation, komma-getrennt: Discord-IDs als Zahl, andere als `github:<id>` / `google:<sub>` |
 | `PORTAL_ALERT_WEBHOOK` | Discord-Webhook fuer Meldungen und Takedowns |
 | `PORTAL_ALERT_MAIL_TO`, `_FROM`, `MAIL_*` | zweiter Alarmkanal per SMTP |
 | `TAG` | Image-Marke, leer = `main` |

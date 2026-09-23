@@ -25,7 +25,8 @@
     <thead><tr><th>Data</th><th>Why</th><th>Legal basis</th></tr></thead>
     <tbody>
       <tr>
-        <td>Account: your Discord user ID and display name</td>
+        <td>Account: the user ID and display name from the account you sign in with (Discord, GitHub or
+          Google) &ndash; one ID for each sign-in you connect, and when each was last used</td>
         <td>So an upload has an owner and you can come back to it</td>
         <td>Art. 6(1)(b) GDPR &ndash; performing the agreement you enter by signing in</td>
       </tr>
@@ -71,17 +72,31 @@
       </tr>
     </tbody>
   </table>
-  <p>Discord is asked only for the <code>identify</code> scope. That is your user ID and display name &ndash;
-     <strong>not your email address</strong>, not your servers, not your messages.</p>
+  <p>Each provider is asked for the least it offers, and <strong>none of them for your email
+     address</strong>:</p>
+  <ul>
+    <li><strong>Discord</strong>: the <code>identify</code> scope &ndash; your user ID, display name and
+      picture. Not your servers, not your messages.</li>
+    <li><strong>GitHub</strong>: no scope at all, which is GitHub&rsquo;s public profile &ndash; user ID,
+      username, name and picture. If your email is public on GitHub, GitHub sends it along anyway; it is
+      dropped on arrival and never stored.</li>
+    <li><strong>Google</strong>: the <code>profile</code> scope &ndash; your Google ID, name and picture.
+      Not your email, not your contacts, nothing from other Google services.</li>
+  </ul>
+  <p>Your display name and picture come from the account you <em>first</em> signed in with. Connecting
+     another one later does not change them &ndash; so connecting Google does not put the name on your
+     Google account onto your profile. Keep in mind that a Google name is usually your real name: if you
+     sign <em>up</em> with Google, that is the name everyone sees.</p>
 
   <h2>What your profile shows everyone</h2>
   <p>Signing in gives you a public profile at <code>/u.html?u=&lt;handle&gt;</code>. Anyone can open it,
      with or without an account. It shows:</p>
   <ul>
-    <li>your display name from Discord and your handle (the address; you can change it on your profile),</li>
+    <li>your display name from the account you signed up with, and your handle (the address; you can
+      change it on your profile),</li>
     <li>the day you first signed in,</li>
     <li>anything you write in your bio,</li>
-    <li>your profile picture, if your Discord account has one,</li>
+    <li>your profile picture, if that account has one,</li>
     <li>your public clips and public collections, and how often they were liked, saved and used,</li>
     <li><strong>who you follow</strong>, and how many people follow you.</li>
   </ul>
@@ -92,14 +107,14 @@
      you signed in for. What you can do about it: unfollow, empty your bio, change your handle, or
      close the account (below).</p>
 
-  <h2>Your profile picture does not come from Discord</h2>
-  <p>It would have been shorter to point the page straight at <code>cdn.discordapp.com</code>. Two
+  <h2>Your profile picture does not come from Discord, GitHub or Google</h2>
+  <p>It would have been shorter to point the page straight at Discord, GitHub or Google. Two
      things speak against it, and both of them are about you rather than about us: the address
-     contains your Discord user ID, which would then sit in the source of every page showing your
-     picture - and your browser would fetch it from Discord, so <em>Discord</em> would learn the IP
+     contains your user ID there, which would then sit in the source of every page showing your
+     picture - and your browser would fetch it from them, so <em>they</em> would learn the IP
      address of every visitor, including people who have no account there and are only reading.</p>
   <p>So this server fetches the picture once and serves it from <code>/avatar/&lt;handle&gt;.png</code>.
-     It keeps a copy for a day. Discord sees this server, not the people reading the page.</p>
+     It keeps a copy for a day. The provider sees this server, not the people reading the page.</p>
 
   <h2>No tracking</h2>
   <p>No analytics, no advertising, no tracking pixels, no external fonts or scripts. Everything the
@@ -117,8 +132,11 @@
       Germany.
       <div class="todo">Data processing agreement (Art. 28 GDPR) with Contabo:
       conclude and file before launch.</div></li>
-    <li><strong>Discord</strong> &ndash; only if you choose to sign in. You are sent to Discord, and
-      Discord learns that you signed in here. Their privacy policy applies to that step.</li>
+    <li><strong>Discord, GitHub or Google</strong> &ndash; only the one you choose to sign in with, and
+      only if you sign in. You are sent there, and that provider learns that you signed in here. Their
+      privacy policy applies to that step. All three are US companies.
+      <div class="todo">Third-country transfer for the sign-in step (Discord Inc., GitHub Inc.,
+      Google LLC): check the wording in the legal review (L1/P5).</div></li>
     <li><strong>[ TODO: Mail provider ]</strong> &ndash; delivers notification mail about reports.
       <div class="todo">Name the provider once the mail channel is set up, or
       delete this line if notifications stay on Discord only.</div></li>
@@ -134,7 +152,8 @@
       A deleted comment stops being shown at once; the text itself is kept so that a report about it
       can still be looked at.</li>
     <li><strong>After you close your account:</strong> the account row stays, but anonymous - name,
-      handle, bio, picture and the Discord ID are replaced. Everything that pointed at you points at
+      handle, bio and picture are replaced, and every connected sign-in (the Discord, GitHub or Google
+      ID) is deleted. Everything that pointed at you points at
       nobody: comments show &bdquo;Deleted user&ldquo;, a report you once filed loses its name. Your
       collections, likes and follows are deleted outright, your clips are withdrawn from the
       catalogue. Moderation records stay, because they are what makes a decision about someone

@@ -1,9 +1,7 @@
 package com.playmation.motionlabsbackend.auth
 
-import com.playmation.motionlabsbackend.account.AccountService
 import com.playmation.motionlabsbackend.common.ApiError
 import com.playmation.motionlabsbackend.common.ApiErrorResponse
-import com.playmation.motionlabsbackend.common.PortalException
 import com.playmation.motionlabsbackend.system.SystemSettingsService
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
@@ -17,12 +15,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.annotation.web.invoke
 import org.springframework.security.core.context.SecurityContextHolder
-import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService
-import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest
-import org.springframework.security.oauth2.client.userinfo.OAuth2UserService
-import org.springframework.security.oauth2.core.OAuth2AuthenticationException
-import org.springframework.security.oauth2.core.OAuth2Error
-import org.springframework.security.oauth2.core.user.OAuth2User
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.HttpStatusEntryPoint
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
@@ -36,8 +28,9 @@ import tools.jackson.databind.json.JsonMapper
 
 /**
  * Zwei Arten, angemeldet zu sein:
- *  - Browser: Discord-OAuth2, Session-Cookie, CSRF-Schutz per Cookie + Header
- *    (die Weboberfläche liest XSRF-TOKEN und schickt X-XSRF-TOKEN zurück).
+ *  - Browser: OAuth2 bei Discord, GitHub oder Google (siehe [SignInProviders]),
+ *    Session-Cookie, CSRF-Schutz per Cookie + Header (die Weboberfläche liest
+ *    XSRF-TOKEN und schickt X-XSRF-TOKEN zurück).
  *  - Workbench: `Authorization: Bearer awc_…`, ohne Session und ohne CSRF -
  *    ein Bearer-Header kann nicht von einer fremden Seite mitgeschickt werden.
  */
@@ -50,7 +43,7 @@ class SecurityConfig {
         http: HttpSecurity,
         tokenFilter: BearerTokenFilter,
         killSwitchFilter: KillSwitchFilter,
-        discordUserService: DiscordUserService,
+        portalUserService: PortalUserService,
     ): SecurityFilterChain {
         val safeMethods = setOf("GET", "HEAD", "OPTIONS", "TRACE")
 
@@ -129,8 +122,13 @@ class SecurityConfig {
                 authorize(anyRequest, permitAll)
             }
             oauth2Login {
-                userInfoEndpoint { userService = discordUserService }
-                defaultSuccessUrl("/", false)
+                //  Mit mehr als einem Anbieter baute Spring sonst seine eigene
+                //  Auswahlseite unter /login - und schickte jeden Fehler dorthin,
+                //  auch "dieses Konto ist gesperrt".
+                loginPage = "/signin.html"
+                userInfoEndpoint { userService = portalUserService }
+                authenticationSuccessHandler = SignInSuccessHandler()
+                authenticationFailureHandler = SignInFailureHandler()
             }
             logout {
                 logoutUrl = "/logout"
@@ -232,30 +230,5 @@ class KillSwitchFilter(private val settings: SystemSettingsService) : OncePerReq
             return
         }
         chain.doFilter(request, response)
-    }
-}
-
-@Component
-class DiscordUserService(private val accounts: AccountService) : OAuth2UserService<OAuth2UserRequest, OAuth2User> {
-    private val delegate = DefaultOAuth2UserService()
-
-    override fun loadUser(request: OAuth2UserRequest): OAuth2User {
-        val user = delegate.loadUser(request)
-        val discordId = user.attributes["id"]?.toString()
-            ?: throw OAuth2AuthenticationException(OAuth2Error("invalid_user"), "Discord did not return a user id")
-        val name = (user.attributes["global_name"] ?: user.attributes["username"])?.toString() ?: "user"
-
-        //  Nur der Avatar-HASH, nicht das Bild. Daraus baut die Profilseite die
-        //  Adresse bei cdn.discordapp.com, die in der Content Security Policy
-        //  weiter oben schon steht. Wer keines hat, behaelt den Buchstabenkreis.
-        val avatar = user.attributes["avatar"]?.toString()
-
-        val account = try {
-            accounts.login(discordId, name, avatar)
-        } catch (ex: PortalException) {
-            throw OAuth2AuthenticationException(OAuth2Error("account_banned"), ex.message)
-        }
-
-        return PortalOAuth2User(PortalPrincipal(account.id, account.role, account.displayName), user.attributes)
     }
 }

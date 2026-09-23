@@ -112,10 +112,14 @@ class AccountHandleService(private val accounts: AccountRepository) {
     /**
      * Setzt den Handle, falls er fehlt. Gibt zurueck, ob etwas zu tun war -
      * der Aufrufer speichert ohnehin.
+     *
+     * @param hint ein Benutzername beim Anbieter (GitHub-Login), der dem
+     *   Anzeigenamen vorgeht - sofern von ihm genug uebrig bleibt.
      */
-    fun ensure(account: Account): Boolean {
+    fun ensure(account: Account, hint: String? = null): Boolean {
         if (!account.handle.isNullOrBlank()) return false
-        account.handle = AccountHandles.assign(account.displayName, account.id, accounts::existsByHandle)
+        val source = hint?.takeIf { AccountHandles.slugify(it).length >= AccountHandles.MIN_LENGTH } ?: account.displayName
+        account.handle = AccountHandles.assign(source, account.id, accounts::existsByHandle)
         return true
     }
 }
