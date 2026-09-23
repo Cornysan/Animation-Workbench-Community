@@ -27,6 +27,7 @@ import java.util.concurrent.TimeUnit
 import javax.imageio.ImageIO
 import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.max
@@ -253,28 +254,203 @@ class ClipCardRenderer {
         )
         g.fill(Ellipse2D.Double(projected[lowest][0] - shadowWidth / 2, ground - 17, shadowWidth, 34.0))
 
+        //  TIEFE ALS FARBE. Die Reihenfolge allein sagt nur, was vor was
+        //  liegt; sie sagt nicht, wie weit. Ein Arm hinter dem Ruecken hatte
+        //  dieselbe Leuchtkraft wie einer davor, und das Bild wurde flach.
+        //  Was hinten steht, rueckt deshalb zur Hintergrundfarbe hin - die
+        //  Luftperspektive eines Malers, in zwei Zeilen.
+        val zNear = projected.minOf { it[2] }
+        val zSpan = max(1e-6, projected.maxOf { it[2] } - zNear)
+
+        fun away(z: Double) = (z - zNear) / zSpan
+
+        fun fade(c: Color, t: Double): Color {
+            val k = t * 0.34
+            fun mix(channel: Int, target: Int) = (channel + (target - channel) * k).toInt()
+            return Color(mix(c.red, 0x1a), mix(c.green, 0x18), mix(c.blue, 0x24))
+        }
+
+        //  EIN DURCHGANG, VON HINTEN NACH VORN, und jedes Glied bringt seinen
+        //  eigenen Saum mit: erst ein breiterer dunkler Strich, dann die
+        //  Farbe. Wo zwei Glieder sich kreuzen, schneidet das vordere damit
+        //  sichtbar ins hintere - vorher liefen sie ineinander und der
+        //  Koerper wurde zum Knaeuel. Die Gelenke gehoeren in denselben
+        //  Durchgang; als eigener Nachlauf sassen sie auch auf Gliedern, die
+        //  eigentlich davor liegen.
+        //  DER RUMPF IST EINE FLAECHE, KEIN STRICH.
+        //
+        //  Als Kette aus Spine, Chest und UpperChest war er ein Stab von der
+        //  Dicke eines Oberschenkels, an dem oben ein Querbalken fuer die
+        //  Schultern sass - ein Drahtgestell. Ein Koerper hat zwischen
+        //  Schultern und Huefte eine Breite, und die steht schon da: die vier
+        //  Gelenke, an denen Arme und Beine ansetzen, sind seine Ecken.
+        //
+        //  Die Ecken werden um ihren Schwerpunkt nach Winkel sortiert. Das
+        //  kostet fuenf Zeilen und nimmt dem Viereck die Moeglichkeit, sich
+        //  bei einer starken Drehung selbst zu durchschlagen - aus der
+        //  Schleife wird dann ein schmales Dreieck, was in einer Drehung auch
+        //  richtig ist.
+        //
+        //  Ein fremdes Rig hat diese Gelenke nicht. Dann gibt es keinen Rumpf
+        //  und die Kette wird gezeichnet wie zuvor.
+        val corners = TRUNK_CORNERS.map { bones.indexOf(it) }.takeIf { it.none { j -> j < 0 } }
+        val trunkZ = corners?.let { c -> c.sumOf { projected[it][2] } / c.size }
+
+        fun drawTrunk(c: List<Int>) {
+            val cx = c.sumOf { projected[it][0] } / c.size
+            val cy = c.sumOf { projected[it][1] } / c.size
+            val ring = c.sortedBy { atan2(projected[it][1] - cy, projected[it][0] - cx) }
+
+            val path = GeneralPath()
+            ring.forEachIndexed { k, j ->
+                if (k == 0) path.moveTo(projected[j][0], projected[j][1])
+                else path.lineTo(projected[j][0], projected[j][1])
+            }
+            path.closePath()
+
+            //  DER HALS WAECHST AUS DER SCHULTERKANTE, nicht aus dem
+            //  Halsgelenk. Das liegt je nach Rig ein Stueck ueber den
+            //  Schultern, und die Strecke von dort zum Kopf ist so kurz, dass
+            //  sie ganz unter dem Kopfkreis verschwand: der Kopf schwebte
+            //  ueber einem Koerper, mit dem er sichtbar nichts zu tun hatte.
+            //  Gezeichnet wird er VOR dem Rumpf, damit der ihn unten sauber
+            //  abschneidet - herausstehen soll nur, was ueber den Schultern
+            //  liegt.
+            val head = bones.indexOf("Head")
+            if (head >= 0) {
+                val shoulders = c.take(2)
+                val neck = Line2D.Double(
+                    (projected[shoulders[0]][0] + projected[shoulders[1]][0]) / 2,
+                    (projected[shoulders[0]][1] + projected[shoulders[1]][1]) / 2,
+                    projected[head][0], projected[head][1],
+                )
+                val width = lineWidth * thickness("Neck")
+                g.color = Color(0x0a, 0x09, 0x0e, 205)
+                g.stroke = BasicStroke(width + lineWidth * 0.9f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
+                g.draw(neck)
+                g.color = fade(Color(0xd9, 0xd5, 0xe4), away(projected[head][2]))
+                g.stroke = BasicStroke(width, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
+                g.draw(neck)
+            }
+
+            //  Erst der Saum, dann die Flaeche darueber: was vom Strich aussen
+            //  stehen bleibt, ist der Rand.
+            g.color = Color(0x0a, 0x09, 0x0e, 205)
+            g.stroke = BasicStroke(lineWidth * 1.8f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
+            g.draw(path)
+            g.color = fade(Color(0xd9, 0xd5, 0xe4), away(trunkZ!!))
+            g.fill(path)
+        }
+
+        var trunkDone = corners == null
+
         for (i in order) {
-            val parent = parents[i]
-            if (parent < 0) continue
+            //  Der Rumpf liegt in derselben Reihenfolge wie alles andere: er
+            //  kommt, sobald das erste Glied naeher steht als er.
+            if (!trunkDone && projected[i][2] <= trunkZ!!) {
+                drawTrunk(corners!!)
+                trunkDone = true
+            }
+
             val name = bones[i]
             if (hidden(name)) continue
+            val parent = parents[i]
+            val t = away(projected[i][2])
 
-            //  Seitenfarben aus der Marke: Akzentviolett links, Warmton rechts.
-            g.color = when {
-                name.startsWith("Left") -> Color(0x8e, 0x77, 0xff)
-                name.startsWith("Right") -> Color(0xfb, 0x92, 0x3c)
-                else -> Color(0xd9, 0xd5, 0xe4)
+            if (parent >= 0 && !(corners != null && name in TRUNK)) {
+                //  Seitenfarben aus der Marke: Akzentviolett links, Warmton rechts.
+                val base = when {
+                    name.startsWith("Left") -> Color(0x8e, 0x77, 0xff)
+                    name.startsWith("Right") -> Color(0xfb, 0x92, 0x3c)
+                    else -> Color(0xd9, 0xd5, 0xe4)
+                }
+                val width = lineWidth * thickness(name)
+                val line = Line2D.Double(
+                    projected[parent][0], projected[parent][1], projected[i][0], projected[i][1])
+
+                //  DER SAUM REICHT NICHT BIS ANS GELENK. Der erste Versuch zog
+                //  ihn ueber die ganze Strecke, und weil jeder Knochen nach
+                //  seinem Vorgaenger gezeichnet wird, frass er dessen rundes
+                //  Ende an: der Rumpf zerfiel in dunkel abgesetzte Glieder wie
+                //  eine Raupe. Er hoert jetzt dort auf, wo der Knochen dick
+                //  wird - trennen soll er dort, wo sich zwei Glieder KREUZEN,
+                //  und das ist nie am eigenen Gelenk.
+                val extra = lineWidth * 0.9f
+                val seam = inset(line, ((width + extra) / 2).toDouble())
+                if (seam != null) {
+                    g.color = Color(0x0a, 0x09, 0x0e, 205)
+                    g.stroke = BasicStroke(width + extra, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
+                    g.draw(seam)
+                }
+
+                g.color = fade(base, t)
+                g.stroke = BasicStroke(width, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
+                g.draw(line)
             }
-            g.stroke = BasicStroke(lineWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
-            g.draw(Line2D.Double(projected[parent][0], projected[parent][1], projected[i][0], projected[i][1]))
+
+            if (name != "Head" && name !in JOINTS) continue
+
+            //  Der Kopf ist eine Kugel, jedes andere Gelenk ein Knopf, der
+            //  gerade so ueber sein Glied hinausragt. Der alte Radius war
+            //  fast doppelt so breit wie der Strich - eine Kette aus Perlen
+            //  entlang der Wirbelsaeule.
+            val radius = if (name == "Head") lineWidth * 3.2 else lineWidth * thickness(name) * 0.72
+            val dot = Ellipse2D.Double(
+                projected[i][0] - radius, projected[i][1] - radius, radius * 2, radius * 2)
+
+            g.color = Color(0x0a, 0x09, 0x0e, 205)
+            g.stroke = BasicStroke(lineWidth * 0.9f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
+            g.draw(dot)
+            g.color = fade(Color(0xee, 0xec, 0xf3), t)
+            g.fill(dot)
         }
 
-        g.color = Color(0xee, 0xec, 0xf3)
-        for (i in order) {
-            if (hidden(bones[i])) continue
-            val radius = if (bones[i] == "Head") lineWidth * 3.2 else lineWidth * 0.9
-            g.fill(Ellipse2D.Double(projected[i][0] - radius, projected[i][1] - radius, radius * 2, radius * 2))
-        }
+        if (!trunkDone) drawTrunk(corners!!)
+    }
+
+    /**
+     * Wie dick ein Knochen gezeichnet wird, in Vielfachen der Grundstaerke.
+     *
+     * Ein Koerper ist nicht ueberall gleich dick, und ein Strichmaennchen mit
+     * ueberall demselben Strich sieht aus wie aus Draht gebogen. Rumpf am
+     * dicksten, dann Becken und Oberschenkel, am duennsten Unterarm und Fuss.
+     *
+     * DIE NAMEN SIND UM EINS VERSETZT: gezeichnet wird die Strecke vom
+     * ELTERNGELENK zu diesem Gelenk. Was hier "LeftHand" heisst, ist der
+     * Unterarm; "LeftLowerArm" ist der Oberarm; "LeftUpperArm" ist das
+     * Schluesselbein; "Head" ist der Hals. Wer diese Zahlen anfasst, muss das
+     * im Kopf haben, sonst verdickt er die falsche Stelle.
+     *
+     * Ein fremdes Rig (`generic`) faellt auf 1.0 und sieht aus wie vorher.
+     */
+    /**
+     * Dieselbe Strecke, an beiden Enden um [by] gekuerzt - oder `null`, wenn
+     * dann nichts mehr uebrig bleibt. Ein Fuss ist kuerzer als er dick ist;
+     * dort gibt es keinen Innenteil, und dann faellt der Saum eben aus.
+     */
+    private fun inset(line: Line2D.Double, by: Double): Line2D.Double? {
+        val dx = line.x2 - line.x1
+        val dy = line.y2 - line.y1
+        val length = hypot(dx, dy)
+        if (length <= by * 2.2) return null
+        val ux = dx / length * by
+        val uy = dy / length * by
+        return Line2D.Double(line.x1 + ux, line.y1 + uy, line.x2 - ux, line.y2 - uy)
+    }
+
+    private fun thickness(bone: String): Float = when (bone) {
+        "Spine", "Chest", "UpperChest" -> 2.4f
+        "LeftUpperLeg", "RightUpperLeg" -> 1.8f
+        "LeftLowerLeg", "RightLowerLeg" -> 1.45f
+        "LeftFoot", "RightFoot" -> 1.15f
+        "LeftToes", "RightToes" -> 0.9f
+        "LeftShoulder", "RightShoulder" -> 1.6f
+        "LeftUpperArm", "RightUpperArm" -> 1.25f
+        "LeftLowerArm", "RightLowerArm" -> 1.1f
+        "LeftHand", "RightHand" -> 0.9f
+        "Neck" -> 1.3f
+        "Head" -> 1.2f
+        else -> 1.0f
     }
 
     /**
@@ -403,6 +579,49 @@ class ClipCardRenderer {
 
         /** Kiefer und Augen - sie sitzen im Kopf, siehe [hidden]. */
         private val INSIDE_HEAD = Regex("^(Jaw|(Left|Right)Eye)$")
+
+        /**
+         * Wo ein Knopf sitzt: an den Stellen, die sich wirklich beugen.
+         *
+         * Wirbelsaeule, Hals und Schluesselbein stehen NICHT drin. Sie
+         * beugen sich zwar auch, aber sie liegen so dicht beieinander, dass
+         * aus vier Knoepfen eine Perlenkette im Rumpf wurde.
+         */
+        /**
+         * Die vier Ecken des Rumpfes: die Gelenke, an denen die Glieder
+         * ansetzen. Die Reihenfolge spielt keine Rolle, sie wird ohnehin nach
+         * Winkel sortiert.
+         */
+        private val TRUNK_CORNERS = listOf(
+            "LeftUpperArm", "RightUpperArm", "RightUpperLeg", "LeftUpperLeg")
+
+        /**
+         * Was im Rumpf verschwindet, sobald es ihn gibt: die Wirbelsaeule, die
+         * Schluesselbeine und das Becken liegen alle INNERHALB der Flaeche
+         * oder auf ihrem Rand. Gezeichnet ergaeben sie Striche auf einem
+         * Koerper.
+         *
+         * "Neck" und "Head" stehen mit drin, obwohl der Hals sichtbar ist:
+         * die eine Strecke laeuft vom UpperChest zum Hals und damit quer
+         * durch die Brust, die andere ist zu kurz, um unter dem Kopf
+         * hervorzukommen. Den Hals zeichnet [drawTrunk] selbst, von der
+         * Schulterkante aus.
+         */
+        private val TRUNK = setOf(
+            "Spine", "Chest", "UpperChest", "Neck", "Head",
+            "LeftShoulder", "RightShoulder",
+            "LeftUpperArm", "RightUpperArm",
+            "LeftUpperLeg", "RightUpperLeg",
+        )
+
+        private val JOINTS = setOf(
+            "LeftUpperArm", "RightUpperArm",
+            "LeftLowerArm", "RightLowerArm",
+            "LeftHand", "RightHand",
+            "LeftUpperLeg", "RightUpperLeg",
+            "LeftLowerLeg", "RightLowerLeg",
+            "LeftFoot", "RightFoot",
+        )
 
         private const val MAX_CACHED = 200
     }
