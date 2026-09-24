@@ -281,6 +281,10 @@ class PortalFlowTest {
             status { is3xxRedirection() }
             redirectedUrl("/?tag=walk&sort=popular")
         }
+
+        //  Solange die Indexierung aus ist, gibt es keine Sitemap - sie
+        //  widerspraeche dem "Disallow: /" in robots.txt (SearchIndexingTest).
+        mvc.get("/sitemap.xml").andExpect { status { isNotFound() } }
         assertTrue(anonymous.contains("Report a rights violation"), "Fuss fehlt im HTML")
 
         //  Weggelassen, nicht versteckt: mit einer Klasse „hidden" im Dokument

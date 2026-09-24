@@ -117,6 +117,8 @@ portal:
   download-secret: ${PORTAL_DOWNLOAD_SECRET:}
   pseudonym-secret: ${PORTAL_PSEUDONYM_SECRET:}
   admin-discord-ids: ${PORTAL_ADMIN_DISCORD_IDS:}
+  # Suchmaschinen: robots.txt, das robots-Meta jeder Seite und /sitemap.xml.
+  search-indexing: ${PORTAL_SEARCH_INDEXING:false}
   alerts:
     discord-webhook-url: ${PORTAL_ALERT_WEBHOOK:}
     mail-to: ${PORTAL_ALERT_MAIL_TO:}

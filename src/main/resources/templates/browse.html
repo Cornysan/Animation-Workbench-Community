@@ -12,7 +12,9 @@
   hier bleibt, ist das Verfeinern - Sortierung und Schlagworte.
 -->
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments/shell :: head('Animations')}"></head>
+<!-- Der Titel ist der, unter dem die Startseite in einer Suche steht - nicht
+     nur der Name des Reiters. -->
+<head th:replace="~{fragments/shell :: head('Free humanoid animation clips')}"></head>
 <body th:attr="data-signed-in=${user != null}">
 <header th:replace="~{fragments/shell :: header}"></header>
 <main id="main" class="wide">

@@ -13,7 +13,7 @@
   oeffentlichen Clip dieselbe und steht unter "Licenses" im Fuss.
 -->
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments/shell :: head('Clip')}"></head>
+<head th:replace="~{fragments/shell :: head(${clipTitle} ?: 'Clip')}"></head>
 <body th:attr="data-signed-in=${user != null}">
 <!--
   DIE BUEHNE HAENGT AN EINER KETTE: clip-viewer.js -> viewer-ui.js -> stage.js
@@ -40,7 +40,7 @@
     <section class="clip-main">
       <div class="viewer" id="viewer" th:attr="data-rig=${clipRig}"></div>
 
-      <h1 id="title"></h1>
+      <h1 id="title" th:text="${clipTitle}"></h1>
       <div class="clip-byline">
         <span class="avatar" id="author-initial">?</span>
         <div>
@@ -52,7 +52,7 @@
       <div id="action-state"></div>
 
       <div class="tags" id="tags"></div>
-      <p id="description" class="clip-description"></p>
+      <p id="description" class="clip-description" th:text="${clipDescription}"></p>
 
       <!-- E10: unter jeder Animation steht ein Gespraech. Flach, ohne Antworten
            auf Antworten - die Endpunkte gibt es seit dem 20.09., im Web fehlte

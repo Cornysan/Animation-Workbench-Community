@@ -73,6 +73,20 @@ class PageController(
     fun defaultMeta() = shell.defaultMeta()
 
     /**
+     * Die eine Adresse, unter der eine Seite gefuehrt werden soll - fuer
+     * `rel=canonical` und `og:url`. Pfad plus genau der Parameter, der die
+     * Seite ausmacht (`p`, `u`, `c`); Sortierung, Schlagwort und Suche sind
+     * Ansichten derselben Seite. `/index.html` ist "/".
+     */
+    @ModelAttribute("canonicalUrl")
+    fun canonicalUrl(request: HttpServletRequest): String {
+        val path = request.requestURI.takeUnless { it == "/index.html" } ?: "/"
+        val key = listOf("p", "u", "c").firstOrNull { !request.getParameter(it).isNullOrBlank() }
+        val query = key?.let { "?" + it + "=" + java.net.URLEncoder.encode(request.getParameter(it).trim(), Charsets.UTF_8) } ?: ""
+        return portal.publicBaseUrl.trimEnd('/') + path + query
+    }
+
+    /**
      * Die erste Station eines Crawlers. Sie sagt dasselbe wie das `robots`-Meta
      * jeder Seite und kommt aus derselben Einstellung - zwei Quellen fuer diese
      * Auskunft waeren zwei Gelegenheiten, dass sie auseinander laufen.
@@ -81,7 +95,13 @@ class PageController(
     @ResponseBody
     fun robots(): String =
         if (portal.searchIndexing)
-            "User-agent: *\nDisallow: /admin.html\nDisallow: /dev.html\nDisallow: /link.html\nDisallow: /signin.html\n"
+            //  /api/ bleibt OFFEN: die Seiten holen ihren Inhalt von dort, und
+            //  ein Crawler, der sie ausfuehrt, haelt sich beim Nachladen an
+            //  diese Datei - gesperrt saehe er leere Seiten. Die Profilbilder
+            //  dagegen gehoeren in keine Bildersuche.
+            "User-agent: *\nDisallow: /admin.html\nDisallow: /dev.html\nDisallow: /link.html\n" +
+                "Disallow: /signin.html\nDisallow: /me.html\nDisallow: /avatar/\n\n" +
+                "Sitemap: " + portal.publicBaseUrl.trimEnd('/') + "/sitemap.xml\n"
         else
             "User-agent: *\nDisallow: /\n"
 
@@ -137,6 +157,14 @@ class PageController(
         //  Fuer die Vorab-Anfrage der Vorschau im Kopf der Seite (clip.html):
         //  nur wenn der Clip hier auch sichtbar ist, sonst holte sie eine 404.
         clip?.let { model.addAttribute("clipSlug", it.slug) }
+
+        //  Titel und Beschreibung stehen damit schon im ausgelieferten HTML -
+        //  fuer Suchmaschinen, die kein JavaScript ausfuehren. clip.js
+        //  schreibt dieselben Werte danach noch einmal hinein.
+        if (clip != null && clip.license == AwclipSchema.LICENSE_PUBLIC) {
+            model.addAttribute("clipTitle", clip.title)
+            model.addAttribute("clipDescription", clip.description)
+        }
 
         //  Ein privater Clip bekommt keine eigene Vorschau - ohne Anmeldung
         //  kommt er seit Schema 10 gar nicht mehr bis hier (`visible`). Die

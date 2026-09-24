@@ -96,6 +96,8 @@ services:
       PORTAL_DOWNLOAD_SECRET: ${PORTAL_DOWNLOAD_SECRET:?PORTAL_DOWNLOAD_SECRET fehlt in .env}
       PORTAL_PSEUDONYM_SECRET: ${PORTAL_PSEUDONYM_SECRET:?PORTAL_PSEUDONYM_SECRET fehlt in .env}
       PORTAL_ADMIN_DISCORD_IDS: ${PORTAL_ADMIN_DISCORD_IDS:-}
+      # true = Suchmaschinen duerfen die Seite listen (robots.txt, Sitemap).
+      PORTAL_SEARCH_INDEXING: ${PORTAL_SEARCH_INDEXING:-false}
       DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:?DISCORD_CLIENT_ID fehlt in .env}
       DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:?DISCORD_CLIENT_SECRET fehlt in .env}
       # Freiwillig. "unset" statt leer: eine LEERE Client-ID laesst Spring Boot

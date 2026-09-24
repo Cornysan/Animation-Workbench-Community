@@ -93,7 +93,11 @@
   <meta property="og:site_name" content="Animation Workbench Community (Beta)">
   <meta property="og:title" th:attr="content=${meta.title}">
   <meta property="og:description" th:attr="content=${meta.description}">
-  <meta property="og:url" th:attr="content=${meta.url}" th:if="${meta.url}">
+  <!-- Die Adresse, unter der diese Seite gefuehrt wird: `?tag=`, `?sort=` und
+       `/index.html` sind Ansichten derselben Seite (PageController.canonicalUrl). -->
+  <link rel="canonical" th:href="${canonicalUrl}" th:if="${canonicalUrl != null and !meta.noindex}">
+  <meta property="og:url" th:attr="content=${meta.url != null ? meta.url : canonicalUrl}"
+        th:if="${meta.url != null or canonicalUrl != null}">
   <meta property="og:image" th:attr="content=${meta.image}" th:if="${meta.image}">
   <meta property="og:image:width" content="1200" th:if="${meta.image}">
   <meta property="og:image:height" content="630" th:if="${meta.image}">

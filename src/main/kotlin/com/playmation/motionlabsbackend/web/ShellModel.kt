@@ -125,11 +125,19 @@ class ShellModel(
         val noindex: Boolean = true,
     )
 
+    /**
+     * Die Vorgabe fuer jede Seite ohne eigene. KEINE `url`: sie stand auf der
+     * Startadresse und machte damit jede Seite - Nutzungsbedingungen,
+     * Sammlungen - zu einem Link auf "/". Die Adresse der Seite selbst kommt
+     * jetzt als `canonicalUrl` aus dem PageController.
+     *
+     * Hier stand "shared as plain motion data - no FBX, no rig, no model".
+     * Seit jeder Clip als FBX und GLB zu haben ist, stimmt das nicht mehr.
+     */
     fun defaultMeta() = PageMeta(
         "Animation Workbench Community (Beta)",
-        "Humanoid animation clips made in the Animation Workbench, shared as plain motion data - " +
-            "no FBX, no rig, no model. Free to use under CC0, no credit needed.",
-        url = portal.publicBaseUrl,
+        "Free humanoid animation clips made in the Animation Workbench. Preview them in the " +
+            "browser, import them into Unity, or download them as FBX or GLB. CC0, no credit needed.",
         noindex = !portal.searchIndexing,
     )
 
