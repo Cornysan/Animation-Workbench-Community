@@ -272,7 +272,7 @@ class PortalFlowTest {
         val anonymous = mvc.get("/").andReturn().response.contentAsString
 
         //  Der Katalog IST die Startseite (wie "Animations" bei Mixamo).
-        assertTrue(anonymous.contains("<h1>Animations</h1>"), "Katalog fehlt auf der Startseite")
+        assertTrue(anonymous.contains(">Animations</h1>"), "Katalog fehlt auf der Startseite")
         assertTrue(anonymous.contains("/collections.html"), "Navigation fehlt im HTML")
 
         //  Die alte Adresse des Katalogs steht in Discord und als Filter-Link

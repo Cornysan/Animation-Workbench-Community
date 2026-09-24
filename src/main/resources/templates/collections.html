@@ -17,8 +17,9 @@
 <main id="main" class="wide">
   <div th:replace="~{fragments/shell :: paused}"></div>
 
-  <h1>Collections</h1>
-  <p class="lead">Sets of clips people picked, to take into your project together.</p>
+  <!-- Wie im Katalog: der Reiter oben benennt die Seite, die h1 steht nur
+       noch fuer Screenreader da. -->
+  <h1 class="visually-hidden">Collections</h1>
 
   <div class="filters" id="filters">
     <div class="segmented" id="show" role="group" aria-label="Show"></div>

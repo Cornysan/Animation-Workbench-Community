@@ -18,11 +18,10 @@
 <main id="main" class="wide">
   <div th:replace="~{fragments/shell :: paused}"></div>
 
-  <!-- Die eine Zeile Erklaerung, die von der Startseite geblieben ist: wer
-       zum ersten Mal hier ist, erfaehrt, woher die Clips kommen und dass er
-       sie benutzen darf. -->
-  <h1>Animations</h1>
-  <p class="lead">Shared by Animation Workbench users, free to use in your projects.</p>
+  <!-- Keine sichtbare Ueberschrift, keine Erklaerzeile (Pablo, 2026-09-24):
+       der helle Reiter oben sagt, wo man ist, und darunter steht gleich die
+       Ware - wie bei Mixamo. Die h1 bleibt fuer Screenreader im Dokument. -->
+  <h1 class="visually-hidden">Animations</h1>
 
   <div class="filters">
     <div class="segmented" id="sort" role="group" aria-label="Sort"></div>
