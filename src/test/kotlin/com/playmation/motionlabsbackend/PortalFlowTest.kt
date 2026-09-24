@@ -1039,6 +1039,16 @@ class PortalFlowTest {
             jsonPath("$.error.code") { value("duplicate") }
         }
 
+        //  Die Karte sagt ihrem Besitzer, dass sie ihm gehoert - daran haengt
+        //  "Edit on the portal" in der Workbench. Allen anderen nicht.
+        fun ownedInSearch(token: String?) = mvc.get("/api/v1/packages") {
+            param("q", "Sneaky Walk")
+            if (token != null) header("Authorization", "Bearer $token")
+        }.andExpect { status { isOk() } }.body()["items"].first { it["slug"].asString() == slug }["isOwner"].asBoolean()
+        assertTrue(ownedInSearch(owner), "the owner's card says so")
+        assertFalse(ownedInSearch(stranger), "a stranger's card does not")
+        assertFalse(ownedInSearch(null), "an anonymous card does not")
+
         edit(owner, slug, """{"title":"Sneaky Walk","description":"","tags":["Not A Tag"],"license":"CC0-1.0"}""")
             .andExpect {
                 status { isBadRequest() }

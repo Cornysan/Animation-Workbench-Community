@@ -78,6 +78,12 @@ data class PackageSummary(
     val unlockedByMe: Boolean,
     val hasPreview: Boolean,
     val createdAt: Instant,
+    /**
+     * Gehoert der Clip dem, der fragt? Die Workbench bietet daran "Edit on
+     * the portal" an - ohne das Feld muesste sie am Anzeigenamen raten, und
+     * der ist nicht eindeutig.
+     */
+    val isOwner: Boolean = false,
 )
 
 data class PackageDetail(
@@ -618,7 +624,8 @@ class CatalogService(
                 author?.name ?: "unknown", author?.handle,
                 version.durationSeconds, version.frameRate, version.rig, pkg.takeCount, pkg.likeCount,
                 pkg.saveCount, pkg.commentCount, pkg.id in likedByMe, pkg.id in savedByMe,
-                pkg.id in unlockedByMe, version.previewBlobKey != null, pkg.createdAt)
+                pkg.id in unlockedByMe, version.previewBlobKey != null, pkg.createdAt,
+                isOwner = principal?.accountId == pkg.ownerId)
         }
     }
 

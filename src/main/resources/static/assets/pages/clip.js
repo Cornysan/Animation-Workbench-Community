@@ -131,6 +131,16 @@
     });
     bar.append(edit);
 
+    //  Aus der Workbench ("Edit on the portal") kommt man mit `edit=1` -
+    //  dann steht der Dialog gleich offen. Der Parameter geht aus der
+    //  Adresse, damit ein Neuladen ihn nicht wieder aufmacht.
+    if (param("edit")) {
+      const url = new URL(location.href);
+      url.searchParams.delete("edit");
+      history.replaceState(null, "", url);
+      edit.click();
+    }
+
     const withdraw = iconButton({
       name: "trash",
       tip: "Withdraw this clip",
