@@ -1140,7 +1140,7 @@ const AW = (() => {
   function profileHref(item) {
     return item.authorHandle
       ? "/u.html?u=" + encodeURIComponent(item.authorHandle)
-      : "/browse.html?author=" + encodeURIComponent(item.author);
+      : "/?author=" + encodeURIComponent(item.author);
   }
 
   /**

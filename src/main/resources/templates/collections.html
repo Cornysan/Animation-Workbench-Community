@@ -1,0 +1,36 @@
+<!doctype html>
+<!--
+  Die Sammlungen - der zweite Reiter oben, neben "Animations" (2026-09-24).
+
+  Derselbe Aufbau wie der Katalog: Ueberschrift, eine Zeile, die Auswahl,
+  dann die Kachelwand. Eine Sammlung stand bis hierher nur auf dem Profil
+  ihres Besitzers und kurz als Reihe auf der alten Startseite; wer fremde
+  finden wollte, musste erst wissen, wem er folgen soll.
+
+  Der Handle steht am <body>, damit "Yours" ohne einen weiteren Aufruf weiss,
+  wessen Sammlungen es holt - /api/v1/me nennt ihn nicht.
+-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/shell :: head('Collections')}"></head>
+<body th:attr="data-signed-in=${user != null},data-handle=${user != null ? user.handle : null}">
+<header th:replace="~{fragments/shell :: header}"></header>
+<main id="main" class="wide">
+  <div th:replace="~{fragments/shell :: paused}"></div>
+
+  <h1>Collections</h1>
+  <p class="lead">Sets of clips people picked, to take into your project together.</p>
+
+  <div class="filters" id="filters">
+    <div class="segmented" id="show" role="group" aria-label="Show"></div>
+    <div id="make"></div>
+  </div>
+
+  <div id="results" class="grid"></div>
+  <div id="empty"></div>
+</main>
+<footer th:replace="~{fragments/shell :: footer}"></footer>
+<script th:src="|${@buildStamp.assets}/app.js|"></script>
+<script th:src="|${@buildStamp.assets}/viewer.js|"></script>
+<script th:src="|${@buildStamp.assets}/pages/collections.js|"></script>
+</body>
+</html>

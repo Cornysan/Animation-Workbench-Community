@@ -223,7 +223,7 @@ class PortalFlowTest {
      */
     @Test
     fun `static files are linked and served under a versioned path`() {
-        val page = mvc.get("/browse.html").andReturn().response.contentAsString
+        val page = mvc.get("/").andReturn().response.contentAsString
         assertTrue(Regex("""src="/assets/v/[^/"]+/app\.js"""").containsMatchIn(page), "app.js is not versioned")
         assertFalse(page.contains("src=\"/assets/app.js\""), "an unversioned script is left in the page")
 
@@ -249,7 +249,7 @@ class PortalFlowTest {
         val pages = listOf(
             //  `/me.html` fehlt mit Absicht: ohne Konto schickt sie zur
             //  Anmeldeseite (SignInFlowTest).
-            "/", "/index.html", "/browse.html", "/clip.html", "/licenses.html", "/admin.html",
+            "/", "/index.html", "/collections.html", "/clip.html", "/licenses.html", "/admin.html",
             "/dev.html", "/link.html", "/rules.html", "/terms.html", "/privacy.html",
             "/impressum.html", "/takedown.html",
         )
@@ -271,14 +271,16 @@ class PortalFlowTest {
     fun `the page frame is in the html, and moderation only for moderators`() {
         val anonymous = mvc.get("/").andReturn().response.contentAsString
 
-        assertTrue(anonymous.contains("free to use"), "Seiteninhalt der Startseite fehlt")
+        //  Der Katalog IST die Startseite (wie "Animations" bei Mixamo).
+        assertTrue(anonymous.contains("<h1>Animations</h1>"), "Katalog fehlt auf der Startseite")
+        assertTrue(anonymous.contains("/collections.html"), "Navigation fehlt im HTML")
 
-        //  Der Katalog liegt seit der Startseite auf /browse.html. Beide
-        //  Adressen muessen ihren eigenen Inhalt tragen, sonst faellt ein
-        //  vertauschtes Ziel erst im Betrieb auf.
-        val catalog = mvc.get("/browse.html").andReturn().response.contentAsString
-        assertTrue(catalog.contains("Community clips"), "Katalog fehlt unter /browse.html")
-        assertTrue(anonymous.contains("/browse.html"), "Navigation fehlt im HTML")
+        //  Die alte Adresse des Katalogs steht in Discord und als Filter-Link
+        //  in Umlauf - sie leitet weiter und behaelt ihren Filter.
+        mvc.get("/browse.html?tag=walk&sort=popular").andExpect {
+            status { is3xxRedirection() }
+            redirectedUrl("/?tag=walk&sort=popular")
+        }
         assertTrue(anonymous.contains("Report a rights violation"), "Fuss fehlt im HTML")
 
         //  Weggelassen, nicht versteckt: mit einer Klasse „hidden" im Dokument
@@ -445,7 +447,7 @@ class PortalFlowTest {
             content { contentTypeCompatibleWith(MediaType.TEXT_HTML) }
         }.andReturn().response.contentAsString.let { page ->
             assertTrue("That page is not here." in page, "it says what happened")
-            assertTrue("/browse.html" in page, "and offers a way on")
+            assertTrue("Browse animations" in page, "and offers a way on")
         }
 
         //  Unterhalb von /api/ bleibt es bei JSON - auch fuer einen Browser.

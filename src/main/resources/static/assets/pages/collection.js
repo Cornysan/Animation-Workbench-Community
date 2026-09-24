@@ -74,7 +74,7 @@
         el("p", {}, collection.isOwner
           ? "Nothing in here yet. Find a clip you like and press the star on its card."
           : "Nothing in here yet."),
-        el("a", { class: "button", href: "/browse.html" }, "Browse clips")));
+        el("a", { class: "button", href: "/" }, "Browse animations")));
       return;
     }
 
@@ -160,7 +160,7 @@
         try {
           await ensureCsrf();
           await api("DELETE", "/api/v1/collections/" + encodeURIComponent(collection.slug));
-          location.href = collection.ownerHandle ? "/u.html?u=" + encodeURIComponent(collection.ownerHandle) + "&tab=collections" : "/browse.html";
+          location.href = collection.ownerHandle ? "/u.html?u=" + encodeURIComponent(collection.ownerHandle) + "&tab=collections" : "/collections.html";
         } catch (e) {
           toastError(e);
         }

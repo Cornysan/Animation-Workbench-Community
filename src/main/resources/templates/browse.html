@@ -1,6 +1,7 @@
 <!doctype html>
 <!--
-  Der Katalog.
+  Der Katalog - und seit 2026-09-24 die Startseite ("/"), wie der Reiter
+  "Animations" bei Mixamo. /browse.html leitet hierher weiter.
 
   Er ist die einzige Ansicht, bei der jede gesparte Breite unmittelbar eine
   Karte mehr pro Reihe bedeutet - deshalb `wide` am <main>.
@@ -11,14 +12,17 @@
   hier bleibt, ist das Verfeinern - Sortierung und Schlagworte.
 -->
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments/shell :: head('Browse clips')}"></head>
+<head th:replace="~{fragments/shell :: head('Animations')}"></head>
 <body th:attr="data-signed-in=${user != null}">
 <header th:replace="~{fragments/shell :: header}"></header>
 <main id="main" class="wide">
   <div th:replace="~{fragments/shell :: paused}"></div>
 
-  <h1>Community clips</h1>
-  <p class="lead">Animations shared by Animation Workbench users.</p>
+  <!-- Die eine Zeile Erklaerung, die von der Startseite geblieben ist: wer
+       zum ersten Mal hier ist, erfaehrt, woher die Clips kommen und dass er
+       sie benutzen darf. -->
+  <h1>Animations</h1>
+  <p class="lead">Shared by Animation Workbench users, free to use in your projects.</p>
 
   <div class="filters">
     <div class="segmented" id="sort" role="group" aria-label="Sort"></div>

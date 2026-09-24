@@ -497,6 +497,13 @@ img.avatar { object-fit: cover; padding: 0; background: var(--surface-2); }
   .header-account { margin-left: auto; }
   .site-nav { gap: 0; }
   .header-account .button { padding: 0 14px; font-size: 14px; }
+
+  /* Seit "Collections" als zweiter Reiter oben steht, passte angemeldet
+     "2 messages" nicht mehr in die erste Zeile - der Kontoblock rutschte in
+     eine eigene. Hier steht nur die Zahl; der Satz bleibt im Text (fuer
+     Screenreader) und als Tooltip. */
+  .badge[data-count] { font-size: 0; padding: 3px 8px; }
+  .badge[data-count]::before { content: attr(data-count); font-size: 11.5px; }
 }
 
 /* ── Seitengerüst ──────────────────────────────────────────────────────
@@ -513,8 +520,9 @@ main {
   flex: 1;
 }
 
-/* Der Katalog und die Startseite stellen Ware aus, keinen Fliesstext: dort
-   bedeutet jede zusaetzliche Breite eine Karte mehr pro Reihe. */
+/* Der Katalog (zugleich die Startseite) und die Sammlungen stellen Ware aus,
+   keinen Fliesstext: dort bedeutet jede zusaetzliche Breite eine Karte mehr
+   pro Reihe. */
 main.wide { max-width: var(--page-wide); }
 
 .site-footer {
@@ -888,8 +896,8 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
 
 /* ── Wenn eine Adresse ins Leere fuehrt ────────────────────────────────
    Zwei Dinge muss eine Fehlerseite tun: sagen, was los ist, und einen Weg
-   anbieten. Der Weg fuehrt in den Katalog, nicht auf die Startseite - wer
-   einen Clip gesucht hat, sucht weiter Clips.
+   anbieten. Der Weg fuehrt in den Katalog, der zugleich die Startseite ist -
+   wer einen Clip gesucht hat, sucht weiter Clips.
 --------------------------------------------------------------------------- */
 
 .notfound { padding: 60px 0 40px; max-width: 54ch; }
@@ -1383,149 +1391,14 @@ table.list tr:hover td { background: var(--row-hover); }
   font-variant-numeric: tabular-nums;
 }
 
-/* ── Startseite ─────────────────────────────────────────────────────────
-   Der Katalog beantwortet nicht, was das Portal ist; dafuer ist diese Seite
-   da. Sie borgt sich alles - Karten, Knoepfe, den Viewer - und fuegt nur den
-   Kopf und die drei Schritte hinzu. */
-
-.landing h1::after { content: none; }          /* der Kopf traegt seinen eigenen Rhythmus */
-
-/* Kopf: links der Satz und die Knoepfe, rechts der Umfang.
-   Rechts stand zweimal eine Figur - erst ein herausgegriffener Clip, dann das
-   atmende Mannequin aus der Doku-Site -, und beide zeigten, was die Karten
-   direkt darunter besser zeigen. Ohne sie blieb rechts eine leere Flaeche
-   stehen; die Zahlen fuellen sie mit etwas, das sonst nirgends steht. Beide
-   Spalten sitzen auf derselben Grundlinie (`end`), damit die Zahlen neben den
-   Knoepfen stehen und nicht neben der Ueberschrift schweben.
-   Der Text bleibt auf Lesebreite begrenzt: `main.wide` ist 1640 px, und eine
-   Ueberschrift, die so breit laeuft, liest niemand.
-   Der Strich darunter trennt Kopf und Ware - vorher lag er ueber den Zahlen,
-   mitten im Kopf. */
-.hero {
-  display: grid;
-  grid-template-columns: minmax(0, 760px) auto;
-  justify-content: space-between;
-  align-items: end;
-  gap: 28px 48px;
-  padding: 20px 0 34px;
-  border-bottom: 1px solid var(--line);
-}
-
-.hero-copy { min-width: 0; }
-
-.hero-copy h1 { font-size: clamp(34px, 4.2vw, 52px); margin-bottom: 18px; }
-.hero-copy .lead { font-size: 17px; margin-bottom: 26px; }
-
-/* Hier standen zwei Marken ("Any humanoid avatar", "One .awclip file") - die
-   erste sagte dasselbe wie die Zeile darueber, die zweite stimmte seit dem
-   FBX/GLB-Download nur noch halb. Davor war die Lizenz eine dritte Marke. */
+/* ── Knopfreihe der Fehlerseite ────────────────────────────────────────
+   Hier stand die Startseite: Kopf, Zahlen, zeitweise eine Figur, Reihen mit
+   Clips und Sammlungen, drei Schritte. Seit 2026-09-24 ist der Katalog selbst
+   die Startseite, wie der Reiter "Animations" bei Mixamo. Uebrig ist nur die
+   Knopfreihe, die die Fehlerseite mitbenutzt. */
 
 .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .hero-actions .button { padding: 11px 20px; }
-
-/* Was hier liegt, in drei Zahlen. Ein Portal, das seinen Umfang nicht nennt,
-   laesst jeden Besucher raten, ob sich das Stoebern lohnt. `[hidden]` braucht
-   eine eigene Regel: `display: flex` ueberstimmt das Attribut. */
-.hero-stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px 44px;
-  margin: 0;
-}
-.hero-stats[hidden] { display: none; }
-.hero-stats .stat { display: flex; flex-direction: column; gap: 2px; }
-.hero-stats dt {
-  font-size: 34px;
-  font-weight: 750;
-  line-height: 1.05;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-}
-.hero-stats dd {
-  margin: 0;
-  color: var(--text-faint);
-  font-size: 12.5px;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-/* Schmaler als Text plus Zahlen: untereinander, die Zahlen linksbuendig unter
-   den Knoepfen. */
-@media (max-width: 1100px) {
-  .hero { grid-template-columns: minmax(0, 1fr); justify-content: stretch; }
-}
-
-.hero + .latest { padding-top: 40px; }
-
-/* Der Einstieg fuer alle, die keine Frage mitbringen: die Schlagworte stehen
-   ueber dem Gitter, nicht in einem eigenen Abschnitt weiter unten. Ein
-   Suchfeld beantwortet nur Fragen, die jemand schon hat. */
-.latest .tag-bar { margin: -4px 0 18px; }
-.latest .tag { font-size: 13.5px; padding: 6px 14px; }
-
-/* ── Die drei Schritte ─────────────────────────────────────────────────── */
-
-.section-title { font-size: var(--fs-xl); letter-spacing: -0.02em; margin: 0; }
-
-/* Vorher: eine Ueberschrift ("Three steps, no export pipeline") und drei
-   Karten mit je zwei Zeilen Prosa, zusammen ueber siebzig Woerter - eine
-   Anleitung auf einer Seite, auf der jemand Bewegungen sehen will. Die
-   Erklaerung gehoert in die Doku und in /rules.html.
-
-   Geblieben ist die REIHENFOLGE, als Streifen unter den Karten: drei Symbole,
-   drei kurze Zeilen. Wer den Weg schon kennt, ueberliest ihn in einer Sekunde;
-   wer nicht, weiss danach, dass es drei Schritte sind und keine Pipeline. */
-.how {
-  margin-top: 58px;
-  padding: 24px 0 4px;
-  border-top: 1px solid var(--line);
-}
-
-.steps {
-  list-style: none;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 14px 30px;
-  margin: 0;
-  padding: 0;
-}
-
-.steps li {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--text-dim);
-  font-size: 14.5px;
-}
-.steps b { color: var(--text); font-weight: 650; }
-.steps code { font-size: 13px; }
-
-.step-icon { width: 19px; height: 19px; flex: none; color: var(--accent); }
-
-/* Der Pfeil steht zwischen den Schritten, nicht in ihnen - auf schmalen
-   Fenstern bricht die Reihe um, und dann zeigt er ins Leere. */
-.step-arrow { color: var(--text-faint); flex: none; }
-@media (max-width: 860px) { .step-arrow { display: none; } }
-
-/* ── Neueste Clips ─────────────────────────────────────────────────────── */
-
-.latest { padding: 52px 0 0; }
-.section-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 20px;
-}
-.section-link { color: var(--accent); font-size: 14px; font-weight: 600; }
-
-@media (max-width: 900px) {
-  .hero { padding-top: 4px; }
-  .how { margin-top: 40px; }
-  .latest { padding-top: 36px; }
-}
 
 /* ── Zeichen, Tooltips, Icon-Knoepfe ───────────────────────────────────
    Weniger Wort, mehr Zeichen - und dafuer traegt JEDES Zeichen seinen Satz

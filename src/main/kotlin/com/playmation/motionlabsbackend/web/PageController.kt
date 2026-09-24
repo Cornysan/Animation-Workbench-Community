@@ -89,19 +89,34 @@ class PageController(
     //  -> aktiver Navigationseintrag steht dann an einer Stelle und liest sich
     //  von oben nach unten.
 
+    /**
+     * DER KATALOG IST DIE STARTSEITE - wie bei Mixamo, wo der Reiter
+     * "Animations" die erste Seite ist (Pablo, 2026-09-24). Dazwischen stand
+     * eine eigene Startseite mit Kopf, Zahlen und zeitweise einer Figur; wer
+     * herkam, wollte trotzdem zuerst die Clips sehen.
+     */
     @GetMapping("/", "/index.html")
-    fun landing(model: Model) = view(model, "landing", active = "home")
+    fun animations(model: Model) = view(model, "browse", active = "animations")
 
     /**
-     * Der Katalog lag bis zur Startseite auf „/". Er zieht um, nicht weg: „/"
-     * gibt es weiter, also bricht kein Link - nur steht dort jetzt zuerst,
-     * was das Portal ueberhaupt ist.
+     * Die alte Adresse des Katalogs. Sie steht in Discord-Nachrichten und als
+     * `?author=`/`?tag=`-Link in Umlauf, also leitet sie weiter - samt
+     * Abfrage, damit ein Filter-Link seinen Filter behaelt. Der Pfad ist fest
+     * "/", aus der Abfrage wird also nie ein fremdes Ziel.
      */
     @GetMapping("/browse.html")
-    fun browse(model: Model) = view(model, "browse", active = "browse")
+    fun browse(request: HttpServletRequest): String =
+        "redirect:/" + (request.queryString?.let { "?$it" } ?: "")
 
     /**
-     * Der Clip liegt unter „Browse" - man kommt aus dem Katalog hierher.
+     * Der zweite Reiter oben: alle oeffentlichen Sammlungen, und wer
+     * angemeldet ist, dazu die eigenen und die der Leute, denen er folgt.
+     */
+    @GetMapping("/collections.html")
+    fun collectionsPage(model: Model) = view(model, "collections", active = "collections")
+
+    /**
+     * Der Clip liegt unter „Animations" - man kommt aus dem Katalog hierher.
      *
      * Die Seite selbst holt ihren Inhalt weiter per JavaScript; der Server
      * liest den Clip hier nur, um die Vorschau des Links zu fuellen. Faellt das
@@ -139,7 +154,7 @@ class PageController(
             ))
         }
 
-        return view(model, "clip", active = "browse")
+        return view(model, "clip", active = "animations")
     }
 
     /**
@@ -193,7 +208,7 @@ class PageController(
             ))
         }
 
-        return view(model, "collection", active = "browse")
+        return view(model, "collection", active = "collections")
     }
 
     /**

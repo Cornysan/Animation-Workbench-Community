@@ -129,15 +129,30 @@
       <small>Community <b class="beta-mark">Beta</b></small>
     </a>
 
+    <!--
+      ZWEI REITER WIE BEI MIXAMO: "Animations" ist der Katalog und zugleich
+      die Startseite, "Collections" die Sammlungen. Vorher hiess der erste
+      "Browse" und lag auf /browse.html, davor stand eine eigene Startseite.
+      Der Stern ist dasselbe Zeichen wie an jeder Karte - "in eine Sammlung".
+    -->
     <nav class="site-nav">
-      <a href="/browse.html" title="Browse" class="nav-item"
-         th:classappend="${active == 'browse'} ? ' active'">
+      <a href="/" title="Animations" class="nav-item"
+         th:classappend="${active == 'animations'} ? ' active'">
         <svg viewBox="0 0 24 24" class="nav-icon" aria-hidden="true" fill="none" stroke="currentColor"
              stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
           <path d="M4 4h6v6H4z"></path><path d="M14 4h6v6h-6z"></path>
           <path d="M4 14h6v6H4z"></path><path d="M14 14h6v6h-6z"></path>
         </svg>
-        <span>Browse</span>
+        <span>Animations</span>
+      </a>
+
+      <a href="/collections.html" title="Collections" class="nav-item"
+         th:classappend="${active == 'collections'} ? ' active'">
+        <svg viewBox="0 0 24 24" class="nav-icon" aria-hidden="true" fill="none" stroke="currentColor"
+             stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
+          <path d="m12 4.5 2.3 4.7 5.2.8-3.8 3.6.9 5.2-4.6-2.5-4.6 2.5.9-5.2-3.8-3.6 5.2-.8z"></path>
+        </svg>
+        <span>Collections</span>
       </a>
 
       <!--
@@ -192,7 +207,7 @@
       Katalog liest `q` ohnehin schon aus der Adresse. Die Taste "/" setzt den
       Fokus hierher (app.js).
     -->
-    <form class="header-search" action="/browse.html" method="get" role="search">
+    <form class="header-search" action="/" method="get" role="search">
       <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
            stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round">
         <circle cx="11" cy="11" r="7"></circle><path d="M16.5 16.5L21 21"></path>
@@ -229,8 +244,10 @@
       </button>
 
       <div class="account" th:if="${user != null}">
+        <!-- `data-count`: auf dem Telefon steht nur die Zahl (app.css). -->
         <a class="badge" href="/me.html" title="Notifications"
-           th:if="${user.unread > 0}" th:text="${user.unreadLabel}">1 message</a>
+           th:if="${user.unread > 0}" th:attr="data-count=${user.unread}"
+           th:text="${user.unreadLabel}">1 message</a>
         <!--
           Der eigene Name fuehrt aufs eigene PROFIL, nicht ins private Fach:
           "wie sehen mich die anderen" ist die Frage, die man sich beim Klick

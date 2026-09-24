@@ -54,7 +54,7 @@
   document.getElementById("clip-sub").textContent = sub.join("  ·  ");
 
   document.getElementById("tags").replaceChildren(
-    ...clip.tags.map((tag) => el("a", { class: "tag", href: "/browse.html?tag=" + encodeURIComponent(tag) }, tag)));
+    ...clip.tags.map((tag) => el("a", { class: "tag", href: "/?tag=" + encodeURIComponent(tag) }, tag)));
 
   //  Die Nachbarschaft braucht nur die Schlagworte - sie wartet nicht auf
   //  das Konto.
