@@ -12,22 +12,27 @@
 <head th:replace="~{fragments/shell :: head('Sign in')}"></head>
 <body th:attr="data-signed-in=${user != null}">
 <header th:replace="~{fragments/shell :: header}"></header>
-<main id="main">
+<main id="main" class="signin-page">
   <div th:replace="~{fragments/shell :: paused}"></div>
-  <div class="panel prose signin-panel">
+  <!--
+    Eine Karte in der Mitte statt eines Kastens am linken Rand: diese Seite
+    ist ein Ziel, auf das umgeleitet wird (die Kontoseite ohne Sitzung, ein
+    abgelaufener Link aus der Workbench), und sie soll dann aussehen wie ein
+    Eingang und nicht wie ein Absatz.
+  -->
+  <div class="signin-card">
+    <img class="signin-mark" th:src="|${@buildStamp.assets}/brand/aw-mark-dark.svg|" alt="" width="44" height="44">
     <h1>Sign in</h1>
+    <p class="signin-lead" th:if="${user == null}" th:text="${signInContinue} ?: 'to the Animation Workbench Community'">to the Animation Workbench Community</p>
 
     <div class="notice error" th:if="${signInError != null}" th:text="${signInError}">Sign-in did not work.</div>
 
     <th:block th:if="${user != null}">
-      <p class="lead">You are signed in as <strong th:text="${user.displayName}">Name</strong>.</p>
-      <p><a class="button" href="/me.html">Your account</a></p>
+      <p class="signin-note">You are signed in as <strong th:text="${user.displayName}">Name</strong>.</p>
+      <div class="signin-options"><a class="button primary" href="/me.html">Your account</a></div>
     </th:block>
 
     <th:block th:if="${user == null}">
-      <p class="lead">Pick the account you want to sign in with. The portal never asks for your email
-        address.</p>
-
       <div class="signin-options" th:unless="${signInProviders.isEmpty() and !devLogin}">
         <a class="button signin-option" th:each="provider : ${signInProviders}" th:href="${provider.authorizationUrl}">
           <th:block th:replace="~{fragments/signin :: icon(${provider.id})}"></th:block>
@@ -40,12 +45,15 @@
       </div>
       <p class="faint small" th:if="${signInProviders.isEmpty() and !devLogin}">Sign-in is not set up on this portal.</p>
 
-      <p class="muted small">
-        A new account takes its name and picture from the account you sign up with.
+      <p class="signin-note">
+        The portal never asks for your email address. A new account takes its name and picture
+        from the account you sign up with.
+      </p>
+      <p class="signin-note">
         Been here before? Use the same one as last time - you can connect the others later under
         <em>Your account</em>, and then any of them gets you in.
       </p>
-      <p class="muted small">
+      <p class="signin-note faint">
         By signing in you accept the <a href="/terms.html">terms</a>.
         What is stored: see <a href="/privacy.html">privacy</a>.
       </p>

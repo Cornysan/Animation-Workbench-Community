@@ -95,6 +95,10 @@ data class PortalProperties(
         val editorTokenDays: Long = 90,
         val editorLinkMinutes: Long = 10,
         val downloadLinkSeconds: Long = 300,
+        /** "Angemeldet bleiben" im Browser, gezaehlt ab dem letzten Besuch. */
+        val browserLoginDays: Long = 30,
+        /** So lange gilt der Code, mit dem die Workbench den Browser anmeldet. */
+        val handoffSeconds: Long = 60,
     )
 
     /** Als `anbieter:kennung` - siehe [adminDiscordIds]. */

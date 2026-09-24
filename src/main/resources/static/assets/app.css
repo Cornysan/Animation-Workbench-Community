@@ -1292,6 +1292,51 @@ table.list tr:hover td { background: var(--row-hover); }
 .signin-option { justify-content: flex-start; gap: 12px; min-height: 46px; padding: 0 18px; }
 .provider-icon { width: 20px; height: 20px; flex: none; }
 
+/* Die Anmeldeseite selbst: eine Karte in der Mitte, dahinter derselbe
+   violette Schein wie unter den Figuren. Hierher wird umgeleitet - von der
+   Kontoseite ohne Sitzung, von einem abgelaufenen Link aus der Workbench -,
+   also soll sie aussehen wie ein Eingang. */
+.signin-page {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: clamp(24px, 7vh, 72px);
+  padding-bottom: 48px;
+}
+.signin-page::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 420px;
+  background: radial-gradient(38% 60% at 50% 0%, var(--accent-soft), transparent 70%);
+  pointer-events: none;
+}
+.signin-card {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  padding: 34px 32px 26px;
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--highlight), var(--shadow);
+}
+.signin-mark { display: block; margin: 0 auto 18px; }
+:root[data-theme="light"] .signin-mark { content: url("brand/aw-mark-tinte.svg"); }
+.signin-card h1 { margin: 0 0 6px; }
+.signin-card h1::after { content: none; }
+.signin-lead { color: var(--text-dim); margin: 0 0 22px; }
+.signin-card .notice { text-align: left; margin: 0 0 18px; }
+.signin-card .signin-options { max-width: none; margin: 0 0 22px; }
+.signin-card .signin-option { justify-content: center; }
+.signin-note { font-size: 13px; color: var(--text-dim); margin: 0 0 10px; }
+.signin-note.faint { color: var(--text-faint); margin-bottom: 0; }
+@media (max-width: 520px) {
+  .signin-card { padding: 26px 18px 20px; border-radius: var(--radius); }
+}
+
 /* Die Rueckkehr vom Anbieter springt hierher (#sign-ins) - ohne Abstand
    laege die Ueberschrift unter dem festen Seitenkopf. */
 #sign-ins { scroll-margin-top: 110px; }

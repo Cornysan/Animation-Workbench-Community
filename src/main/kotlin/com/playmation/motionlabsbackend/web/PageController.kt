@@ -9,7 +9,10 @@ import com.playmation.motionlabsbackend.collection.CollectionVisibility
 import com.playmation.motionlabsbackend.config.PortalProperties
 import com.playmation.motionlabsbackend.format.AwclipSchema
 import com.playmation.motionlabsbackend.profile.ProfileService
+import jakarta.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletResponse
 import org.springframework.security.core.Authentication
+import org.springframework.security.web.savedrequest.HttpSessionRequestCache
 import org.springframework.stereotype.Controller
 import org.springframework.ui.Model
 import org.springframework.web.bind.annotation.GetMapping
@@ -217,11 +220,28 @@ class PageController(
      * allgemeinen Satz, nie den Text aus der Adresse.
      */
     @GetMapping("/signin.html")
-    fun signIn(@RequestParam(name = "error", required = false) error: String?, model: Model): String {
+    fun signIn(
+        @RequestParam(name = "error", required = false) error: String?,
+        model: Model,
+        request: HttpServletRequest,
+        response: HttpServletResponse,
+    ): String {
+        //  Kam man von einer Seite, die ein Konto braucht, sagt die Zeile
+        //  unter der Ueberschrift, wohin es danach geht. Spring hat die
+        //  Adresse gemerkt (SecurityConfig) und fuehrt nach der Anmeldung
+        //  dorthin zurueck.
+        val saved = HttpSessionRequestCache().getRequest(request, response)?.redirectUrl
+        model.addAttribute("signInContinue", when {
+            saved == null -> null
+            "/me.html" in saved -> "to open your account"
+            else -> "to continue where you were"
+        })
+
         model.addAttribute("signInError", error?.let {
             when (it) {
                 "cancelled" -> "Sign-in was cancelled. Pick a way to sign in whenever you are ready."
                 "banned" -> "This account is banned."
+                "handoff" -> "That sign-in link has run out or was already used. Sign in below, or open your account from the Workbench again."
                 else -> "Sign-in did not work. Try again, or pick another way."
             }
         })

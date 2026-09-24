@@ -47,6 +47,7 @@ class SecurityConfig {
         tokenFilter: BearerTokenFilter,
         killSwitchFilter: KillSwitchFilter,
         portalUserService: PortalUserService,
+        rememberMe: PortalRememberMeServices,
     ): SecurityFilterChain {
         val safeMethods = setOf("GET", "HEAD", "OPTIONS", "TRACE")
 
@@ -159,6 +160,15 @@ class SecurityConfig {
                 userInfoEndpoint { userService = portalUserService }
                 authenticationSuccessHandler = SignInSuccessHandler()
                 authenticationFailureHandler = SignInFailureHandler()
+            }
+            //  Angemeldet bleiben: endet die Sitzung (Leerlauf, Neustart,
+            //  Browser zu), meldet das Cookie den Browser wieder an - mit dem
+            //  Konto, wie es jetzt ist. Siehe PortalRememberMeServices. Spring
+            //  haengt den Dienst an die Anbieter-Anmeldung (loginSuccess) und
+            //  ans Abmelden (er ist auch ein LogoutHandler).
+            rememberMe {
+                rememberMeServices = rememberMe
+                key = PortalRememberMeServices.KEY
             }
             logout {
                 logoutUrl = "/logout"
