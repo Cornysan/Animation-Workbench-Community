@@ -79,7 +79,8 @@ class PackageController(private val catalog: CatalogService) {
     /**
      * Upload eines neuen Pakets. Multipart: `file` (.awclip) plus die Erklärung
      * als einzelne Felder - so bleibt der Aufruf aus Unity ein schlichtes
-     * WWWForm ohne JSON-Teil.
+     * WWWForm ohne JSON-Teil. `restPose` ist die T-Pose der Quellfigur als
+     * JSON-Text, nur wenn `/status` sie verlangt - siehe [RestPose].
      */
     @PostMapping("/packages", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun upload(
@@ -87,12 +88,13 @@ class PackageController(private val catalog: CatalogService) {
         @RequestParam("declarationText", required = false) declarationText: String?,
         @RequestParam("declarationVersion", required = false) declarationVersion: Int?,
         @RequestParam("declarationAccepted", required = false, defaultValue = "false") declarationAccepted: Boolean,
+        @RequestParam("restPose", required = false) restPose: String?,
         authentication: Authentication?,
         request: HttpServletRequest,
     ): ResponseEntity<PackageDetail> =
         ResponseEntity.status(HttpStatus.CREATED).body(
             catalog.upload(authentication.requirePrincipal(), file.bytes, declarationText, declarationVersion,
-                declarationAccepted, request.clientIp(), null)
+                declarationAccepted, request.clientIp(), null, restPose)
         )
 
     @PostMapping("/packages/{slug}/versions", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
@@ -102,12 +104,13 @@ class PackageController(private val catalog: CatalogService) {
         @RequestParam("declarationText", required = false) declarationText: String?,
         @RequestParam("declarationVersion", required = false) declarationVersion: Int?,
         @RequestParam("declarationAccepted", required = false, defaultValue = "false") declarationAccepted: Boolean,
+        @RequestParam("restPose", required = false) restPose: String?,
         authentication: Authentication?,
         request: HttpServletRequest,
     ): ResponseEntity<PackageDetail> =
         ResponseEntity.status(HttpStatus.CREATED).body(
             catalog.upload(authentication.requirePrincipal(), file.bytes, declarationText, declarationVersion,
-                declarationAccepted, request.clientIp(), slug)
+                declarationAccepted, request.clientIp(), slug, restPose)
         )
 
     /** Titel, Beschreibung, Schlagworte, Sichtbarkeit - nur der Besitzer. */

@@ -99,12 +99,16 @@ class PortalFlowTest {
         return out.toByteArray()
     }
 
-    private fun upload(token: String, bytes: ByteArray, declarationText: String = Declaration.TEXT, accepted: Boolean = true): ResultActionsDsl =
+    private fun upload(
+        token: String, bytes: ByteArray, declarationText: String = Declaration.TEXT, accepted: Boolean = true,
+        restPose: String? = null,
+    ): ResultActionsDsl =
         mvc.multipart("/api/v1/packages") {
             file("file", bytes)
             param("declarationText", declarationText)
             param("declarationVersion", Declaration.VERSION.toString())
             param("declarationAccepted", accepted.toString())
+            restPose?.let { param("restPose", it) }
             header("Authorization", "Bearer $token")
         }
 
@@ -162,6 +166,37 @@ class PortalFlowTest {
         // Ohne konfigurierte Discord-App darf die Oberflaeche den Knopf nicht
         // anbieten - er landet sonst auf Discords Fehlerseite.
         assertFalse(status["discordSignIn"].asBoolean())
+    }
+
+    /**
+     * Die T-Pose der Quellfigur reist neben der Datei und kommt mit der
+     * Vorschau zurueck - ohne sie schreibt der Skelett-Export der Clip-Seite
+     * eine geschaetzte Ruhelage. Eine, die nicht zur Vorschau passt, wird
+     * abgewiesen statt gespeichert.
+     */
+    @Test
+    fun `the rest pose travels next to the file and comes back with the preview`() {
+        assertTrue(mvc.get("/api/v1/status").andExpect { status { isOk() } }.body()["restPoseWanted"].asBoolean())
+
+        val token = login("rest-${unique()}")
+        val slug = upload(token, awclip(0.611), restPose = "[[0,0,0,1],[0,0.7071068,0,0.7071068]]")
+            .andExpect { status { isCreated() } }.body()["slug"].asString()
+        mvc.get("/api/v1/packages/$slug/preview").andExpect {
+            status { isOk() }
+            jsonPath("$.bones[1]") { value("Spine") }
+            jsonPath("$.restRot[0][3]") { value(1) }
+            jsonPath("$.restRot[1][1]") { value(0.7071068) }
+        }
+
+        val without = uploadOk(token, awclip(0.612))
+        mvc.get("/api/v1/packages/$without/preview").andExpect { jsonPath("$.restRot") { doesNotExist() } }
+
+        for (bad in listOf("[[0,0,0,1]]", "[[0,0,0,1],[0,0,0,2]]", "[[0,0,0,1],[0,0,1]]", "not json")) {
+            upload(token, awclip(0.613), restPose = bad).andExpect {
+                status { isBadRequest() }
+                jsonPath("$.error.code") { value("invalid-rest-pose") }
+            }
+        }
     }
 
     @Test

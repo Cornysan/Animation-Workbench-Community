@@ -61,6 +61,13 @@ class StatusController(
         val devLogin: Boolean,
         /** Welcher Stand antwortet hier - siehe [BuildStamp]. */
         val build: BuildInfo,
+        /**
+         * Ob der Upload die T-Pose der Quellfigur mitschicken soll (Feld
+         * `restPose`, siehe [com.playmation.motionlabsbackend.format.RestPose]).
+         * Ohne diese Zusage schickt die Workbench sie nicht - so konnte sie das
+         * Feld schon mitbringen, bevor ein Server es annahm.
+         */
+        val restPoseWanted: Boolean,
     )
 
     data class BuildInfo(val number: String, val commit: String, val time: String)
@@ -74,6 +81,7 @@ class StatusController(
         signInProviders = providers.enabled.map { it.id },
         devLogin = portal.devLogin,
         build = BuildInfo(build.number, build.commit, build.time),
+        restPoseWanted = true,
     )
 
     /**

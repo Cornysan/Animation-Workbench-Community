@@ -15,12 +15,25 @@
  *   preview.rotations  die Drehung je Bild, LOKAL                -> channel "rotation"
  *   preview.hips[f]    die Wurzel je Bild, in Weltkoordinaten    -> channel "translation"
  *
- * Es gibt also nichts umzurechnen und nichts zu retargeten. Beide Seiten
- * rechnen in Metern, beide rechtshaendig mit Y nach oben - die Spiegelung,
- * die eine Unity-Datei braucht, ist beim Schreiben der Vorschau laengst
- * passiert. Was hier steht, ist Buchhaltung: Zahlen in Puffer, Puffer in
- * Ansichten, Ansichten in einen Container.
+ * Nichts zu retargeten - aber EINE Umrechnung. Hier stand bis zum 2026-09-24,
+ * beide Seiten seien rechtshaendig und die Spiegelung beim Schreiben der
+ * Vorschau laengst passiert. Das stimmte nie: die Vorschau steht in Unitys
+ * Raum, und der ist linkshaendig (`AWClipPreviewBaker` sagt es so). Die Datei
+ * kam seitenverkehrt an. Gespiegelt wird jetzt an der YZ-Ebene - Punkte
+ * (-x, y, z), Drehungen (x, -y, -z, w) -, denn glTF will die Vorderseite bei
+ * +Z, und dort steht sie in Unity auch; Unitys glTF-Importeure spiegeln
+ * genau so zurueck.
+ *
+ * Und eine Ruhelage: die T-Pose der Quellfigur als `node.rotation`, siehe
+ * `rest-pose.js`. Ohne sie ruht das Skelett mit lauter Einheitsdrehungen -
+ * eine Figur, die auf einer Geraden liegt.
  */
+
+import { restPose } from './rest-pose.js';
+
+/** Unity -> glTF: an der YZ-Ebene gespiegelt. */
+const point = (v) => [-v[0], v[1], v[2]];
+const turn = (q) => [q[0], -q[1], -q[2], q[3]];
 
 const MAGIC = 0x46546c67;        // "glTF"
 const CHUNK_JSON = 0x4e4f534a;   // "JSON"
@@ -135,10 +148,10 @@ export function skeletonGlb(preview, options = {}) {
     min: [times[0]], max: [times[frames - 1]],
   });
 
-  const nodes = bones.map((bone, i) => {
-    const rest = preview.rest[i];
-    return { name: bone, translation: [rest[0], rest[1], rest[2]], children: [] };
-  });
+  const rest = restPose(preview).rotations;
+  const nodes = bones.map((bone, i) => ({
+    name: bone, translation: point(preview.rest[i]), rotation: turn(rest[i]), children: [],
+  }));
   parents.forEach((parent, i) => { if (parent >= 0) nodes[parent].children.push(i); });
   for (const node of nodes) if (node.children.length === 0) delete node.children;
 
@@ -146,15 +159,11 @@ export function skeletonGlb(preview, options = {}) {
   const channels = [];
 
   //  Eine Drehspur je Knochen. Die Werte stehen in der Vorschau schon lokal
-  //  und in der Reihenfolge x,y,z,w - genau so, wie glTF sie erwartet.
+  //  und in der Reihenfolge x,y,z,w - glTF will nur die andere Haendigkeit.
   for (let i = 0; i < bones.length; i++) {
     const values = new Float32Array(frames * 4);
     for (let f = 0; f < frames; f++) {
-      const row = preview.rotations[f];
-      values[f * 4] = row[i * 4];
-      values[f * 4 + 1] = row[i * 4 + 1];
-      values[f * 4 + 2] = row[i * 4 + 2];
-      values[f * 4 + 3] = row[i * 4 + 3];
+      values.set(turn(preview.rotations[f].slice(i * 4, i * 4 + 4)), f * 4);
     }
     samplers.push({ input: timeAccessor, output: buffer.accessor(values, 'VEC4', frames), interpolation: 'LINEAR' });
     channels.push({ sampler: samplers.length - 1, target: { node: i, path: 'rotation' } });
@@ -163,11 +172,7 @@ export function skeletonGlb(preview, options = {}) {
   //  Und die Wurzel wandert. Ohne diese Spur laeuft jeder Schritt auf der
   //  Stelle - die Beine gehen, die Figur kommt nicht vom Fleck.
   const roots = new Float32Array(frames * 3);
-  for (let f = 0; f < frames; f++) {
-    roots[f * 3] = preview.hips[f][0];
-    roots[f * 3 + 1] = preview.hips[f][1];
-    roots[f * 3 + 2] = preview.hips[f][2];
-  }
+  for (let f = 0; f < frames; f++) roots.set(point(preview.hips[f]), f * 3);
   samplers.push({ input: timeAccessor, output: buffer.accessor(roots, 'VEC3', frames), interpolation: 'LINEAR' });
   channels.push({ sampler: samplers.length - 1, target: { node: 0, path: 'translation' } });
 

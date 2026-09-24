@@ -14,6 +14,7 @@ import com.playmation.motionlabsbackend.format.AwclipHash
 import com.playmation.motionlabsbackend.format.AwclipReadResult
 import com.playmation.motionlabsbackend.format.AwclipReader
 import com.playmation.motionlabsbackend.format.AwclipSchema
+import com.playmation.motionlabsbackend.format.RestPose
 import com.playmation.motionlabsbackend.format.StrictJson
 import com.playmation.motionlabsbackend.profile.ProfileService
 import com.playmation.motionlabsbackend.storage.BlobStore
@@ -160,6 +161,8 @@ class CatalogService(
      * Duplikat- und Wiederupload-Sperre → veröffentlichen.
      *
      * @param targetSlug null = neues Paket, sonst neue Version eines eigenen.
+     * @param restPose die T-Pose der Quellfigur, falls der Client sie schickt -
+     *   siehe [RestPose]. Sie landet in der Vorschau, nicht in der Datei.
      */
     @Transactional
     fun upload(
@@ -170,6 +173,7 @@ class CatalogService(
         declarationAccepted: Boolean,
         ip: String,
         targetSlug: String?,
+        restPose: String? = null,
     ): PackageDetail {
         if (!settings.uploadsEnabled()) throw PortalException.unavailable("Uploads are paused right now.")
 
@@ -209,6 +213,15 @@ class CatalogService(
                 "unsupported-rig",
                 "The community takes humanoid clips only for now. This one animates its own skeleton.")
 
+        //  Passt die T-Pose nicht zur Vorschau, ist beim Client etwas schief.
+        //  Dann lieber abweisen, bevor irgendetwas gespeichert ist, als einen
+        //  Clip zu behalten, dessen Skelett-Export still falsch steht.
+        val preview = doc.preview?.let { preview ->
+            if (restPose == null) preview
+            else RestPose.attach(preview, restPose) ?: throw PortalException.badRequest(
+                "invalid-rest-pose", "The rest pose sent with the clip does not fit its preview.")
+        }
+
         val hash = AwclipHash.compute(doc)
         checkNotAlreadyThere(hash, account.id)
 
@@ -221,7 +234,7 @@ class CatalogService(
         }
 
         val blobKey = blobs.put(bytes)
-        val previewKey = doc.preview?.let { blobs.put(StrictJson.write(it).toByteArray(Charsets.UTF_8)) }
+        val previewKey = preview?.let { blobs.put(StrictJson.write(it).toByteArray(Charsets.UTF_8)) }
         val manifest = doc.manifest
 
         val pkg = existing ?: AnimationPackage(

@@ -27,6 +27,18 @@
  *           3ds Max und Mixamo ausgeben, und die Unity und Blender beide
  *           richtig umrechnen. Unsere Zahlen stehen in Metern, also mal 100.
  *
+ * UND DIE EINE, DIE BIS ZUM 2026-09-24 FEHLTE: die Haendigkeit. Die Vorschau
+ * steht in Unitys Raum, und der ist linkshaendig; FBX ist rechtshaendig.
+ * Unitys Importeur spiegelt beim Einlesen an der YZ-Ebene (x kippt), also
+ * spiegelt der Schreiber genau so - Punkte (-x, y, z), Drehungen
+ * (x, -y, -z, w) - und die Runde durch Unity ist die Identitaet. Ohne das kam
+ * jede Figur seitenverkehrt an: der linke Arm rechts, Wirbelsaeule und Kopf
+ * gegensinnig verdreht.
+ *
+ * DIE RUHELAGE ist die T-Pose der Quellfigur, nicht Bild 0 - Unity baut den
+ * Avatar einer importierten Datei aus ihr. Woher sie kommt, steht in
+ * `rest-pose.js`.
+ *
  * Was `.glb` hier besser kann: nichts. Was `.fbx` besser kann: ein Skelett
  * OHNE Netz. glTF kennt Knochen nur ueber eine Haut, und eine Haut braucht
  * ein Netz - ein Skelett allein kommt dort als Haufen leerer Knoten an. FBX
@@ -34,6 +46,7 @@
  */
 
 import { Euler, Quaternion } from './vendor/three.module.js';
+import { restPose } from './rest-pose.js';
 
 /** FBX-Zeiteinheiten je Sekunde. */
 const TIME_UNIT = 46186158000;
@@ -46,6 +59,29 @@ const KEY_FLAGS = 8456;
 
 const VERSION = 7400;
 const DEG = 180 / Math.PI;
+
+/** Unity -> FBX: an der YZ-Ebene gespiegelt, so wie Unitys Importeur zurueckspiegelt. */
+const point = (v) => [-v[0] * TO_CM, v[1] * TO_CM, v[2] * TO_CM];
+const turn = (q) => new Quaternion(q[0], -q[1], -q[2], q[3]).normalize();
+
+/**
+ * Unter den gleichwertigen Euler-Tripeln das, das dem vorigen Bild am
+ * naechsten liegt: jeder Winkel um volle Umdrehungen verschoben, und die
+ * zweite Loesung (x + 180, 180 - y, z + 180) dazu. Ein Leser, der zwischen den
+ * Schluesseln in Euler-Winkeln interpoliert (Blender), dreht sonst bei jedem
+ * Sprung von 179 auf -179 Grad einmal ganz herum.
+ */
+function nearestEuler(previous, e) {
+  const turns = (a, to) => a + 2 * Math.PI * Math.round((to - a) / (2 * Math.PI));
+  let best = null;
+  let bestDistance = Infinity;
+  for (const c of [[e.x, e.y, e.z], [e.x + Math.PI, Math.PI - e.y, e.z + Math.PI]]) {
+    const v = c.map((a, k) => turns(a, previous[k]));
+    const distance = v.reduce((sum, a, k) => sum + (a - previous[k]) ** 2, 0);
+    if (distance < bestDistance) { best = v; bestDistance = distance; }
+  }
+  return best;
+}
 
 /** Der Trenner, mit dem FBX einen Objektnamen von seiner Art trennt. */
 const SEP = String.fromCharCode(0) + String.fromCharCode(1);
@@ -290,22 +326,18 @@ export function skeletonFbx(preview, options) {
     typeof v === 'string' ? P.str(v) : P.long(v))));
 
   const euler = new Euler();
-  const quat = new Quaternion();
-  const eulerAt = (i, f) => {
-    const row = preview.rotations[f];
-    quat.set(row[i * 4], row[i * 4 + 1], row[i * 4 + 2], row[i * 4 + 3]).normalize();
-    euler.setFromQuaternion(quat, 'ZYX');
-    return euler;
-  };
+  const eulerOf = (q) => euler.setFromQuaternion(turn(q), 'ZYX');
+  const eulerAt = (i, f) => eulerOf(preview.rotations[f].slice(i * 4, i * 4 + 4));
+
+  const rest = restPose(preview).rotations;
 
   // ---- Die Knochen ------------------------------------------------------
   bones.forEach((bone, i) => {
-    const rest = preview.rest[i];
-    //  Die Ruhelage bekommt das erste Bild. FBX legt sie in die
-    //  Eigenschaften des Knotens; die Kurven schreiben sie dann ueber, und
-    //  ein Programm, das nur die Ruhepose ansieht, zeigt trotzdem etwas
-    //  Sinnvolles statt einer T-Pose aus Nullen.
-    const e = eulerAt(i, 0);
+    //  Die Ruhelage steht in den Eigenschaften des Knotens, die Kurven
+    //  schreiben sie beim Abspielen ueber. Unity baut den Avatar aus IHR -
+    //  deshalb die T-Pose und nicht Bild 0 (siehe rest-pose.js).
+    const offset = point(preview.rest[i]);
+    const e = eulerOf(rest[i]);
 
     objects.push(node('Model', [
       P.long(modelId[i]), P.str(objectName(bone, 'Model')), P.str('LimbNode'),
@@ -314,8 +346,7 @@ export function skeletonFbx(preview, options) {
       node('Properties70', [], [
         node('P', [P.str('InheritType'), P.str('enum'), P.str(''), P.str(''), P.int(1)]),
         node('P', [P.str('DefaultAttributeIndex'), P.str('int'), P.str('Integer'), P.str(''), P.int(0)]),
-        prop70('Lcl Translation', 'Lcl Translation', '', 'A+',
-          [rest[0] * TO_CM, rest[1] * TO_CM, rest[2] * TO_CM]),
+        prop70('Lcl Translation', 'Lcl Translation', '', 'A+', offset),
         prop70('Lcl Rotation', 'Lcl Rotation', '', 'A+', [e.x * DEG, e.y * DEG, e.z * DEG]),
         prop70('Lcl Scaling', 'Lcl Scaling', '', 'A+', [1, 1, 1]),
       ]),
@@ -403,9 +434,12 @@ export function skeletonFbx(preview, options) {
     const x = new Float32Array(frames);
     const y = new Float32Array(frames);
     const z = new Float32Array(frames);
+    let previous = null;
     for (let f = 0; f < frames; f++) {
       const e = eulerAt(i, f);
-      x[f] = e.x * DEG; y[f] = e.y * DEG; z[f] = e.z * DEG;
+      const v = previous ? nearestEuler(previous, e) : [e.x, e.y, e.z];
+      x[f] = v[0] * DEG; y[f] = v[1] * DEG; z[f] = v[2] * DEG;
+      previous = v;
     }
     track(modelId[i], 'Lcl Rotation', [x, y, z]);
   });
@@ -416,9 +450,7 @@ export function skeletonFbx(preview, options) {
   const ry = new Float32Array(frames);
   const rz = new Float32Array(frames);
   for (let f = 0; f < frames; f++) {
-    rx[f] = preview.hips[f][0] * TO_CM;
-    ry[f] = preview.hips[f][1] * TO_CM;
-    rz[f] = preview.hips[f][2] * TO_CM;
+    [rx[f], ry[f], rz[f]] = point(preview.hips[f]);
   }
   track(modelId[0], 'Lcl Translation', [rx, ry, rz]);
 
