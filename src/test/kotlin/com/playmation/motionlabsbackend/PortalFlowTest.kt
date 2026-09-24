@@ -246,7 +246,9 @@ class PortalFlowTest {
     @Test
     fun `every page url renders`() {
         val pages = listOf(
-            "/", "/index.html", "/browse.html", "/clip.html", "/me.html", "/licenses.html", "/admin.html",
+            //  `/me.html` fehlt mit Absicht: ohne Konto schickt sie zur
+            //  Anmeldeseite (SignInFlowTest).
+            "/", "/index.html", "/browse.html", "/clip.html", "/licenses.html", "/admin.html",
             "/dev.html", "/link.html", "/rules.html", "/terms.html", "/privacy.html",
             "/impressum.html", "/takedown.html",
         )

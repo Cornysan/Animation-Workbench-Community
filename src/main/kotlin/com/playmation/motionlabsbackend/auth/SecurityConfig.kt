@@ -17,6 +17,7 @@ import org.springframework.security.config.annotation.web.invoke
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.HttpStatusEntryPoint
+import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository
 import org.springframework.security.web.csrf.CsrfToken
@@ -137,6 +138,17 @@ class SecurityConfig {
                 authorize("/actuator/health", permitAll)
                 authorize("/actuator/**", denyAll)
 
+                //  DIE KONTOSEITE NUR ANGEMELDET. Ohne Konto zeigte sie eine
+                //  halbe Seite - "Sign in to see your clips." und darunter
+                //  trotzdem "Close my account". Jetzt schickt Spring zur
+                //  Anmeldeseite (`loginPage` unten) und merkt sich die Adresse:
+                //  nach der Rueckkehr vom Anbieter geht es hierher zurueck
+                //  (SignInSuccessHandler erbt das vom SavedRequest-Handler),
+                //  nicht auf die Startseite. So kommt auch an, wer in der
+                //  Workbench "Your account on the portal" waehlt und im Browser
+                //  keine Sitzung mehr hat.
+                authorize(HttpMethod.GET, "/me.html", authenticated)
+
                 authorize(anyRequest, permitAll)
             }
             oauth2Login {
@@ -154,6 +166,17 @@ class SecurityConfig {
             }
             exceptionHandling {
                 defaultAuthenticationEntryPointFor(HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED), RequestMatcher { it.requestURI.startsWith("/api/") })
+                //  Eine SEITE geht zur Anmeldeseite (bisher nur /me.html).
+                //  Ausdruecklich, nicht ueber `loginPage` allein: dessen
+                //  Einstiegspunkt greift nur, wenn die Anfrage `text/html`
+                //  verlangt, und sonst kam ein nacktes 401 - im Test sofort,
+                //  im Betrieb bei jedem Werkzeug, das keinen Accept-Kopf setzt.
+                //  Nur Seiten: der gesperrte Actuator soll weiter 401 sagen und
+                //  nicht auf eine Anmeldung verweisen, die ihn nie oeffnet.
+                defaultAuthenticationEntryPointFor(
+                    LoginUrlAuthenticationEntryPoint("/signin.html"),
+                    RequestMatcher { it.method == "GET" && it.requestURI.endsWith(".html") },
+                )
             }
             headers {
                 contentSecurityPolicy {

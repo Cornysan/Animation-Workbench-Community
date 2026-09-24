@@ -4,10 +4,14 @@
   const state = document.getElementById("state");
   const user = await me().catch(() => null);
 
+  //  Ohne Sitzung kommt niemand mehr hierher - der Server schickt vorher zur
+  //  Anmeldeseite (SecurityConfig). Das hier bleibt fuer den Fall, dass die
+  //  Sitzung zwischen Seite und Abfrage endet, und dann verschwindet ALLES,
+  //  was ein Konto braucht: vorher blieb "Close my account" stehen.
   if (!user) {
-    notice(state, "Sign in to see your clips.");
+    notice(state, "Your sign-in has ended. Sign in again to see your clips.");
     state.append(AW.signInButton("Sign in", true));
-    document.querySelectorAll("h2, table, #revoke, .muted.small").forEach((n) => n.classList.add("hidden"));
+    document.querySelectorAll("h2, table, button.danger, .muted.small").forEach((n) => n.classList.add("hidden"));
     return;
   }
 

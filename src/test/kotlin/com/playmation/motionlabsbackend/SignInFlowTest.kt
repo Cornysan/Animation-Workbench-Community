@@ -12,6 +12,7 @@ import com.playmation.motionlabsbackend.auth.PortalOAuth2User
 import com.playmation.motionlabsbackend.auth.PortalPrincipal
 import com.playmation.motionlabsbackend.auth.PortalUserService
 import com.playmation.motionlabsbackend.auth.SignInFailureHandler
+import com.playmation.motionlabsbackend.auth.SignInSuccessHandler
 import com.playmation.motionlabsbackend.auth.SignInProfiles
 import com.playmation.motionlabsbackend.common.PortalException
 import org.flywaydb.core.Flyway
@@ -24,6 +25,7 @@ import org.springframework.http.MediaType
 import org.springframework.mock.web.MockHttpServletRequest
 import org.springframework.mock.web.MockHttpServletResponse
 import org.springframework.mock.web.MockHttpSession
+import org.springframework.security.authentication.TestingAuthenticationToken
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException
@@ -300,6 +302,28 @@ class SignInFlowTest {
             content { string(org.hamcrest.Matchers.containsString("Sign-in did not work.")) }
             content { string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("boom"))) }
         }
+    }
+
+    /**
+     * Die Kontoseite ohne Sitzung: frueher eine halbe Seite mit "Sign in to
+     * see your clips." - und darunter "Close my account". Jetzt geht es zur
+     * Anmeldeseite, und nach der Rueckkehr vom Anbieter hierher zurueck statt
+     * auf die Startseite. Genau so kommt an, wer in der Workbench "Your
+     * account on the portal" waehlt und im Browser nicht angemeldet ist.
+     */
+    @Test
+    fun `the account page sends a visitor without a session to sign in, and back`() {
+        val result = mvc.get("/me.html").andExpect { status { is3xxRedirection() } }.andReturn()
+        val target = result.response.redirectedUrl!!
+        assertTrue(target.endsWith("/signin.html"), target)
+
+        //  Die Rueckkehr vom Anbieter, in derselben Sitzung.
+        val back = MockHttpServletRequest("GET", "/login/oauth2/code/github")
+        back.setSession(result.request.session as MockHttpSession)
+        val response = MockHttpServletResponse()
+        SignInSuccessHandler().onAuthenticationSuccess(back, response, TestingAuthenticationToken("someone", ""))
+        val home = response.redirectedUrl!!
+        assertTrue("/me.html" in home, home)
     }
 
     @Test
