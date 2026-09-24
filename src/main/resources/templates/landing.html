@@ -27,7 +27,7 @@
   zeigt Clips.
 
   Was an Erklaerung bleibt, ist kurz genug, um im Vorbeigehen gelesen zu
-  werden: eine Zeile unter der Ueberschrift, drei Marken, drei Zahlen.
+  werden: eine Zeile unter der Ueberschrift und drei Zahlen daneben.
 -->
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <!-- Der Rahmen haengt den Portalnamen selbst an; hier stand er noch einmal,
@@ -52,18 +52,11 @@
              dieser Seite, in drei Schritten. -->
         <a class="button" href="#how">How sharing works</a>
       </div>
-
-      <!-- Marken statt Saetze. Die Lizenz war die erste davon - "free to use"
-           steht schon in der Ueberschrift, die Einzelheiten unter "Licenses"
-           im Fuss. -->
-      <ul class="badge-row">
-        <li><span>Any humanoid avatar</span></li>
-        <li><span>One <code>.awclip</code> file</span></li>
-      </ul>
-
-      <!-- Was hier liegt, in drei Zahlen. Leer, solange es nichts zu melden gibt. -->
-      <dl class="hero-stats" id="hero-stats" hidden></dl>
     </div>
+
+    <!-- Was hier liegt, in drei Zahlen - rechts, wo zuletzt die Figur stand.
+         Leer, solange es nichts zu melden gibt. -->
+    <dl class="hero-stats" id="hero-stats" hidden></dl>
   </section>
 
   <section class="latest">

@@ -1390,66 +1390,54 @@ table.list tr:hover td { background: var(--row-hover); }
 
 .landing h1::after { content: none; }          /* der Kopf traegt seinen eigenen Rhythmus */
 
-/* EINE SPALTE, seit die Figur im Kopf weg ist - zum zweiten Mal. Erst stand
-   rechts eine Buehne mit einem herausgegriffenen Clip, dann das atmende
-   Mannequin aus der Doku-Site; beide zeigten, was die Karten direkt darunter
-   besser zeigen. Der Text bleibt auf Lesebreite begrenzt: `main.wide` ist
-   1640 px, und eine Ueberschrift, die so breit laeuft, liest niemand. */
+/* Kopf: links der Satz und die Knoepfe, rechts der Umfang.
+   Rechts stand zweimal eine Figur - erst ein herausgegriffener Clip, dann das
+   atmende Mannequin aus der Doku-Site -, und beide zeigten, was die Karten
+   direkt darunter besser zeigen. Ohne sie blieb rechts eine leere Flaeche
+   stehen; die Zahlen fuellen sie mit etwas, das sonst nirgends steht. Beide
+   Spalten sitzen auf derselben Grundlinie (`end`), damit die Zahlen neben den
+   Knoepfen stehen und nicht neben der Ueberschrift schweben.
+   Der Text bleibt auf Lesebreite begrenzt: `main.wide` ist 1640 px, und eine
+   Ueberschrift, die so breit laeuft, liest niemand.
+   Der Strich darunter trennt Kopf und Ware - vorher lag er ueber den Zahlen,
+   mitten im Kopf. */
 .hero {
-  padding: 16px 0 6px;
+  display: grid;
+  grid-template-columns: minmax(0, 760px) auto;
+  justify-content: space-between;
+  align-items: end;
+  gap: 28px 48px;
+  padding: 20px 0 34px;
+  border-bottom: 1px solid var(--line);
 }
 
-.hero-copy { min-width: 0; max-width: 760px; }
+.hero-copy { min-width: 0; }
 
 .hero-copy h1 { font-size: clamp(34px, 4.2vw, 52px); margin-bottom: 18px; }
 .hero-copy .lead { font-size: 17px; margin-bottom: 26px; }
 
+/* Hier standen zwei Marken ("Any humanoid avatar", "One .awclip file") - die
+   erste sagte dasselbe wie die Zeile darueber, die zweite stimmte seit dem
+   FBX/GLB-Download nur noch halb. Davor war die Lizenz eine dritte Marke. */
+
 .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .hero-actions .button { padding: 11px 20px; }
 
-/* Kurze Marken statt eines Satzes.
-   Hier stand die Lizenz als Prosa: "Everything listed here is CC BY 4.0: use
-   it, change it, ship it commercially - just credit whoever made it." Achtzehn
-   Woerter neben einer Figur, die sich bewegt - gelesen hat sie niemand. Danach
-   war sie eine Marke; seit CC0 sagt die Ueberschrift "free to use" dasselbe,
-   und wer es genau wissen will, findet "Licenses" im Fuss. */
-.badge-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  list-style: none;
-  margin: 22px 0 0;
-  padding: 0;
-}
-.badge-row li { display: flex; }
-.badge-row li > * {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 5px 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
-  background: var(--bg-soft);
-  color: var(--text-dim);
-  font-size: 12.5px;
-  font-weight: 550;
-  white-space: nowrap;
-}
-
 /* Was hier liegt, in drei Zahlen. Ein Portal, das seinen Umfang nicht nennt,
-   laesst jeden Besucher raten, ob sich das Stoebern lohnt. */
+   laesst jeden Besucher raten, ob sich das Stoebern lohnt. `[hidden]` braucht
+   eine eigene Regel: `display: flex` ueberstimmt das Attribut. */
 .hero-stats {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px 34px;
-  margin: 30px 0 0;
-  padding-top: 24px;
-  border-top: 1px solid var(--line);
+  gap: 12px 44px;
+  margin: 0;
 }
-.hero-stats .stat { display: flex; flex-direction: column; gap: 1px; }
+.hero-stats[hidden] { display: none; }
+.hero-stats .stat { display: flex; flex-direction: column; gap: 2px; }
 .hero-stats dt {
-  font-size: 25px;
+  font-size: 34px;
   font-weight: 750;
+  line-height: 1.05;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
 }
@@ -1461,6 +1449,14 @@ table.list tr:hover td { background: var(--row-hover); }
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
+
+/* Schmaler als Text plus Zahlen: untereinander, die Zahlen linksbuendig unter
+   den Knoepfen. */
+@media (max-width: 1100px) {
+  .hero { grid-template-columns: minmax(0, 1fr); justify-content: stretch; }
+}
+
+.hero + .latest { padding-top: 40px; }
 
 /* Der Einstieg fuer alle, die keine Frage mitbringen: die Schlagworte stehen
    ueber dem Gitter, nicht in einem eigenen Abschnitt weiter unten. Ein
