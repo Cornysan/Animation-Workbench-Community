@@ -1,27 +1,12 @@
 /**
- * Die Startseite: ein kurzer Kopf, der Umfang, die Schlagworte und zwei
- * Reihen Karten.
+ * Die Startseite: ein kurzer Kopf, der Umfang, die Schlagworte und bis zu
+ * zwei Reihen Karten.
  *
- * IM KOPF STEHT EINE FIGUR, aber nicht die von frueher. Hier lief einmal ein
- * herausgegriffener Clip; der ist weg geblieben, weil das Gitter darunter
- * dieselbe Frage besser beantwortet - dort laufen alle, und keiner ist
- * willkuerlich gewaehlt. Was jetzt oben rechts steht, ist das Mannequin aus
- * der Doku-Site: prozedural, kein Clip, die Figur selbst als Auskunft.
- *
- * SIE KOMMT IM LEERLAUF, NICHT WAEHREND DES AUFBAUS. Der zweite Grund von
- * damals war, dass die Buehne den ersten WebGL-Kontext der Seite nahm, bevor
- * eine einzige Karte zu sehen war. Der Versuch, sie dafuer HINTER die Karten
- * zu haengen, war ein Denkfehler und ist wieder raus: `card-stage.js` wird
- * erst geholt, wenn eine Karte ins Bild scrollt, und wer nicht scrollt, holt
- * es nie - gemessen auf der Live-Seite, wo es nach sieben Sekunden noch immer
- * nicht angefordert war. Eine Reihenfolge, die es nicht gibt, laesst sich
- * nicht einhalten.
- *
- * Was stattdessen gilt und stimmt: die Figur steht oberhalb der Falz, sie IST
- * das Erste, was jemand sieht, und sie wird im Leerlauf nachgeholt, damit sie
- * sich den Aufbau nicht mit dem HTML und der Uebersichts-Abfrage teilt. Ihr
- * Kontext ist der zweite auf der Seite - und solange niemand bis zu den
- * Karten scrollt, der einzige.
+ * KEINE FIGUR IM KOPF, KEINE SAMMLUNGEN (2026-09-24). Oben rechts stand
+ * zuletzt das Mannequin aus der Doku-Site (`hero-stage.js`), weiter unten
+ * eine Reihe oeffentlicher Sammlungen. Beides ist raus: die Karten zeigen die
+ * Figur ohnehin, und zwar mit echten Clips, und Sammlungen stehen auf den
+ * Profilen. Die Startseite zeigt Clips.
  *
  * JEDER ABSCHNITT STEHT FUER SICH. Faellt einer aus, fehlt er - die anderen
  * merken nichts davon. Eine Startseite, die an einer misslungenen Abfrage ganz
@@ -91,46 +76,6 @@ async function mountRow(sort, containerId, sectionId, stateId, page = null) {
   if (sectionId) document.getElementById(sectionId).hidden = false;
 }
 
-/**
- * Die Figur im Kopf.
- *
- * Erst fragen, ob sie ueberhaupt sichtbar ist: unter 900 px blendet das
- * Stylesheet sie aus, und dann waere schon das Laden des Moduls und der 326
- * KiB Mannequin verschwendet. `clientWidth` ist dafuer die ehrliche Frage -
- * sie ist 0, wenn `display: none` gilt, egal aus welchem Grund.
- */
-function mountHeroStage() {
-  const frame = document.getElementById('hero-stage');
-  const canvas = document.getElementById('hero-stage-canvas');
-  if (!frame || !canvas || !frame.clientWidth) return;
-
-  import('../hero-stage.js')
-    .then(({ createStage }) => {
-      const stage = createStage(canvas, {
-        modelUrl: new URL('../models/aw-mannequin.glb', import.meta.url).href,
-        onReady: () => frame.classList.add('is-ready'),
-        onError: (error) => console.warn('[landing] mannequin unavailable', error),
-      });
-
-      //  Eine Buehne, die niemand ansieht, soll kein Bild anfordern.
-      if (typeof IntersectionObserver === 'function') {
-        new IntersectionObserver(
-          ([entry]) => stage.setOnScreen(entry.isIntersecting),
-          { rootMargin: '120px' },
-        ).observe(frame);
-      }
-    })
-    //  Kein WebGL, kein Modell, kein Drama: der Schein aus CSS steht schon da
-    //  und bleibt stehen.
-    .catch((error) => console.warn('[landing] hero stage unavailable', error));
-}
-
-/** Im Leerlauf, sonst nach einem Zug der Ereignisschleife. */
-function whenIdle(run) {
-  if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 2000 });
-  else setTimeout(run, 200);
-}
-
 mountOverview().catch((error) => console.warn('[landing] no overview', error));
 
 AW.placeholderCards(document.getElementById('latest'), 6);
@@ -139,9 +84,6 @@ mountRow('new', 'latest', null, 'latest-state')
     document.getElementById('latest').replaceChildren();
     notice(document.getElementById('latest-state'), error.message, 'error');
   });
-
-//  Haengt an nichts: die Figur ist ihr eigener Abschnitt wie jeder andere hier.
-whenIdle(mountHeroStage);
 
 //  Die zweite Reihe erscheint nur, wenn sie etwas anderes zeigt als die erste.
 //  Im jungen Katalog sind "neu" und "am meisten benutzt" dieselben sechs Clips,
@@ -152,14 +94,3 @@ api('GET', '/api/v1/packages?sort=popular&size=6').then((page) => {
   if (used.length < 3) return null;
   return mountRow('popular', 'popular', 'popular-section', null, page);
 }).catch((error) => console.warn('[landing] no popular row', error));
-
-//  Die oeffentlichen Sammlungen - nur, wenn es welche gibt, und nur die mit
-//  Inhalt: eine leere Sammlung ist auf der Startseite ein leerer Kasten.
-api('GET', '/api/v1/collections?limit=12').then((all) => {
-  const filled = all.filter((item) => item.items > 0).slice(0, 6);
-  if (!filled.length) return;
-  const observer = AW.previewObserver();
-  document.getElementById('collections').replaceChildren(
-    ...filled.map((item) => AW.collectionCard(item, observer)));
-  document.getElementById('collections-section').hidden = false;
-}).catch((error) => console.warn('[landing] no collections', error));

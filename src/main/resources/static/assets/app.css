@@ -126,11 +126,6 @@
   --on-stage-scrim-strong: rgba(14, 13, 18, 0.84);
   --stage-void: #0e0d12;
 
-  /* Der Boden der Figur auf der Startseite. Anders als die Buehnen steht sie
-     auf der Seite selbst, also folgt ihr Boden dem Thema (hero-stage.js liest
-     den Wert, auch beim Umschalten). Etwas heller als `--bg`, damit er sich
-     abhebt und in der Ferne als Horizont in den Grund uebergeht. */
-  --hero-floor: #1c1a26;
 
   color-scheme: dark;
 }
@@ -196,8 +191,6 @@
   --highlight: inset 0 1px 0 rgba(255, 255, 255, 0.75);
   --glow: 0 0 0 1px var(--accent-line), 0 18px 40px -14px rgba(95, 63, 214, 0.28);
   --scrim: rgba(24, 20, 40, 0.42);
-  /* Auf Hell ein Hauch dunkler als der Grund - heller geht nicht mehr. */
-  --hero-floor: #e9e6f1;
 
   --header-bg: rgba(247, 246, 250, 0.78);
   --row-hover: rgba(24, 20, 40, 0.035);
@@ -1397,86 +1390,16 @@ table.list tr:hover td { background: var(--row-hover); }
 
 .landing h1::after { content: none; }          /* der Kopf traegt seinen eigenen Rhythmus */
 
-/* EINE SPALTE, seit die Figur im Kopf weg ist. Vorher standen hier zwei:
-   links der Text, rechts eine Buehne mit einem herausgegriffenen Clip. Das
-   Gitter zwei Zeilen weiter unten zeigt dieselbe Bewegung in jeder Karte -
-   und zwar alle, statt einer ausgewaehlten. Der Text bleibt auf Lesebreite
-   begrenzt: `main.wide` ist 1640 px, und eine Ueberschrift, die so breit
-   laeuft, liest niemand. */
-/* Kopf: Text links, Figur rechts.
-   Der Text behaelt seine 760 px - eine Zeile, die breiter laeuft, liest sich
-   schlechter, und die Figur soll ihn nicht schmaler machen, sondern den Platz
-   nehmen, der rechts davon ohnehin leer stand. `minmax(0, ...)` in beiden
-   Spalten, weil eine Grid-Spalte sonst ihre Mindestbreite aus dem Inhalt
-   zieht und die Leinwand sich dann nicht mehr verkleinern laesst. */
+/* EINE SPALTE, seit die Figur im Kopf weg ist - zum zweiten Mal. Erst stand
+   rechts eine Buehne mit einem herausgegriffenen Clip, dann das atmende
+   Mannequin aus der Doku-Site; beide zeigten, was die Karten direkt darunter
+   besser zeigen. Der Text bleibt auf Lesebreite begrenzt: `main.wide` ist
+   1640 px, und eine Ueberschrift, die so breit laeuft, liest niemand. */
 .hero {
-  display: grid;
-  grid-template-columns: minmax(0, 760px) minmax(0, 1fr);
-  gap: 24px;
-  align-items: center;
   padding: 16px 0 6px;
 }
 
-.hero-copy { min-width: 0; }
-
-/* Die Buehne bekommt ihre Hoehe aus dem Seitenverhaeltnis, nicht aus dem
-   Inhalt: die Leinwand ist absolut gesetzt und wuerde sonst auf 0 fallen. */
-.hero-stage {
-  position: relative;
-  aspect-ratio: 1 / 1;
-  min-height: 260px;
-  max-height: 380px;
-  justify-self: end;
-  width: 100%;
-  max-width: 420px;
-}
-
-.hero-stage > canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  display: block;
-  /* Bis das Modell steht, ist die Leinwand durchsichtig und der Schein
-     darunter traegt die Flaeche allein. */
-  opacity: 0;
-  transition: opacity 420ms ease;
-  /* Der Boden laeuft bis zum Horizont und damit bis an den Rand der
-     Leinwand - die Seite dahinter hat aber keinen. Ohne Maske stuende dort
-     eine harte Kante; so geht er links, rechts und unten weich in den Grund
-     ueber. OBEN NICHT: dort, knapp unter dem Rand, liegt der Horizont, und
-     eine Maske von allen Seiten nahm genau ihn weg. Darueber ist die
-     Leinwand ohnehin leer. */
-  -webkit-mask-image:
-    linear-gradient(to right, transparent, #000 16%, #000 84%, transparent),
-    linear-gradient(to top, transparent, #000 24%);
-  -webkit-mask-composite: source-in;
-  mask-image:
-    linear-gradient(to right, transparent, #000 16%, #000 84%, transparent),
-    linear-gradient(to top, transparent, #000 24%);
-  mask-composite: intersect;
-}
-.hero-stage.is-ready > canvas { opacity: 1; }
-
-/* Der Rueckfall: derselbe Lichtkegel wie auf der Buehne, nur in CSS. Er
-   verschwindet nicht, wenn die Figur kommt - sie steht darin. */
-.hero-stage-glow {
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(60% 42% at 50% 62%, rgba(78, 66, 130, 0.55), rgba(20, 17, 32, 0) 70%),
-    radial-gradient(28% 18% at 50% 68%, rgba(142, 119, 255, 0.28), rgba(20, 17, 32, 0) 72%);
-  pointer-events: none;
-}
-
-/* Schmale Seiten: die Figur faellt ganz aus.
-   Untereinander gestellt schoebe sie die Karten unter die Falz, und fuer
-   diese Seite gilt "zuerst die Ware". Sie wird dann auch nicht geladen -
-   landing.js fragt die Breite, bevor es das Modul holt. */
-@media (max-width: 900px) {
-  .hero { grid-template-columns: minmax(0, 1fr); }
-  .hero-stage { display: none; }
-}
+.hero-copy { min-width: 0; max-width: 760px; }
 
 .hero-copy h1 { font-size: clamp(34px, 4.2vw, 52px); margin-bottom: 18px; }
 .hero-copy .lead { font-size: 17px; margin-bottom: 26px; }

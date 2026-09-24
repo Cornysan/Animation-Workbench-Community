@@ -16,23 +16,15 @@
   ueber Bewegung liest das niemand. Der Kopf ist deshalb kurz, gleich darunter
   steht das Gitter, und der Weg (drei Schritte) ist ein Streifen am Ende.
 
-  IM KOPF STEHT WIEDER EINE FIGUR - eine ANDERE als die, die hier einmal
-  weggenommen wurde, und aus genau den Gruenden, die sie damals gekostet
-  haben. Der alte Kopf spielte einen herausgegriffenen Clip aus dem Katalog:
-  das beantwortete eine Frage, die das Gitter zwei Zeilen weiter unten besser
-  beantwortet - dort laufen ALLE, und keiner davon ist willkuerlich gewaehlt.
-  Und die Buehne nahm sich den ersten WebGL-Kontext der Seite, bevor
-  ueberhaupt eine Karte zu sehen war.
+  IM KOPF STEHT KEINE FIGUR. Zweimal stand dort eine: erst ein
+  herausgegriffener Clip, dann das atmende Mannequin aus der Doku-Site. Beide
+  zeigten eine Bewegung, die das Gitter direkt darunter besser zeigt - dort
+  laufen ALLE Clips, auf genau dieser Figur. Seit 2026-09-24 ist sie wieder
+  weg (Pablo), und mit ihr `hero-stage.js`.
 
-  Was jetzt dort steht, ist das MANNEQUIN aus der Doku-Site, prozedural: es
-  atmet und verlagert das Gewicht, es spielt nichts ab. Damit faellt der erste
-  Einwand weg - es ist kein ausgewaehlter Clip, sondern die Figur, auf der die
-  Clips laufen, und diese Frage beantwortet kein Kachelgitter. Der zweite
-  Einwand galt einer Buehne, die den Aufbau der Seite aufhielt: diese hier
-  wird im Leerlauf nachgeholt, und ein IntersectionObserver stellt sie still,
-  sobald sie aus dem Bild ist. Auf schmalen Seiten faellt sie ganz aus - dort
-  heisst "zuerst die Ware", dass die Karten oben stehen -, und sie wird dann
-  auch nicht geladen. Das Genauere steht in pages/landing.js.
+  KEINE SAMMLUNGEN. Eine Reihe mit Sammlungen stand hier kurz unter den
+  Clips; sie bleiben auf den Profilen und hinter dem Stern, die Startseite
+  zeigt Clips.
 
   Was an Erklaerung bleibt, ist kurz genug, um im Vorbeigehen gelesen zu
   werden: eine Zeile unter der Ueberschrift, drei Marken, drei Zahlen.
@@ -72,21 +64,6 @@
       <!-- Was hier liegt, in drei Zahlen. Leer, solange es nichts zu melden gibt. -->
       <dl class="hero-stats" id="hero-stats" hidden></dl>
     </div>
-
-    <!--
-      Die Figur. `aria-hidden`, weil sie Schmuck ist: sie traegt keine
-      Aussage, die nicht schon links danebensteht, und vorgelesen waere sie
-      nur ein Hindernis auf dem Weg zu den Knoepfen.
-
-      Der Schein darunter ist CSS und steht sofort. Kommt kein WebGL, kommt
-      das Modell nicht oder bleibt die Leinwand aus irgendeinem Grund leer,
-      bleibt er stehen und die Seite hat kein Loch - dieselbe Vorkehrung wie
-      auf der Doku-Site.
-    -->
-    <div class="hero-stage" id="hero-stage" aria-hidden="true">
-      <div class="hero-stage-glow"></div>
-      <canvas id="hero-stage-canvas"></canvas>
-    </div>
   </section>
 
   <section class="latest">
@@ -111,19 +88,6 @@
       <a class="section-link" href="/browse.html?sort=popular">See all</a>
     </div>
     <div id="popular" class="grid"></div>
-  </section>
-
-  <!--
-    Sammlungen, die jemand oeffentlich zusammengestellt hat. Es gab sie laengst
-    - auf Profilen und hinter dem Stern -, aber keine Stelle, an der man
-    fremde fand. Eine Sammlung ist die Antwort auf "was passt zusammen", und
-    genau das fragt, wer ein Spiel animiert.
-  -->
-  <section class="latest" id="collections-section" hidden>
-    <div class="section-head">
-      <h2 class="section-title">Collections</h2>
-    </div>
-    <div id="collections" class="grid"></div>
   </section>
 
   <!--
