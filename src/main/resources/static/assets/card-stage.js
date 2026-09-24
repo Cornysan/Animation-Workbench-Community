@@ -353,6 +353,8 @@ export async function mountCardStage(canvas, preview, options = {}) {
     surface: sharedSurface(),
     interactive: false,
     autoplay: options.autoplay,
+    //  Nur Boden und Horizont - das Raster gehoert der Clip-Seite.
+    grid: false,
   });
   return new CardPreview(stage.surface, canvas, stage);
 }

@@ -87,8 +87,10 @@ const IDLE = {
 const rad = (deg) => (deg * Math.PI) / 180;
 
 /**
- * The floor: a pose stage grid in a pool of light, drawn once into a canvas so
- * the falloff costs nothing per frame.
+ * The stage: a ring in a pool of light, drawn once into a canvas so the
+ * falloff costs nothing per frame. No grid - the floor under it
+ * ([floorTexture]) runs out to the horizon instead, and a grid on it would
+ * only be noise next to the headline.
  *
  * The fade has to finish well inside the texture. A plane seen at this angle
  * compresses its last stretch of depth into a handful of pixels, so a gradient
@@ -107,19 +109,6 @@ function groundTexture(size = 1024) {
   pool.addColorStop(1, 'rgba(20, 17, 32, 0)');
   ctx.fillStyle = pool;
   ctx.fillRect(0, 0, size, size);
-
-  ctx.strokeStyle = 'rgba(168, 148, 255, 0.55)';
-  ctx.lineWidth = Math.max(1, size / 512);
-  const step = size / 20;
-  ctx.beginPath();
-  for (let i = 0; i <= 20; i++) {
-    const p = Math.round(i * step) + 0.5;
-    ctx.moveTo(p, 0);
-    ctx.lineTo(p, size);
-    ctx.moveTo(0, p);
-    ctx.lineTo(size, p);
-  }
-  ctx.stroke();
 
   ctx.strokeStyle = 'rgba(196, 182, 255, 0.6)';
   ctx.lineWidth = Math.max(1.5, size / 340);
@@ -142,6 +131,49 @@ function groundTexture(size = 1024) {
   return texture;
 }
 
+/**
+ * The floor under everything: full near the figure, running out softly in the
+ * distance. Where it fades into the page, the horizon is - a skybox without
+ * one. White with the coverage in alpha; the colour comes from the page
+ * (`--hero-floor`), because this stage stands on the page itself and the page
+ * can be light or dark.
+ *
+ * Perspective squeezes the last metres into a thin strip just below the
+ * horizon, so the fade sits far out: whatever blends away lands exactly where
+ * floor and sky meet. The canvas edges fade out in CSS (`.hero-stage >
+ * canvas`), or the floor would stop at them in a hard line.
+ */
+function floorTexture(size = 512) {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const mid = size / 2;
+
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, size, size);
+
+  /* Linear in the inverse of the distance, from a quarter of the radius out.
+     On screen a floor point sits 1/distance below the horizon, so this is
+     what makes the coverage rise evenly there - a fade that is even in metres
+     gets its last third squeezed into ten pixels, and the horizon an edge. */
+  const fade = ctx.createRadialGradient(mid, mid, 0, mid, mid, size * 0.48);
+  fade.addColorStop(0, 'rgba(0, 0, 0, 1)');
+  for (let i = 0; i <= 12; i++) {
+    const r = 0.25 + (0.75 * i) / 12;
+    fade.addColorStop(r, `rgba(0, 0, 0, ${((1 / r - 1) / 3).toFixed(3)})`);
+  }
+  ctx.globalCompositeOperation = 'destination-in';
+  ctx.fillStyle = fade;
+  ctx.fillRect(0, 0, size, size);
+
+  return new CanvasTexture(canvas);
+}
+
+/** Radius of that floor, in metres. Far enough out that it fades just below
+ *  the horizon rather than a hand's width under it; the camera's far plane
+ *  has to reach past it. */
+const FLOOR_RADIUS = 60;
+
 export function createStage(canvas, options = {}) {
   const {modelUrl, onReady, onError} = options;
 
@@ -160,7 +192,7 @@ export function createStage(canvas, options = {}) {
 
   const scene = new Scene();
 
-  const camera = new PerspectiveCamera(30, 1, 0.1, 40);
+  const camera = new PerspectiveCamera(30, 1, 0.1, 80);
   const AIM = new Vector3(0, 0.82, 0);
   /* Where the camera stands, as a direction from the aim point. The distance
      is not fixed: resize() works it out from the frame it has been given. */
@@ -201,7 +233,35 @@ export function createStage(canvas, options = {}) {
   fill.position.set(-2.4, 1.0, 2.8);
   scene.add(fill);
 
-  /* The pool of light is unlit so the grid keeps its own colour, and a
+  /* The floor first, under everything, in the page's own floor colour. It
+     follows the theme switch while the page is open. */
+  const floorMap = floorTexture();
+  const floorMaterial = new MeshBasicMaterial({
+    map: floorMap,
+    transparent: true,
+    depthWrite: false,
+    toneMapped: false,
+  });
+  const floor = new Mesh(new PlaneGeometry(FLOOR_RADIUS * 2, FLOOR_RADIUS * 2), floorMaterial);
+  floor.rotation.x = -Math.PI / 2;
+  floor.renderOrder = -1;
+  scene.add(floor);
+
+  const tintFloor = () => {
+    const value = getComputedStyle(document.documentElement).getPropertyValue('--hero-floor').trim();
+    floorMaterial.color.set(value || '#1f1c2b');
+  };
+  tintFloor();
+  const themeWatch = typeof MutationObserver === 'function'
+    ? new MutationObserver(() => {
+      tintFloor();
+      // With reduced motion there is no loop to pick the new colour up.
+      if (!running && ready) frame();
+    })
+    : null;
+  if (themeWatch) themeWatch.observe(document.documentElement, {attributes: true, attributeFilter: ['data-theme']});
+
+  /* The pool of light is unlit so the ring keeps its own colour, and a
      shadow-only plane a hair above it does the contact. That plane must not
      reach past the shadow camera's footprint, or its border shows. */
   const groundMap = groundTexture();
@@ -460,6 +520,7 @@ export function createStage(canvas, options = {}) {
       window.removeEventListener('pointermove', onPointerMove);
       document.removeEventListener('visibilitychange', onVisibility);
       if (observer) observer.disconnect();
+      if (themeWatch) themeWatch.disconnect();
       scene.traverse((node) => {
         if (node.geometry) node.geometry.dispose();
         if (node.material) {
@@ -468,6 +529,7 @@ export function createStage(canvas, options = {}) {
         }
       });
       groundMap.dispose();
+      floorMap.dispose();
       renderer.dispose();
     },
   };

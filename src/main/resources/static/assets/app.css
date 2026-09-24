@@ -126,6 +126,12 @@
   --on-stage-scrim-strong: rgba(14, 13, 18, 0.84);
   --stage-void: #0e0d12;
 
+  /* Der Boden der Figur auf der Startseite. Anders als die Buehnen steht sie
+     auf der Seite selbst, also folgt ihr Boden dem Thema (hero-stage.js liest
+     den Wert, auch beim Umschalten). Etwas heller als `--bg`, damit er sich
+     abhebt und in der Ferne als Horizont in den Grund uebergeht. */
+  --hero-floor: #1c1a26;
+
   color-scheme: dark;
 }
 
@@ -190,6 +196,8 @@
   --highlight: inset 0 1px 0 rgba(255, 255, 255, 0.75);
   --glow: 0 0 0 1px var(--accent-line), 0 18px 40px -14px rgba(95, 63, 214, 0.28);
   --scrim: rgba(24, 20, 40, 0.42);
+  /* Auf Hell ein Hauch dunkler als der Grund - heller geht nicht mehr. */
+  --hero-floor: #e9e6f1;
 
   --header-bg: rgba(247, 246, 250, 0.78);
   --row-hover: rgba(24, 20, 40, 0.035);
@@ -1398,6 +1406,20 @@ table.list tr:hover td { background: var(--row-hover); }
      darunter traegt die Flaeche allein. */
   opacity: 0;
   transition: opacity 420ms ease;
+  /* Der Boden laeuft bis zum Horizont und damit bis an den Rand der
+     Leinwand - die Seite dahinter hat aber keinen. Ohne Maske stuende dort
+     eine harte Kante; so geht er links, rechts und unten weich in den Grund
+     ueber. OBEN NICHT: dort, knapp unter dem Rand, liegt der Horizont, und
+     eine Maske von allen Seiten nahm genau ihn weg. Darueber ist die
+     Leinwand ohnehin leer. */
+  -webkit-mask-image:
+    linear-gradient(to right, transparent, #000 16%, #000 84%, transparent),
+    linear-gradient(to top, transparent, #000 24%);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(to right, transparent, #000 16%, #000 84%, transparent),
+    linear-gradient(to top, transparent, #000 24%);
+  mask-composite: intersect;
 }
 .hero-stage.is-ready > canvas { opacity: 1; }
 

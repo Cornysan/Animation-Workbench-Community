@@ -325,9 +325,20 @@ const GROUND_SIZE = 6.4;
 const GRID_CELL = 0.32;
 const GRID_COLOR = 0xa894ff;
 
-/** Wie weit das Raster ueber die Wege der Figur hinaus zu sehen ist, in
- *  Koerperhoehen - bei 1,8 Metern gut acht Meter. */
-const GRID_REACH = 4.5;
+/** Wie weit das Raster ueber die Wege der Figur hinaus reicht, in
+ *  Koerperhoehen - bei 1,8 Metern gut zwanzig Meter. So weit, dass es nicht
+ *  endet, sondern in der Ferne verschwimmt ([gridTexture]) und mit dem Boden
+ *  darunter im Horizont aufgeht. */
+const GRID_REACH = 12;
+
+/** Der Boden unter allem: Radius in Metern und die Farbe, in die er am
+ *  Horizont uebergeht. Nahe der Figur ist er dunkler ([floorTexture]).
+ *
+ *  So weit draussen, dass er knapp unter dem Horizont auslaeuft statt eine
+ *  Handbreit darunter - die Kamera sieht dafuer bis [CAMERA_FAR]. */
+const FLOOR_RADIUS = 80;
+const CAMERA_FAR = 120;
+const FLOOR_HAZE = 0x2d2a3e;
 
 /** three.js `RepeatWrapping`. Das Buendel exportiert die Konstante nicht
  *  (`vendor/entry.js` nennt nur, was das Portal bis dahin brauchte); beim
@@ -347,7 +358,12 @@ const REPEAT_WRAPPING = 1000;
  *  Clip mit Root Motion lief auf der Stelle. Danach folgte nur noch das
  *  Sichtfenster des Rasters; das sah aus wie ein Teppich, der mitlaeuft.
  *  Jetzt ist das Raster so gross, dass es die ganzen Wege der Figur traegt
- *  ([MannequinStage.layGround]). */
+ *  ([MannequinStage.layGround]).
+ *
+ *  Darunter liegt als vierte der Boden selbst ([floorTexture]): eine Flaeche,
+ *  die in der Ferne weich auslaeuft. Wo sie in den Hintergrund der Buehne
+ *  uebergeht, steht der Horizont - wie eine Skybox, ohne eine zu sein. Die
+ *  Karten im Katalog zeigen NUR ihn, ohne Raster. */
 const groundTextures = {};
 
 function groundCanvas(size) {
@@ -410,6 +426,48 @@ function fadeTexture(size = 1024) {
   return (groundTextures.fade = texture);
 }
 
+/** Der Boden: hell in der Ferne, dunkler unter der Figur, und nach aussen
+ *  weich auslaufend. Die Farbe ist ein Faktor - das Material bringt den Ton
+ *  mit ([FLOOR_HAZE]), hier stehen nur Helligkeit und Deckung.
+ *
+ *  Die Perspektive presst die letzten Meter in einen schmalen Streifen knapp
+ *  unter dem Horizont. Der Abfall liegt deshalb weit draussen: nah an der
+ *  Figur ist der Boden voll, und was ausblendet, landet als heller Dunst genau
+ *  dort, wo Boden und Himmel sich treffen. */
+function floorTexture(size = 512) {
+  if (groundTextures.floor) return groundTextures.floor;
+  const canvas = groundCanvas(size);
+  const ctx = canvas.getContext('2d');
+  const mid = size / 2;
+
+  const tone = ctx.createRadialGradient(mid, mid, 0, mid, mid, size * 0.48);
+  tone.addColorStop(0, 'rgb(186, 186, 186)');
+  tone.addColorStop(0.3, 'rgb(196, 196, 196)');
+  tone.addColorStop(0.8, 'rgb(255, 255, 255)');
+  tone.addColorStop(1, 'rgb(255, 255, 255)');
+  ctx.fillStyle = tone;
+  ctx.fillRect(0, 0, size, size);
+
+  //  LINEAR IM KEHRWERT DER ENTFERNUNG, ab einem Viertel des Radius. Auf dem
+  //  Schirm liegt ein Bodenpunkt um 1/Entfernung unter dem Horizont - so
+  //  steigt die Deckung dort gleichmaessig an. Mit einem Verlauf, der in
+  //  Metern gleichmaessig ist, presste die Perspektive das letzte Drittel in
+  //  zehn Pixel, und der Horizont bekam eine Kante.
+  const fade = ctx.createRadialGradient(mid, mid, 0, mid, mid, size * 0.48);
+  fade.addColorStop(0, 'rgba(0,0,0,1)');
+  for (let i = 0; i <= 12; i++) {
+    const r = 0.25 + (0.75 * i) / 12;
+    fade.addColorStop(r, `rgba(0,0,0,${((1 / r - 1) / 3).toFixed(3)})`);
+  }
+  ctx.globalCompositeOperation = 'destination-in';
+  ctx.fillStyle = fade;
+  ctx.fillRect(0, 0, size, size);
+
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return (groundTextures.floor = texture);
+}
+
 /** EIN Rasterfeld, als Graustufen auf Schwarz, und die Ebene kachelt es. Die
  *  Buehne nimmt es als `alphaMap`, die Farbe kommt aus dem Material.
  *
@@ -418,6 +476,12 @@ function fadeTexture(size = 1024) {
  *  Die Linie sitzt halb an jedem Rand, so treffen sich die Kacheln zu einer
  *  ganzen; ihre Breite ist dieselbe wie im frueheren grossen Bild (2 von 51
  *  Pixeln je Feld).
+ *
+ *  OHNE anisotrope Filterung, und das mit Absicht: dann nimmt die Grafikkarte
+ *  unter flachem Winkel eine groebere Mipmap, und die Linien verschwimmen, je
+ *  weiter sie weg sind - der Fotoblick, bei dem der Boden in der Ferne weich
+ *  wird. Mit Anisotropie blieben sie bis zum Horizont scharf und flimmerten
+ *  dort.
  *
  *  UNDURCHSICHTIG, nicht Linien auf Transparenz: eine Leinwand vergisst die
  *  Farbe durchsichtiger Pixel, und beim Filtern und in den Mipmaps zoegen die
@@ -442,7 +506,6 @@ function gridTexture(size = 64) {
 
   const texture = new CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = REPEAT_WRAPPING;
-  texture.anisotropy = 4;
   return (groundTextures.grid = texture);
 }
 
@@ -496,6 +559,10 @@ export class MannequinStage {
 
     this._showMesh = true;
     this._showGrid = true;
+
+    //  Die Karten im Katalog zeigen kein Raster, nur Boden und Horizont
+    //  (card-stage.js) - auf 206 Pixeln ist ein Raster Unruhe, keine Auskunft.
+    this.hasGrid = options.grid !== false;
     this.cameraFollow = true;
 
     this.yaw = options.yaw ?? Math.PI - 0.55;
@@ -670,7 +737,7 @@ export class MannequinStage {
     }
 
     this.scene = new Scene();
-    this.camera = new PerspectiveCamera(32, 1, 0.05, 60);
+    this.camera = new PerspectiveCamera(32, 1, 0.05, CAMERA_FAR);
 
     this.scene.add(new HemisphereLight(0xb9aeff, 0x0b0a10, 1.0));
 
@@ -702,22 +769,36 @@ export class MannequinStage {
       new MeshBasicMaterial({ map: poolTexture(), transparent: true, depthWrite: false, toneMapped: false }));
     this.pool.rotation.x = -Math.PI / 2;
 
+    //  Der Boden unter allem, der Horizont. Er folgt dem Kameraziel
+    //  ([placeCamera]): er hat nichts, woran man eine Bewegung saehe, und so
+    //  steht der Horizont bei jedem Clip gleich weit weg, auch am Ende eines
+    //  langen Laufs.
+    this.backdrop = new Mesh(new PlaneGeometry(FLOOR_RADIUS * 2, FLOOR_RADIUS * 2), new MeshBasicMaterial({
+      color: FLOOR_HAZE, map: floorTexture(), transparent: true, depthWrite: false, toneMapped: false,
+    }));
+    this.backdrop.rotation.x = -Math.PI / 2;
+    this.backdrop.renderOrder = -1;
+    this.scene.add(this.backdrop);
+
     //  Das Raster liegt in der WELT, nicht am Knoten, der der Huefte folgt.
     //  Groesse und Lage setzt [layGround], sobald der Massstab feststeht - die
     //  Ebene hat deshalb die Kantenlaenge 1 und wird skaliert.
     //
     //  Eine EIGENE Kopie der Kachel, weil die Zahl der Wiederholungen an der
-    //  Textur haengt und jede Karte im Katalog anders weit laeuft. Die Kopie
-    //  teilt sich das Bild mit dem Original, auf der Grafikkarte liegt es nur
-    //  einmal.
-    this.gridMap = gridTexture().clone();
-    this.grid = new Mesh(new PlaneGeometry(1, 1), new MeshBasicMaterial({
-      color: GRID_COLOR, map: fadeTexture(), alphaMap: this.gridMap,
-      transparent: true, depthWrite: false, toneMapped: false,
-    }));
-    this.grid.rotation.x = -Math.PI / 2;
-    this.grid.renderOrder = 0.5;
-    this.scene.add(this.grid);
+    //  Textur haengt und jede Buehne anders weit laeuft. Die Kopie teilt sich
+    //  das Bild mit dem Original, auf der Grafikkarte liegt es nur einmal.
+    this.gridMap = null;
+    this.grid = null;
+    if (this.hasGrid) {
+      this.gridMap = gridTexture().clone();
+      this.grid = new Mesh(new PlaneGeometry(1, 1), new MeshBasicMaterial({
+        color: GRID_COLOR, map: fadeTexture(), alphaMap: this.gridMap,
+        transparent: true, depthWrite: false, toneMapped: false,
+      }));
+      this.grid.rotation.x = -Math.PI / 2;
+      this.grid.renderOrder = 0.5;
+      this.scene.add(this.grid);
+    }
 
     this.contact = new Mesh(new PlaneGeometry(3.2, 3.2), new ShadowMaterial({ opacity: 0.5 }));
     this.contact.rotation.x = -Math.PI / 2;
@@ -1258,6 +1339,7 @@ export class MannequinStage {
    * Linien durch den Ursprung, wo fast jeder Clip anfaengt.
    */
   layGround() {
+    if (!this.grid) return;
     let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
     for (const frame of this.solved.positions) {
       const hips = frame[0];
@@ -1386,7 +1468,7 @@ export class MannequinStage {
   get showGrid() { return this._showGrid; }
   set showGrid(on) {
     this._showGrid = on;
-    this.grid.visible = on;
+    if (this.grid) this.grid.visible = on;
     this.pool.visible = on;
   }
 
@@ -1525,6 +1607,7 @@ export class MannequinStage {
     // Schein und Schatten wandern mit, damit der Lichtkegel unter der Figur
     // bleibt statt am Ursprung zu kleben. Das Raster bleibt liegen.
     this.floor.position.set(hips.x * this.scale, 0, hips.z * this.scale);
+    this.backdrop.position.set(this.target.x, 0, this.target.z);
     this.key.position.set(this.floor.position.x + 2.1, 4.9, this.floor.position.z - 2.4);
     this.key.target.position.copy(this.floor.position);
     this.key.target.updateMatrixWorld();
@@ -1622,7 +1705,7 @@ export class MannequinStage {
         (Array.isArray(node.material) ? node.material : [node.material]).forEach((m) => m.dispose());
       }
     });
-    this.gridMap.dispose();
+    if (this.gridMap) this.gridMap.dispose();
 
     if (!this.surface) this.renderer.dispose();
   }
