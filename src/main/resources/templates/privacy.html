@@ -9,16 +9,17 @@
   <h1>Privacy</h1>
   <p class="lead">What this portal stores, why, who else sees it, and how long it stays. Written against what the software actually does, not against what a portal like this usually does.</p>
 
-  <div class="todo">Draft, not legal advice. To be reviewed before the public launch (Plan L1/P5). The bracketed items below need filling in.</div>
-
   <h2>Who is responsible</h2>
-  <div class="todo">Email still missing - the same address as in the <a href="/impressum.html">Impressum</a>.</div>
-  <p>PH Productions, owner Paul Hammer, Anton-Burger-Weg 35, 60599 Frankfurt am Main, Germany &middot; [ TODO: kontakt@playmations.com ]</p>
+  <p>PH Productions, owner Paul Hammer, Anton-Burger-Weg 35, 60599 Frankfurt am Main, Germany &middot;
+     <a href="mailto:webmaster@playmations.com">webmaster@playmations.com</a></p>
   <p>There is no data protection officer. A one-person operation of this size is not required to appoint one.</p>
 
   <h2>You can read without an account</h2>
-  <p>Browsing the catalogue, watching a preview and downloading a public clip need no account and no sign-in.
-     For those requests the server stores nothing about you beyond the ordinary operating logs described below.</p>
+  <p>Browsing the catalogue, watching a preview and downloading a public clip as FBX or GLB need no
+     account and no sign-in. For those requests the server stores nothing about you: the web server
+     keeps no access log (see &bdquo;How long&ldquo;). Taking the <code>.awclip</code> file for the
+     Animation Workbench does need an account, because it is recorded which account took which clip
+     (see the table).</p>
 
   <h2>What is stored</h2>
   <table class="list">
@@ -61,13 +62,31 @@
         <td>Art. 6(1)(f) GDPR</td>
       </tr>
       <tr>
+        <td>Profile and activity: your handle and bio, the clips you like, your collections with their
+          titles and descriptions, who you follow, and the messages the portal sends you</td>
+        <td>The community features you use; what of this everyone sees is listed below</td>
+        <td>Art. 6(1)(b) GDPR</td>
+      </tr>
+      <tr>
+        <td>Clips you take: which account took which clip as <code>.awclip</code> &ndash; on this site or
+          through Subscribe/Import in the Workbench &ndash; and when</td>
+        <td>Counting how often a clip is used, and showing you which clips you already have</td>
+        <td>Art. 6(1)(b) GDPR</td>
+      </tr>
+      <tr>
         <td>Workbench sign-in: a token, of which only a SHA-256 hash is kept</td>
         <td>Letting the Animation Workbench act for you without holding a password</td>
         <td>Art. 6(1)(b) GDPR</td>
       </tr>
       <tr>
-        <td>Server logs: IP address, time, requested address, status</td>
-        <td>Operation, and recognising attacks</td>
+        <td>Browser sign-in: a random value in a cookie, of which only a SHA-256 hash is kept, with
+          when it was created and last used</td>
+        <td>Keeping you signed in on this browser, so you do not have to sign in on every visit</td>
+        <td>Art. 6(1)(b) GDPR</td>
+      </tr>
+      <tr>
+        <td>Operating log of the application: errors and warnings</td>
+        <td>Keeping the service running</td>
         <td>Art. 6(1)(f) GDPR</td>
       </tr>
     </tbody>
@@ -100,6 +119,8 @@
     <li>your public clips and public collections, and how often they were liked, saved and used,</li>
     <li><strong>who you follow</strong>, and how many people follow you.</li>
   </ul>
+  <p>Profiles, public clips, public collections and comments are public web pages, and search
+     engines may list them.</p>
   <p>Following someone is therefore not private: it appears on your profile and on theirs, and the
      person you follow gets a message with your name. If you would rather not be seen doing it, do
      not follow - there is no hidden mode, because a half-public list would be the worst of both.</p>
@@ -119,28 +140,41 @@
   <h2>No tracking</h2>
   <p>No analytics, no advertising, no tracking pixels, no external fonts or scripts. Everything the
      page loads comes from this server.</p>
-  <p>Two cookies are set, both strictly necessary, both without an alternative:
-     <code>JSESSIONID</code> keeps you signed in for the session, and <code>XSRF-TOKEN</code> stops a
-     foreign page from acting in your name. Neither is used to recognise you anywhere else, which is
-     why this site has no cookie banner. When you link the Workbench to your account, your browser
-     briefly remembers the device code under <code>aw-link-code</code> in its own session storage;
-     it never reaches the server and disappears when you close the tab.</p>
+  <p>Three cookies are set, all of them needed for something you asked for, none of them used to
+     recognise you anywhere else &ndash; which is why this site has no cookie banner:</p>
+  <ul>
+    <li><code>JSESSIONID</code> holds your session while you use the site.</li>
+    <li><code>XSRF-TOKEN</code> stops a foreign page from acting in your name.</li>
+    <li><code>aw_signed_in</code> is only set once you sign in. It keeps you signed in on this
+      browser for 30 days after your last visit. Signing out deletes it here and on the server.</li>
+  </ul>
+  <p>A few settings stay in your browser&rsquo;s own storage and never reach the server: whether you
+     chose light or dark (<code>aw-theme</code>), and, while you link the Workbench to your account,
+     the device code (<code>aw-link-code</code>, gone when you close the tab). If you add your own
+     figures on the Characters page, the files and your choice of figure stay in this browser
+     (IndexedDB and <code>aw.viewer.*</code>); they are not uploaded.</p>
 
   <h2>Who else sees it</h2>
   <ul>
-    <li><strong>Contabo GmbH</strong>, Munich, Germany &ndash; the server this runs on. Data stays in
-      Germany.
-      <div class="todo">Data processing agreement (Art. 28 GDPR) with Contabo:
-      conclude and file before launch.</div></li>
+    <li><strong>Contabo GmbH</strong>, Munich, Germany &ndash; the server this runs on, including its
+      backups, on our behalf (Art. 28 GDPR). Data stays in Germany.</li>
     <li><strong>Discord, GitHub or Google</strong> &ndash; only the one you choose to sign in with, and
-      only if you sign in. You are sent there, and that provider learns that you signed in here. Their
-      privacy policy applies to that step. All three are US companies.
-      <div class="todo">Third-country transfer for the sign-in step (Discord Inc., GitHub Inc.,
-      Google LLC): check the wording in the legal review (L1/P5).</div></li>
-    <li><strong>[ TODO: Mail provider ]</strong> &ndash; delivers notification mail about reports.
-      <div class="todo">Name the provider once the mail channel is set up, or
-      delete this line if notifications stay on Discord only.</div></li>
+      only when you sign in. Your browser is sent to that provider, and what happens there is the
+      provider&rsquo;s own responsibility under its own privacy policy; it learns that you are signing
+      in here. It then sends this server your user ID, name and picture, as described above. This
+      server also fetches your picture from that provider, at most once a day (see above).</li>
+    <li><strong>Discord</strong>, as a tool of the operator &ndash; reports and takedown requests are
+      announced in a private Discord channel so they are seen quickly. Such a notice contains the
+      reported clip or comment, the reason given, and for a takedown request the name and email
+      address entered in the form. The reporting account is not named. Legal basis: Art. 6(1)(f)
+      GDPR &ndash; dealing with reports without delay, as the Digital Services Act expects.</li>
   </ul>
+  <p><strong>Transfers to the USA.</strong> Discord Inc., GitHub Inc. and Google LLC are US companies;
+     for people in the EU some of them act through a European subsidiary, which their privacy policies
+     name. Where personal data reaches the USA through them, the transfer rests on the European
+     Commission&rsquo;s adequacy decision for the EU-US Data Privacy Framework (Art. 45 GDPR). All
+     three companies are certified under it; the list is public at
+     <a href="https://www.dataprivacyframework.gov/list" rel="noopener">dataprivacyframework.gov</a>.</p>
   <p>Nothing is sold, and nothing is passed on for advertising.</p>
 
   <h2>How long</h2>
@@ -162,7 +196,10 @@
       what stops the same clip being uploaded again.</li>
     <li><strong>Audit log and moderation decisions:</strong> kept as long as they can still matter
       for a dispute.</li>
-    <li><strong>Server logs:</strong> a few days, rotating.</li>
+    <li><strong>Browser sign-in:</strong> 30 days after your last visit, or until you sign out.</li>
+    <li><strong>Logs:</strong> the web server keeps no access log. The application&rsquo;s own
+      operating log holds errors and warnings; it is limited in size, overwritten as it fills, and
+      discarded with every update of the portal.</li>
   </ul>
 
   <h2>Your rights</h2>
