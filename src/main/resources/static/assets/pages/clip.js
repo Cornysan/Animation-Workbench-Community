@@ -61,6 +61,18 @@
     document.title = clip.title + " - Animation Workbench Community (Beta)";
     document.getElementById("title").textContent = clip.title;
     document.getElementById("description").textContent = clip.description || "No description.";
+    //  Ein Starter-Clip hat keinen Ersteller in der Community - er kommt aus
+    //  einer oeffentlichen CC0-Sammlung, und genau das steht hier, mit Link.
+    //  Der Name "Starter Clips" allein saehe aus wie ein Mensch.
+    if (clip.source) {
+      const source = document.getElementById("clip-source");
+      source.hidden = false;
+      source.replaceChildren("Original: ",
+        clip.source.url
+          ? el("a", { href: clip.source.url, rel: "noopener", target: "_blank" }, clip.source.credit)
+          : clip.source.credit,
+        " · CC0 · added by the operator, not made by a community member");
+    }
     document.getElementById("tags").replaceChildren(
       ...clip.tags.map((tag) => el("a", { class: "tag", href: "/?tag=" + encodeURIComponent(tag) }, tag)));
     showFacts();

@@ -70,6 +70,15 @@ class AnimationPackage(
 
     /** Sichtbare Kommentare. Abgeleitet wie [likeCount], neu gezaehlt statt fortgeschrieben. */
     var commentCount: Long = 0,
+
+    /**
+     * Woher ein Starter-Clip stammt ("Quaternius - Universal Animation
+     * Library"), samt Link. Nur bei Clips, die ein Admin eingespielt hat
+     * ([StarterClips]) - ein Nutzer kann das Feld nicht setzen, also kann auch
+     * niemand eine fremde Quelle vortaeuschen.
+     */
+    var sourceCredit: String? = null,
+    var sourceUrl: String? = null,
     var createdAt: Instant,
     var updatedAt: Instant,
 ) {

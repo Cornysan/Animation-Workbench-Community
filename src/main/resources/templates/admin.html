@@ -15,6 +15,31 @@
     <label class="check"><input type="checkbox" id="characters-enabled"><span>Characters page</span></label>
     <p class="muted small">Off hides the <strong>Characters</strong> nav entry, the page itself and the figure row under every clip, and clips run on the mannequin again. Nothing is deleted: figures already added stay in that visitor's browser and come back when this is switched on.</p>
   </div>
+  <!--
+    Starter-Clips: Clips aus oeffentlichen CC0-Sammlungen, damit der Katalog
+    nicht leer startet. Sie gehoeren dem Konto "Starter Clips" (ohne
+    Anmeldung), tragen ihre Quelle auf der Clip-Seite und sind immer CC0.
+    Die Dateien kommen aus der Workbench: "Export .awclip" auf den Clips (oder
+    auf der ganzen FBX) schreibt sie samt Vorschau.
+  -->
+  <div class="panel" id="starter">
+    <h2>Starter clips</h2>
+    <p class="muted small">Clips from a public <strong>CC0</strong> collection, added under the
+      <a href="/u.html?u=starter-clips">Starter Clips</a> account with their source on every clip page.
+      Only for collections that really are CC0 &ndash; check the licence at the original source.</p>
+    <label class="field"><span>.awclip files (exported from the Workbench, with preview)</span>
+      <input type="file" id="starter-files" accept=".awclip" multiple></label>
+    <label class="field"><span>Source, as shown on the clip page</span>
+      <input id="starter-credit" maxlength="200" value="Quaternius - Universal Animation Library"></label>
+    <label class="field"><span>Link to the source (https://)</span>
+      <input id="starter-url" maxlength="500" value="https://quaternius.com"></label>
+    <label class="field"><span>Tags for all of them (comma separated, optional)</span>
+      <input id="starter-tags" placeholder="e.g. quaternius"></label>
+    <label class="check"><input type="checkbox" id="starter-tidy" checked><span>Tidy titles (Walk_Loop &rarr; Walk Loop)</span></label>
+    <div class="actions"><button class="primary" id="starter-add" type="button">Add starter clips</button></div>
+    <ol class="starter-log small" id="starter-log"></ol>
+  </div>
+
   <h2>Open cases</h2>
   <div id="cases"></div>
   </main>

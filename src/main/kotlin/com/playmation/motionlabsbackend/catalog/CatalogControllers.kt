@@ -200,3 +200,41 @@ class CommentController(private val comments: CommentService) {
         return mapOf("status" to "removed")
     }
 }
+
+/**
+ * Starter-Clips einspielen - nur fuer Admins ([StarterClips]); alles unter
+ * `/api/v1/admin/` verlangt die Rolle schon in der SecurityConfig, [CatalogService.seed] prueft
+ * sie noch einmal.
+ *
+ * Eine Datei je Aufruf: die Admin-Seite schickt viele nacheinander und zeigt je
+ * Datei, ob sie ankam. Ein Sammelaufruf haette bei der zwanzigsten Datei ein
+ * Duplikat gemeldet und die neunzehn davor in einer Transaktion mitgerissen.
+ */
+@RestController
+@RequestMapping("/api/v1/admin/starter-clips")
+class StarterClipController(private val catalog: CatalogService) {
+
+    @PostMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
+    fun seed(
+        @RequestPart("file") file: MultipartFile,
+        @RequestParam("credit") credit: String,
+        @RequestParam("url", required = false) url: String?,
+        @RequestParam("tags", required = false) tags: String?,
+        @RequestParam("tidyTitle", required = false, defaultValue = "true") tidyTitle: Boolean,
+        authentication: Authentication?,
+        request: HttpServletRequest,
+    ): ResponseEntity<PackageDetail> =
+        ResponseEntity.status(HttpStatus.CREATED).body(
+            catalog.seed(
+                authentication.requirePrincipal(),
+                file.bytes,
+                CatalogService.StarterInput(
+                    credit = credit,
+                    url = url,
+                    tags = tags.orEmpty().split(',', ';').map { it.trim() }.filter { it.isNotEmpty() },
+                    tidyTitle = tidyTitle,
+                ),
+                request.clientIp(),
+            )
+        )
+}

@@ -114,7 +114,12 @@ data class PackageDetail(
     val isOwner: Boolean,
     /** Das Profilbild des Erstellers, oder null - dann der Buchstabenkreis. */
     val authorAvatar: String? = null,
+    /** Nur bei Starter-Clips: woher der Clip stammt ([StarterClips]). */
+    val source: ClipSource? = null,
 )
+
+/** Die Herkunft eines Starter-Clips, wie die Clip-Seite sie nennt. */
+data class ClipSource(val credit: String, val url: String?)
 
 data class PageResult<T>(val items: List<T>, val page: Int, val size: Int, val total: Long)
 
@@ -289,6 +294,150 @@ class CatalogService(
         return detail(pkg, version, principal)
     }
 
+    // ════════════════════════════════════════════════════════════════════
+    // STARTER-CLIPS
+    // ════════════════════════════════════════════════════════════════════
+
+    /** Was ein Admin zu einer Datei mitgibt, die er als Starter-Clip einspielt. */
+    data class StarterInput(
+        val credit: String = "",
+        val url: String? = null,
+        /** Kommen zu den Schlagworten der Datei dazu. */
+        val tags: List<String> = emptyList(),
+        /** "Walk_Loop" -> "Walk Loop": Clipnamen aus Sammlungen tragen oft Unterstriche. */
+        val tidyTitle: Boolean = true,
+    )
+
+    /**
+     * Einen Clip aus einer oeffentlichen CC0-Sammlung als Starter-Clip
+     * einspielen - nur fuer Admins ([StarterClips]).
+     *
+     * Derselbe Weg wie [upload], mit drei Unterschieden, alle mit Absicht:
+     *
+     * KEINE "I created this"-ERKLAERUNG. Sie waere falsch. Protokolliert wird
+     * stattdessen, WER eingespielt hat und auf welche Quelle er sich beruft -
+     * in derselben Tabelle, mit Version 0, damit sich der Eintrag nie mit
+     * einer echten Erklaerung verwechseln laesst.
+     *
+     * IMMER CC0. Die Lizenz im Manifest wird ueberschrieben: ein Export aus
+     * der Workbench schreibt "ARR" hinein (AWClipExport), und ein Starter-Clip
+     * ist per Definition oeffentlich. Die Bewegung bleibt, der Hash prueft es.
+     *
+     * NUR MIT VORSCHAU. Ohne Vorschau-Block waere der Clip im Katalog eine
+     * leere Kachel - genau das Gegenteil dessen, wofuer er da ist.
+     */
+    @Transactional
+    fun seed(admin: PortalPrincipal, bytes: ByteArray, input: StarterInput, ip: String): PackageDetail {
+        if (!admin.isAdmin) throw PortalException.forbidden("Only admins can add starter clips.")
+
+        val credit = input.credit.trim()
+        if (credit.isEmpty() || credit.length > StarterClips.MAX_CREDIT_LENGTH || hasControl(credit, allowNewline = false))
+            throw PortalException.badRequest("invalid-source",
+                "Name the source in one line, up to ${StarterClips.MAX_CREDIT_LENGTH} characters.")
+
+        val url = input.url?.trim()?.takeIf { it.isNotEmpty() }
+        if (url != null && (!url.startsWith("https://") || url.length > StarterClips.MAX_URL_LENGTH || url.any { it.isWhitespace() }))
+            throw PortalException.badRequest("invalid-source-url", "The source link must be an https:// address.")
+
+        if (bytes.size > AwclipSchema.MAX_COMPRESSED_BYTES)
+            throw PortalException(HttpStatus.PAYLOAD_TOO_LARGE, "too-large", "The file is too large.")
+
+        val doc = when (val read = AwclipReader.readFile(bytes.inputStream())) {
+            is AwclipReadResult.Ok -> read.document
+            is AwclipReadResult.Rejected -> throw PortalException.badRequest("invalid-awclip", read.error.toString())
+        }
+
+        if (!AwclipSchema.isAcceptedRig(doc.manifest.rig))
+            throw PortalException.badRequest("unsupported-rig", "The community takes humanoid clips only for now.")
+        if (doc.preview == null)
+            throw PortalException.badRequest("no-preview",
+                "The file has no preview. Export it again with a humanoid character in the project.")
+
+        val hash = AwclipHash.compute(doc)
+        checkNotAlreadyThere(hash, StarterClips.ACCOUNT_ID)
+
+        val manifest = doc.manifest
+        val title = (if (input.tidyTitle) tidy(manifest.title) else manifest.title.trim())
+            .take(AwclipSchema.MAX_TITLE_LENGTH).ifEmpty { "Clip" }
+        val tags = (manifest.tags + input.tags.map { it.trim().lowercase() })
+            .filter { it.isNotEmpty() }.distinct()
+        if (tags.size > AwclipSchema.MAX_TAGS)
+            throw PortalException.badRequest("invalid-tags", "Up to ${AwclipSchema.MAX_TAGS} tags.")
+        tags.firstOrNull { !AwclipSchema.isTag(it) }?.let {
+            throw PortalException.badRequest("invalid-tags", "'$it' is not a valid tag - use lowercase letters, digits and '-'.")
+        }
+
+        val stored = rewriteManifestBytes(bytes, hash, title, manifest.description, tags, AwclipSchema.LICENSE_PUBLIC)
+        val now = clock.instant()
+
+        val pkg = packages.save(AnimationPackage(
+            slug = newSlug(),
+            ownerId = StarterClips.ACCOUNT_ID,
+            title = title,
+            description = manifest.description,
+            tags = AnimationPackage.joinTags(tags),
+            license = AwclipSchema.LICENSE_PUBLIC,
+            sourceCredit = credit,
+            sourceUrl = url,
+            createdAt = now,
+            updatedAt = now,
+        ))
+
+        val version = versions.save(
+            PackageVersion(
+                packageId = pkg.id,
+                versionNumber = 1,
+                contentHash = hash,
+                blobKey = blobs.put(stored),
+                previewBlobKey = blobs.put(StrictJson.write(doc.preview!!).toByteArray(Charsets.UTF_8)),
+                sizeBytes = stored.size.toLong(),
+                frameRate = manifest.frameRate,
+                durationSeconds = manifest.duration,
+                curveCount = doc.curves.size,
+                originClass = doc.origin,
+                rig = manifest.rig,
+                createdAt = now,
+            )
+        )
+        pkg.currentVersionId = version.id
+        packages.save(pkg)
+
+        declarations.save(
+            UploadDeclaration(
+                accountId = admin.accountId,
+                versionId = version.id,
+                declarationText = ("Added by the operator as a starter clip from a CC0 source: $credit" +
+                    (url?.let { " ($it)" } ?: "")).take(500),
+                declarationVersion = 0,
+                license = AwclipSchema.LICENSE_PUBLIC,
+                originClass = doc.origin,
+                ipAddress = ip,
+                createdAt = now,
+            )
+        )
+
+        audit.record(admin.accountId, "package.seeded", "package", pkg.slug, "hash=$hash source=$credit", ip)
+        overview.invalidate()
+
+        return detail(pkg, version, admin)
+    }
+
+    /**
+     * Clipnamen aus Sammlungen sind Dateinamen: "Armature|Walk_Loop" wird
+     * "Walk Loop". Was vor dem letzten `|` steht, ist bei Blender-Exporten der
+     * Name des Skeletts, nicht der Bewegung.
+     */
+    private fun tidy(title: String) =
+        title.substringAfterLast('|').replace('_', ' ').replace(Regex("\\s+"), " ").trim()
+
+    /**
+     * Wer einen Clip bearbeiten und zurueckziehen darf: sein Besitzer - und bei
+     * Starter-Clips jeder Admin, denn am Starter-Konto haengt keine Anmeldung.
+     */
+    private fun canManage(principal: PortalPrincipal?, pkg: AnimationPackage) =
+        principal != null && (principal.accountId == pkg.ownerId ||
+            (principal.isAdmin && pkg.ownerId == StarterClips.ACCOUNT_ID))
+
     private fun checkNotAlreadyThere(hash: String, accountId: UUID) {
         for (version in versions.findByContentHash(hash)) {
             val pkg = packages.findById(version.packageId).orElse(null) ?: continue
@@ -317,7 +466,7 @@ class CatalogService(
     @Transactional
     fun withdraw(principal: PortalPrincipal, slug: String, ip: String) {
         val pkg = packages.findBySlug(slug) ?: throw PortalException.notFound("Package not found")
-        if (pkg.ownerId != principal.accountId) throw PortalException.forbidden("Only the owner can withdraw a package.")
+        if (!canManage(principal, pkg)) throw PortalException.forbidden("Only the owner can withdraw a package.")
         if (pkg.status == PackageStatus.REMOVED) throw PortalException.conflict("package-locked", "This package was removed by moderation.")
 
         //  Zurückziehen während einer Prüfung beendet die Prüfung nicht - der
@@ -375,7 +524,7 @@ class CatalogService(
     fun edit(principal: PortalPrincipal, slug: String, input: PackageEdit, ip: String): PackageDetail {
         val account = accounts.requireUsable(principal.accountId)
         val pkg = packages.findBySlug(slug) ?: throw PortalException.notFound("Package not found")
-        if (pkg.ownerId != account.id) throw PortalException.forbidden("Only the owner can edit a clip.")
+        if (!canManage(principal, pkg)) throw PortalException.forbidden("Only the owner can edit a clip.")
         if (pkg.status != PackageStatus.PUBLISHED)
             throw PortalException.conflict("package-locked", "This clip is under review, removed or withdrawn.")
         val version = pkg.currentVersionId?.let { versions.findById(it).orElse(null) }
@@ -402,6 +551,10 @@ class CatalogService(
         val license = input.license
         if (license != AwclipSchema.LICENSE_PUBLIC && license != AwclipSchema.LICENSE_PRIVATE)
             throw PortalException.badRequest("invalid-license", "Choose public or private.")
+        //  Ein Starter-Clip ist per Definition oeffentlich - und "privat" hiesse
+        //  hier "nur das Starter-Konto", an dem niemand angemeldet ist.
+        if (pkg.ownerId == StarterClips.ACCOUNT_ID && license != AwclipSchema.LICENSE_PUBLIC)
+            throw PortalException.badRequest("starter-stays-public", "Starter clips stay public (CC0).")
 
         val goingPublic = license == AwclipSchema.LICENSE_PUBLIC && pkg.license != AwclipSchema.LICENSE_PUBLIC
         if (goingPublic && (!input.declarationAccepted || input.declarationText != Declaration.TEXT ||
@@ -458,12 +611,22 @@ class CatalogService(
      */
     private fun rewriteManifest(
         version: PackageVersion, title: String, description: String, tags: List<String>, license: String,
+    ): ByteArray = rewriteManifestBytes(
+        blobs.open(version.blobKey).use { it.readBytes() }, version.contentHash, title, description, tags, license)
+
+    /**
+     * Dasselbe fuer eine Datei, die noch nirgends liegt - der Starter-Clip
+     * ([seed]) bekommt so Titel, Schlagworte und CC0, bevor er gespeichert
+     * wird. [contentHash] ist der Hash der Bewegung, gegen den geprueft wird.
+     */
+    private fun rewriteManifestBytes(
+        gzipped: ByteArray, contentHash: String, title: String, description: String, tags: List<String>, license: String,
     ): ByteArray {
-        val text = blobs.open(version.blobKey).use { GZIPInputStream(it).readBytes().toString(Charsets.UTF_8) }
+        val text = GZIPInputStream(gzipped.inputStream()).use { it.readBytes().toString(Charsets.UTF_8) }
         val root = StrictJson.parse(text) as? StrictJson.Value.Obj
-            ?: throw IllegalStateException("Stored file of version ${version.id} is not a JSON object")
+            ?: throw IllegalStateException("Clip file is not a JSON object")
         val manifest = root["manifest"] as? StrictJson.Value.Obj
-            ?: throw IllegalStateException("Stored file of version ${version.id} has no manifest")
+            ?: throw IllegalStateException("Clip file has no manifest")
 
         val replaced = linkedMapOf<String, StrictJson.Value>(
             "title" to StrictJson.Value.Str(title),
@@ -490,7 +653,7 @@ class CatalogService(
             is AwclipReadResult.Ok -> read.document
             is AwclipReadResult.Rejected -> throw IllegalStateException("Rewritten file rejected: ${read.error}")
         }
-        check(AwclipHash.compute(doc) == version.contentHash) { "Rewriting the manifest changed the motion of ${version.id}" }
+        check(AwclipHash.compute(doc) == contentHash) { "Rewriting the manifest changed the motion ($contentHash)" }
         check(doc.manifest.title == title && doc.manifest.license == license) { "Rewritten manifest does not read back" }
         return bytes
     }
@@ -824,7 +987,7 @@ class CatalogService(
     }
 
     private fun detail(pkg: AnimationPackage, version: PackageVersion, principal: PortalPrincipal?): PackageDetail {
-        val isOwner = principal?.accountId == pkg.ownerId
+        val isOwner = canManage(principal, pkg)
         val author = authors(listOf(pkg.ownerId))[pkg.ownerId]
         return PackageDetail(
             pkg.slug, pkg.title, pkg.description, pkg.tagList(), pkg.license,
@@ -838,6 +1001,7 @@ class CatalogService(
             if (isOwner || principal?.isAdmin == true) pkg.status.name else null,
             isOwner,
             authorAvatar = author?.avatar,
+            source = pkg.sourceCredit?.let { ClipSource(it, pkg.sourceUrl) },
         )
     }
 

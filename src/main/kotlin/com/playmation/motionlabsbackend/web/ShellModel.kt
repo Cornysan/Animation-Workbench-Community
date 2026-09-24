@@ -136,8 +136,8 @@ class ShellModel(
      */
     fun defaultMeta() = PageMeta(
         "Animation Workbench Community (Beta)",
-        "Free humanoid animation clips made in the Animation Workbench. Preview them in the " +
-            "browser, import them into Unity, or download them as FBX or GLB. CC0, no credit needed.",
+        "Free humanoid animation clips for Unity and any humanoid rig. Preview them in the browser, " +
+            "import them with the Animation Workbench, or download them as FBX or GLB. CC0, no credit needed.",
         noindex = !portal.searchIndexing,
     )
 

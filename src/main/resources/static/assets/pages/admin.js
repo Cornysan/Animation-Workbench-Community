@@ -144,4 +144,49 @@
   }
 
   load().catch((e) => notice(state, e.message, "error"));
+
+  // ── Starter-Clips ────────────────────────────────────────────────────
+  //  Eine Datei je Aufruf, nacheinander: jede bekommt ihre eigene Zeile mit
+  //  Ergebnis, und ein Duplikat in der Mitte haelt den Rest nicht auf.
+  const starterFiles = document.getElementById("starter-files");
+  const starterAdd = document.getElementById("starter-add");
+  const starterLog = document.getElementById("starter-log");
+
+  starterAdd.addEventListener("click", async () => {
+    const files = [...starterFiles.files];
+    const credit = document.getElementById("starter-credit").value.trim();
+    if (!files.length || !credit) {
+      notice(state, "Pick .awclip files and name their source.", "error");
+      return;
+    }
+
+    starterAdd.disabled = true;
+    starterLog.replaceChildren();
+    let added = 0;
+
+    for (const file of files) {
+      const row = el("li", {}, file.name + " …");
+      starterLog.append(row);
+
+      const form = new FormData();
+      form.append("file", file);
+      form.append("credit", credit);
+      form.append("url", document.getElementById("starter-url").value.trim());
+      form.append("tags", document.getElementById("starter-tags").value);
+      form.append("tidyTitle", document.getElementById("starter-tidy").checked ? "true" : "false");
+
+      try {
+        const clip = await api("POST", "/api/v1/admin/starter-clips", form);
+        added++;
+        row.replaceChildren("✓ ", el("a", { href: "/clip.html?p=" + encodeURIComponent(clip.slug) }, clip.title),
+          el("span", { class: "muted" }, " ← " + file.name));
+      } catch (e) {
+        row.replaceChildren(el("span", { class: "danger-text" }, "✗ " + file.name + ": " + e.message));
+      }
+    }
+
+    starterAdd.disabled = false;
+    starterFiles.value = "";
+    notice(state, added + " of " + files.length + " added.", added === files.length ? "ok" : "error");
+  });
 })();
