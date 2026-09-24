@@ -110,6 +110,15 @@ class PackageController(private val catalog: CatalogService) {
                 declarationAccepted, request.clientIp(), slug)
         )
 
+    /** Titel, Beschreibung, Schlagworte, Sichtbarkeit - nur der Besitzer. */
+    @PatchMapping("/packages/{slug}")
+    fun edit(
+        @PathVariable slug: String,
+        @RequestBody body: CatalogService.PackageEdit,
+        authentication: Authentication?,
+        request: HttpServletRequest,
+    ) = catalog.edit(authentication.requirePrincipal(), slug, body, request.clientIp())
+
     @DeleteMapping("/packages/{slug}")
     fun withdraw(@PathVariable slug: String, authentication: Authentication?, request: HttpServletRequest): Map<String, String> {
         catalog.withdraw(authentication.requirePrincipal(), slug, request.clientIp())

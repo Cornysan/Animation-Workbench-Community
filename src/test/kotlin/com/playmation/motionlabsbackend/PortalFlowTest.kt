@@ -2,6 +2,7 @@ package com.playmation.motionlabsbackend
 
 import com.playmation.motionlabsbackend.catalog.Declaration
 import com.playmation.motionlabsbackend.catalog.UploadDeclarationRepository
+import com.playmation.motionlabsbackend.format.AwclipHash
 import com.playmation.motionlabsbackend.format.AwclipReadResult
 import com.playmation.motionlabsbackend.format.AwclipReader
 import com.playmation.motionlabsbackend.format.AwclipSchema
@@ -985,5 +986,101 @@ class PortalFlowTest {
         mvc.post("/api/v1/packages/$slug/download-link") {
             header("Authorization", "Bearer $stranger")
         }.andExpect { status { isOk() } }
+    }
+
+    // ═════════════════════════════════════════════════════════════════════
+    // BEARBEITEN
+    // ═════════════════════════════════════════════════════════════════════
+
+    private fun edit(token: String, slug: String, body: String): ResultActionsDsl =
+        mvc.patch("/api/v1/packages/$slug") {
+            contentType = MediaType.APPLICATION_JSON
+            content = body
+            header("Authorization", "Bearer $token")
+        }
+
+    /**
+     * Der Besitzer aendert, was nicht Bewegung ist - und die Datei zieht mit:
+     * wer danach herunterlaedt, bekommt den neuen Titel, aber dieselbe
+     * Bewegung. Der Inhalts-Hash bleibt, also auch die Duplikat-Sperre.
+     */
+    @Test
+    fun `the owner edits a clip and the stored file follows`() {
+        val owner = login("f-edit-owner-${unique()}")
+        val stranger = login("f-edit-other-${unique()}")
+        val bytes = awclip(0.52)
+        val slug = uploadOk(owner, bytes)
+
+        edit(stranger, slug, """{"title":"Mine now","description":"","tags":[],"license":"CC0-1.0"}""")
+            .andExpect { status { isForbidden() } }
+
+        edit(owner, slug, """{"title":"  Sneaky Walk ","description":"Slow and low.\r\nLoops.","tags":["Walk","sneak","walk"],"license":"CC0-1.0"}""")
+            .andExpect {
+                status { isOk() }
+                jsonPath("$.title") { value("Sneaky Walk") }
+                jsonPath("$.description") { value("Slow and low.\nLoops.") }
+                jsonPath("$.tags.length()") { value(2) }
+                jsonPath("$.tags[0]") { value("walk") }
+                jsonPath("$.tags[1]") { value("sneak") }
+            }
+
+        val link = mvc.post("/api/v1/packages/$slug/download-link") { header("Authorization", "Bearer $owner") }
+            .andExpect { status { isOk() } }.body()
+        val downloaded = mvc.get(link["url"].asString()).andExpect { status { isOk() } }.andReturn().response.contentAsByteArray
+        val before = (AwclipReader.readFile(bytes.inputStream()) as AwclipReadResult.Ok).document
+        val after = (AwclipReader.readFile(downloaded.inputStream()) as AwclipReadResult.Ok).document
+        assertEquals("Sneaky Walk", after.manifest.title)
+        assertEquals("Slow and low.\nLoops.", after.manifest.description)
+        assertEquals(listOf("walk", "sneak"), after.manifest.tags)
+        assertEquals(AwclipHash.compute(before), AwclipHash.compute(after), "the motion must not change")
+
+        upload(owner, bytes).andExpect {
+            status { isConflict() }
+            jsonPath("$.error.code") { value("duplicate") }
+        }
+
+        edit(owner, slug, """{"title":"Sneaky Walk","description":"","tags":["Not A Tag"],"license":"CC0-1.0"}""")
+            .andExpect {
+                status { isBadRequest() }
+                jsonPath("$.error.code") { value("invalid-tags") }
+            }
+        edit(owner, slug, """{"title":"   ","description":"","tags":[],"license":"CC0-1.0"}""")
+            .andExpect {
+                status { isBadRequest() }
+                jsonPath("$.error.code") { value("invalid-title") }
+            }
+    }
+
+    /**
+     * Privat -> oeffentlich ist ein neues Teilen: dieselbe Erklaerung wie
+     * beim Hochladen, und sie steht danach im Protokoll. Zurueck auf privat
+     * braucht nichts - CC0 laesst sich ohnehin nicht zuruecknehmen.
+     */
+    @Test
+    fun `making a private clip public needs the declaration`() {
+        val owner = login("f-public-${unique()}")
+        val slug = uploadOk(owner, awclip(0.53, license = AwclipSchema.LICENSE_PRIVATE))
+        val publicDeclarations = { declarations.findAll().count { it.license == AwclipSchema.LICENSE_PUBLIC } }
+        val before = publicDeclarations()
+
+        edit(owner, slug, """{"title":"Test Clip","description":"","tags":["walk"],"license":"CC0-1.0"}""")
+            .andExpect {
+                status { isBadRequest() }
+                jsonPath("$.error.code") { value("declaration-required") }
+            }
+        mvc.get("/api/v1/packages/$slug").andExpect { status { isNotFound() } }
+
+        edit(owner, slug, """{"title":"Test Clip","description":"","tags":["walk"],"license":"CC0-1.0",
+            "declarationAccepted":true,"declarationText":"${Declaration.TEXT}","declarationVersion":${Declaration.VERSION}}""")
+            .andExpect {
+                status { isOk() }
+                jsonPath("$.license") { value(AwclipSchema.LICENSE_PUBLIC) }
+            }
+        assertEquals(before + 1, publicDeclarations(), "the new share is on record")
+        mvc.get("/api/v1/packages/$slug").andExpect { status { isOk() } }
+
+        edit(owner, slug, """{"title":"Test Clip","description":"","tags":["walk"],"license":"ARR"}""")
+            .andExpect { status { isOk() } }
+        mvc.get("/api/v1/packages/$slug").andExpect { status { isNotFound() } }
     }
 }

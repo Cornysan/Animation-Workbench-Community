@@ -27,10 +27,13 @@ import org.springframework.data.jpa.domain.Specification
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.io.ByteArrayOutputStream
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 import java.util.UUID
+import java.util.zip.GZIPInputStream
+import java.util.zip.GZIPOutputStream
 
 /**
  * Die Upload-Erklärung (Konzept §11): eine Zeile, die tatsächlich gelesen
@@ -318,6 +321,176 @@ class CatalogService(
         audit.record(principal.accountId, "package.withdrawn", "package", slug, null, ip)
         overview.invalidate()
     }
+
+    // ════════════════════════════════════════════════════════════════════
+    // BEARBEITEN
+    // ════════════════════════════════════════════════════════════════════
+
+    /**
+     * Was der Besitzer an einem Clip aendern darf: alles, was nicht Bewegung
+     * ist. Die Bewegung selbst aendert sich nur mit einer neuen Fassung aus
+     * der Workbench.
+     *
+     * [declarationText] und [declarationVersion] zaehlen nur beim Wechsel von
+     * privat auf oeffentlich - siehe [edit].
+     */
+    data class PackageEdit(
+        val title: String = "",
+        val description: String = "",
+        val tags: List<String> = emptyList(),
+        val license: String = "",
+        val declarationAccepted: Boolean = false,
+        val declarationText: String? = null,
+        val declarationVersion: Int? = null,
+    )
+
+    /**
+     * Titel, Beschreibung, Schlagworte und Sichtbarkeit eines eigenen Clips.
+     *
+     * DIE DATEI ZIEHT MIT. Dieselben Angaben stehen im Manifest der
+     * gespeicherten `.awclip`, und die Workbench liest sie beim Import von
+     * dort - ohne Umschreiben kaeme nach einer Korrektur beim Herunterladen
+     * der alte Titel an, und ein oeffentlich gestellter Clip meldete in Unity
+     * "private, no rights granted". Der Inhalts-Hash haelt das aus: er deckt
+     * nur die Bewegung ab (AwclipHash), und [rewriteManifest] prueft das nach.
+     *
+     * PRIVAT -> OEFFENTLICH IST EIN NEUES TEILEN. Wer hochlaedt, bestaetigt
+     * die Erklaerung und die Lizenz, und beides wird protokolliert. Ein Clip,
+     * der privat hochkam, hatte nur die Erklaerung fuer "nur ich" - also gilt
+     * beim Wechsel dasselbe wie beim Hochladen: Erklaerung im Wortlaut, und
+     * eine neue [UploadDeclaration] mit der neuen Lizenz. Der umgekehrte Weg
+     * braucht nichts: CC0 laesst sich nicht zuruecknehmen, privat heisst nur,
+     * dass niemand NEUES ihn mehr findet - dasselbe wie beim Zurueckziehen.
+     *
+     * Die Follower bekommen keine Nachricht, auch nicht beim Wechsel auf
+     * oeffentlich: wer zweimal hin und her schaltet, schickte sonst zwei.
+     */
+    @Transactional
+    fun edit(principal: PortalPrincipal, slug: String, input: PackageEdit, ip: String): PackageDetail {
+        val account = accounts.requireUsable(principal.accountId)
+        val pkg = packages.findBySlug(slug) ?: throw PortalException.notFound("Package not found")
+        if (pkg.ownerId != account.id) throw PortalException.forbidden("Only the owner can edit a clip.")
+        if (pkg.status != PackageStatus.PUBLISHED)
+            throw PortalException.conflict("package-locked", "This clip is under review, removed or withdrawn.")
+        val version = pkg.currentVersionId?.let { versions.findById(it).orElse(null) }
+            ?: throw PortalException.notFound("Package not found")
+
+        //  Dieselben Regeln wie der Leser fuer das Manifest (AwclipReader) -
+        //  was hier durchgeht, muss auch als Datei wieder durchgehen.
+        val title = input.title.trim()
+        if (title.isEmpty() || title.length > AwclipSchema.MAX_TITLE_LENGTH || hasControl(title, allowNewline = false))
+            throw PortalException.badRequest("invalid-title", "The title must be 1-80 characters on one line.")
+
+        val description = input.description.replace("\r", "").trimEnd()
+        if (description.length > AwclipSchema.MAX_DESCRIPTION_LENGTH || hasControl(description, allowNewline = true))
+            throw PortalException.badRequest("invalid-description",
+                "The description can be up to ${AwclipSchema.MAX_DESCRIPTION_LENGTH} characters.")
+
+        val tags = input.tags.map { it.trim().lowercase() }.filter { it.isNotEmpty() }.distinct()
+        if (tags.size > AwclipSchema.MAX_TAGS)
+            throw PortalException.badRequest("invalid-tags", "Up to ${AwclipSchema.MAX_TAGS} tags.")
+        tags.firstOrNull { !AwclipSchema.isTag(it) }?.let {
+            throw PortalException.badRequest("invalid-tags", "'$it' is not a valid tag - use lowercase letters, digits and '-'.")
+        }
+
+        val license = input.license
+        if (license != AwclipSchema.LICENSE_PUBLIC && license != AwclipSchema.LICENSE_PRIVATE)
+            throw PortalException.badRequest("invalid-license", "Choose public or private.")
+
+        val goingPublic = license == AwclipSchema.LICENSE_PUBLIC && pkg.license != AwclipSchema.LICENSE_PUBLIC
+        if (goingPublic && (!input.declarationAccepted || input.declarationText != Declaration.TEXT ||
+                input.declarationVersion != Declaration.VERSION))
+            throw PortalException.badRequest("declaration-required", "Confirm that you made this animation to share it publicly.")
+
+        val changes = buildList {
+            if (title != pkg.title) add("title")
+            if (description != pkg.description) add("description")
+            if (tags != pkg.tagList()) add("tags")
+            if (license != pkg.license) add("license ${pkg.license}->$license")
+        }
+        if (changes.isEmpty()) return detail(pkg, version, principal)
+
+        val now = clock.instant()
+        val rewritten = rewriteManifest(version, title, description, tags, license)
+        version.blobKey = blobs.put(rewritten)
+        version.sizeBytes = rewritten.size.toLong()
+        versions.save(version)
+
+        if (goingPublic) {
+            declarations.save(
+                UploadDeclaration(
+                    accountId = account.id,
+                    versionId = version.id,
+                    declarationText = Declaration.TEXT,
+                    declarationVersion = Declaration.VERSION,
+                    license = license,
+                    originClass = version.originClass,
+                    ipAddress = ip,
+                    createdAt = now,
+                )
+            )
+        }
+
+        pkg.title = title
+        pkg.description = description
+        pkg.tags = AnimationPackage.joinTags(tags)
+        pkg.license = license
+        pkg.updatedAt = now
+        packages.save(pkg)
+
+        audit.record(account.id, "package.edited", "package", slug, changes.joinToString(", "), ip)
+        overview.invalidate()
+        return detail(pkg, version, principal)
+    }
+
+    /**
+     * Die gespeicherte Datei mit neuem Kopf: gleiche Bewegung, gleiche
+     * Vorschau, nur das Manifest ist anders. Gegenprobe ueber den Leser und
+     * den Hash, bevor irgendetwas davon gespeichert wird - aendert das
+     * Umschreiben auch nur eine Zahl der Bewegung, bricht es ab, statt eine
+     * Datei abzulegen, die nicht mehr zu ihrem Hash passt.
+     */
+    private fun rewriteManifest(
+        version: PackageVersion, title: String, description: String, tags: List<String>, license: String,
+    ): ByteArray {
+        val text = blobs.open(version.blobKey).use { GZIPInputStream(it).readBytes().toString(Charsets.UTF_8) }
+        val root = StrictJson.parse(text) as? StrictJson.Value.Obj
+            ?: throw IllegalStateException("Stored file of version ${version.id} is not a JSON object")
+        val manifest = root["manifest"] as? StrictJson.Value.Obj
+            ?: throw IllegalStateException("Stored file of version ${version.id} has no manifest")
+
+        val replaced = linkedMapOf<String, StrictJson.Value>(
+            "title" to StrictJson.Value.Str(title),
+            "description" to StrictJson.Value.Str(description),
+            "tags" to StrictJson.Value.Arr(tags.map { StrictJson.Value.Str(it) }),
+            "license" to StrictJson.Value.Str(license),
+        )
+        //  Beschreibung und Schlagworte sind im Format optional - fehlen sie
+        //  in der Datei, kommen sie hinten dazu.
+        val members = manifest.members.map { (key, value) -> key to (replaced[key] ?: value) } +
+            replaced.filterKeys { key -> manifest.members.none { it.first == key } }.toList()
+        val json = StrictJson.write(StrictJson.Value.Obj(root.members.map { (key, value) ->
+            key to (if (key == "manifest") StrictJson.Value.Obj(members) else value)
+        }))
+
+        val bytes = ByteArrayOutputStream().also { out ->
+            GZIPOutputStream(out).use { it.write(json.toByteArray(Charsets.UTF_8)) }
+        }.toByteArray()
+
+        if (bytes.size > AwclipSchema.MAX_COMPRESSED_BYTES)
+            throw PortalException(HttpStatus.PAYLOAD_TOO_LARGE, "too-large", "The file would be too large.")
+
+        val doc = when (val read = AwclipReader.readFile(bytes.inputStream())) {
+            is AwclipReadResult.Ok -> read.document
+            is AwclipReadResult.Rejected -> throw IllegalStateException("Rewritten file rejected: ${read.error}")
+        }
+        check(AwclipHash.compute(doc) == version.contentHash) { "Rewriting the manifest changed the motion of ${version.id}" }
+        check(doc.manifest.title == title && doc.manifest.license == license) { "Rewritten manifest does not read back" }
+        return bytes
+    }
+
+    private fun hasControl(text: String, allowNewline: Boolean) =
+        text.any { (it == '\n' && !allowNewline) || (it != '\n' && (it.code < 0x20 || it.code == 0x7f)) }
 
     // ════════════════════════════════════════════════════════════════════
     // LESEN
