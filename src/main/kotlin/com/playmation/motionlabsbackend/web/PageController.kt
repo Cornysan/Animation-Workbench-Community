@@ -123,15 +123,16 @@ class PageController(
         //  nur wenn der Clip hier auch sichtbar ist, sonst holte sie eine 404.
         clip?.let { model.addAttribute("clipSlug", it.slug) }
 
-        //  Ein privater Clip bekommt keine eigene Vorschau. Wer „nicht gelistet
-        //  und nicht auffindbar" waehlt, hat keine Karte bestellt, die seine
-        //  Bewegung in jedem Kanal zeigt, in den der Link geraet.
+        //  Ein privater Clip bekommt keine eigene Vorschau - ohne Anmeldung
+        //  kommt er seit Schema 10 gar nicht mehr bis hier (`visible`). Die
+        //  Pruefung bleibt trotzdem stehen: sie ist billig, und eine Karte,
+        //  die seine Bewegung in jeden Kanal traegt, hat niemand bestellt.
         if (clip != null && clip.license == AwclipSchema.LICENSE_PUBLIC) {
             val url = portal.publicBaseUrl.trimEnd('/') + "/clip.html?p=" + clip.slug
             model.addAttribute("meta", ShellModel.PageMeta(
                 title = clip.title + " by " + clip.author,
                 description = clip.description.takeIf { it.isNotBlank() }
-                    ?: "A humanoid animation clip, free to use under CC BY 4.0.",
+                    ?: "A humanoid animation clip, free to use under CC0 - no credit needed.",
                 image = if (clip.hasPreview) portal.publicBaseUrl.trimEnd('/') + "/clip-card/" + clip.slug + ".png" else null,
                 url = url,
                 noindex = !portal.searchIndexing,
@@ -158,7 +159,7 @@ class PageController(
             model.addAttribute("meta", ShellModel.PageMeta(
                 title = meta.displayName + " on Animation Workbench Community (Beta)",
                 description = meta.bio
-                    ?: "Animation clips shared by ${meta.displayName} - free to use under CC BY 4.0.",
+                    ?: "Animation clips shared by ${meta.displayName} - free to use under CC0, no credit needed.",
                 image = meta.cardSlug?.let { "$base/clip-card/$it.png" },
                 url = "$base/u.html?u=$handle",
                 noindex = !portal.searchIndexing,

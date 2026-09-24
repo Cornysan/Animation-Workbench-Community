@@ -641,9 +641,9 @@ class ClipCardController(
 
     @GetMapping("/clip-card/{slug}.png", produces = [MediaType.IMAGE_PNG_VALUE])
     fun card(@PathVariable slug: String): ResponseEntity<ByteArray> {
-        //  Ein privater Clip bekommt keine Vorschau. Wer "nicht gelistet und
-        //  nicht auffindbar" waehlt, hat damit keine Karte bestellt, die seine
-        //  Bewegung in jedem Kanal zeigt, in den der Link geraet.
+        //  Ein privater Clip bekommt keine Vorschau. `detail` ohne Konto gibt
+        //  ihn seit Schema 10 gar nicht mehr her; die Zeile darunter haelt
+        //  trotzdem Wache, falls jemand hier einmal mit Anmeldung fragt.
         val clip = catalog.detail(slug, null)
         if (clip.license != AwclipSchema.LICENSE_PUBLIC) throw PortalException.notFound("No preview card for this clip.")
 

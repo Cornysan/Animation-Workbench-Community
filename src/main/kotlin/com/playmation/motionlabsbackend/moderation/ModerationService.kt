@@ -71,6 +71,10 @@ class ModerationService(
         val pkg = packages.findBySlug(slug) ?: throw PortalException.notFound("Package not found")
         if (pkg.status != PackageStatus.PUBLISHED && pkg.status != PackageStatus.AUTO_HIDDEN)
             throw PortalException.notFound("Package not found")
+        //  Einen privaten Clip sieht ausser seinem Besitzer niemand - also
+        //  meldet ihn auch niemand, und die Antwort verraet nicht, dass es ihn gibt.
+        if (pkg.license != AwclipSchema.LICENSE_PUBLIC && pkg.ownerId != reporter.id)
+            throw PortalException.notFound("Package not found")
         if (pkg.ownerId == reporter.id)
             throw PortalException.badRequest("own-package", "You cannot report your own clip - withdraw it instead.")
         if (reports.existsByPackageIdAndReporterIdAndStatusAndCommentIdIsNull(pkg.id, reporter.id, CaseStatus.OPEN))

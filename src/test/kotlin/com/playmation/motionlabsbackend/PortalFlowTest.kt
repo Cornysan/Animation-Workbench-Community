@@ -14,6 +14,7 @@ import org.springframework.http.MediaType
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.MockHttpServletRequestDsl
 import org.springframework.test.web.servlet.ResultActionsDsl
 import org.springframework.test.web.servlet.get
 import org.springframework.test.web.servlet.multipart
@@ -62,7 +63,7 @@ class PortalFlowTest {
     private fun unique() = UUID.randomUUID().toString().replace("-", "").take(10)
 
     /** Ein gültiges .awclip mit Bewegung, die es sonst nirgends gibt. */
-    private fun awclip(seed: Double, title: String = "Test Clip", license: String = "CC-BY-4.0", tags: String = "\"walk\""): ByteArray {
+    private fun awclip(seed: Double, title: String = "Test Clip", license: String = AwclipSchema.LICENSE_PUBLIC, tags: String = "\"walk\""): ByteArray {
         val doc = """
             {"format":"awclip","version":1,
              "manifest":{"title":"$title","tags":[$tags],"license":"$license","rig":"humanoid","frameRate":30,"duration":1},
@@ -86,7 +87,7 @@ class PortalFlowTest {
     private fun genericAwclip(seed: Double): ByteArray {
         val doc = """
             {"format":"awclip","version":1,
-             "manifest":{"title":"Door Swing","tags":["prop"],"license":"CC-BY-4.0","rig":"generic","frameRate":30,"duration":1},
+             "manifest":{"title":"Door Swing","tags":["prop"],"license":"CC0-1.0","rig":"generic","frameRate":30,"duration":1},
              "origin":"own",
              "curves":[{"attribute":"Hinge/Panel.m_LocalRotation.y","keys":[[0,$seed,0,0],[1,0.7071068,0,0]]}],
              "preview":{"frameRate":30,"bones":["Hinge","Panel"],"parents":[-1,0],"rest":[[0,0,0],[0,0.9,0]],
@@ -367,9 +368,17 @@ class PortalFlowTest {
             .andExpect { status { isForbidden() } }
     }
 
+    /**
+     * Privat heisst "nur ich" (Schema 10). Bis dahin oeffnete der Link einen
+     * privaten Clip fuer jeden, der ihn hatte. Jetzt sieht ihn nur sein
+     * Besitzer - und der Admin, weil eine Loeschanfrage ihn erreichen muss.
+     * Fuer alle anderen ist er auf JEDEM Weg dasselbe 404 wie ein Slug, den
+     * es nie gab.
+     */
     @Test
-    fun `a private clip is not in the catalog but works with its link`() {
+    fun `a private clip is seen by its owner and nobody else`() {
         val owner = login("owner-${unique()}")
+        val stranger = login("stranger-${unique()}")
         val public = uploadOk(owner, awclip(0.95, "Shared jump"))
         val private = uploadOk(owner, awclip(0.96, "Shared jump", license = AwclipSchema.LICENSE_PRIVATE))
 
@@ -378,10 +387,46 @@ class PortalFlowTest {
         assertTrue(public in slugs, "the public clip belongs in the catalog")
         assertFalse(private in slugs, "a private clip must not be listed")
 
-        // Der Link bleibt der Weg zu einem privaten Clip - auch fuer andere.
-        mvc.get("/api/v1/packages/$private").andExpect {
+        //  Der Besitzer sieht ihn, mit allem.
+        mvc.get("/api/v1/packages/$private") { header("Authorization", "Bearer $owner") }.andExpect {
             status { isOk() }
             jsonPath("$.license") { value(AwclipSchema.LICENSE_PRIVATE) }
+        }
+        mvc.get("/api/v1/packages/$private/preview") { header("Authorization", "Bearer $owner") }
+            .andExpect { status { isOk() } }
+
+        //  Niemand sonst - weder ohne Konto noch mit einem fremden.
+        for (who in listOf<String?>(null, stranger)) {
+            fun MockHttpServletRequestDsl.as_() { if (who != null) header("Authorization", "Bearer $who") }
+            mvc.get("/api/v1/packages/$private") { as_() }.andExpect { status { isNotFound() } }
+            mvc.get("/api/v1/packages/$private/preview") { as_() }.andExpect { status { isNotFound() } }
+            mvc.get("/api/v1/packages/$private/comments") { as_() }.andExpect { status { isNotFound() } }
+            mvc.get("/clip-card/$private.png") { as_() }.andExpect { status { isNotFound() } }
+        }
+        for (action in listOf("download-link", "unlock"))
+            mvc.post("/api/v1/packages/$private/$action") { header("Authorization", "Bearer $stranger") }
+                .andExpect { status { isNotFound() } }
+        mvc.post("/api/v1/packages/$private/like") {
+            header("Authorization", "Bearer $stranger")
+            contentType = MediaType.APPLICATION_JSON
+            content = "{\"liked\":true}"
+        }.andExpect { status { isNotFound() } }
+        report(stranger, private).andExpect { status { isNotFound() } }
+
+        //  Der Admin erreicht ihn - Loeschanfragen gelten auch fuer Privates.
+        mvc.get("/api/v1/packages/$private") { header("Authorization", "Bearer ${login("admin")}") }
+            .andExpect { status { isOk() } }
+    }
+
+    /** Neu geteilt wird nur noch unter CC0 oder privat - CC BY 4.0 ist Geschichte. */
+    @Test
+    fun `a new upload under the old cc by licence is refused`() {
+        upload(login("ccby-${unique()}"), awclip(0.97, "Old licence", license = "CC-BY-4.0")).andExpect {
+            status { isBadRequest() }
+            //  Die Absage des Lesers kommt verpackt an; welche Regel griff,
+            //  steht in der Nachricht.
+            jsonPath("$.error.code") { value("invalid-awclip") }
+            jsonPath("$.error.message") { value(org.hamcrest.Matchers.containsString("invalid-license")) }
         }
     }
 

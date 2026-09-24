@@ -53,7 +53,7 @@ class CollectionFlowTest {
             with(csrf())
         }.andExpect { status { isOk() } }.body()["token"].asString()
 
-    private fun awclip(title: String, license: String = "CC-BY-4.0"): ByteArray {
+    private fun awclip(title: String, license: String = "CC0-1.0"): ByteArray {
         //  Der Inhalts-Hash umfasst Kurvennamen und Schluessel. Zwei Testklassen
         //  teilen sich EINE Datenbank, also muss jede Bewegung hier einmalig sein -
         //  ein fest gewaehlter Seed kollidiert sonst mit dem einer anderen Klasse,
@@ -72,7 +72,7 @@ class CollectionFlowTest {
         return out.toByteArray()
     }
 
-    private fun uploadOk(token: String, title: String, license: String = "CC-BY-4.0"): String =
+    private fun uploadOk(token: String, title: String, license: String = "CC0-1.0"): String =
         mvc.multipart("/api/v1/packages") {
             file("file", awclip(title, license))
             param("declarationText", Declaration.TEXT)

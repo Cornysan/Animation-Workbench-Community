@@ -71,7 +71,7 @@ class ProfileFlowTest {
         val seed = java.util.concurrent.ThreadLocalRandom.current().nextDouble()
         val doc = """
             {"format":"awclip","version":1,
-             "manifest":{"title":"$title","tags":["walk"],"license":"CC-BY-4.0","rig":"humanoid","frameRate":30,"duration":1},
+             "manifest":{"title":"$title","tags":["walk"],"license":"CC0-1.0","rig":"humanoid","frameRate":30,"duration":1},
              "origin":"own",
              "curves":[{"attribute":"Head Nod Down-Up","keys":[[0,$seed,0,0],[1,0.25,0,0]]}],
              "preview":{"frameRate":15,"bones":["Hips","Spine"],"parents":[-1,0],"rest":[[0,1,0],[0,0.1,0]],

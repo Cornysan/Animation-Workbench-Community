@@ -128,7 +128,7 @@ class ShellModel(
     fun defaultMeta() = PageMeta(
         "Animation Workbench Community (Beta)",
         "Humanoid animation clips made in the Animation Workbench, shared as plain motion data - " +
-            "no FBX, no rig, no model. Free to use under CC BY 4.0.",
+            "no FBX, no rig, no model. Free to use under CC0, no credit needed.",
         url = portal.publicBaseUrl,
         noindex = !portal.searchIndexing,
     )

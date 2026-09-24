@@ -46,13 +46,23 @@ object AwclipSchema {
 
     /**
      * Die öffentliche Lizenz. Eine einzige, damit das Teilen keine Lizenzkunde
-     * verlangt: nennen, ändern, kommerziell nutzen.
+     * verlangt: benutzen, ändern, kommerziell nutzen - ohne Bedingung.
+     *
+     * CC0 statt CC BY seit dem 2026-09-24 (Schema 10). CC BY verlangte von
+     * jedem, der einen Clip in ein Spiel baut, den Namen des Urhebers in den
+     * Credits - bei zwanzig Clips von zwoelf Leuten eine Buchfuehrung, die
+     * viele meiden. Genannt wird der Urheber trotzdem: auf der Karte, im
+     * Profil. Nur nicht mehr als Pflicht.
      */
-    const val LICENSE_PUBLIC = "CC-BY-4.0"
+    const val LICENSE_PUBLIC = "CC0-1.0"
 
     /**
-     * Kein Nutzungsrecht: der Clip liegt im Portal, ist aber nicht gelistet und
-     * nur über seinen Link erreichbar.
+     * Privat: der Clip liegt im Portal, und NUR SEIN BESITZER sieht ihn (dazu
+     * die Admins, fuer Moderation und Loeschanfragen). Kein Nutzungsrecht.
+     *
+     * Bis zum 2026-09-24 hiess das "nicht gelistet, nur ueber den Link" - wer
+     * den Link hatte, sah den Clip. Jetzt oeffnet der Link ihn fuer niemanden
+     * sonst (CatalogService.visible).
      */
     const val LICENSE_PRIVATE = "ARR"
 

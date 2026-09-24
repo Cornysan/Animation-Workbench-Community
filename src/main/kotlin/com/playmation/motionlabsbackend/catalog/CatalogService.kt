@@ -481,7 +481,7 @@ class CatalogService(
             throw PortalException.notFound("Package not found")
         if (pkg.license != AwclipSchema.LICENSE_PUBLIC)
             throw PortalException.badRequest(
-                "private-clip", "A private clip cannot go into a collection - it is only shared by link.")
+                "private-clip", "A private clip cannot go into a collection - only you can see it.")
 
         //  Die Eintrittspruefung fragt, was der Katalog zeigt - und der zeigt
         //  nur Rigs, die das Portal annimmt. Ohne diese Zeile liesse sich ein
@@ -618,12 +618,23 @@ class CatalogService(
 
     // ── Hilfen ──────────────────────────────────────────────────────────
 
-    /** Öffentlich sichtbar, oder für Besitzer und Admins auch im Prüfzustand. */
+    /**
+     * Öffentlich sichtbar, oder für Besitzer und Admins auch im Prüfzustand.
+     *
+     * DER RIEGEL FÜR JEDEN EINZELNEN CLIP: Seite, Vorschau, Download,
+     * Freischalten, Herz und Kommentare fragen alle hier. Ein privater Clip
+     * (`ARR`) ist nur für seinen Besitzer da - und für Admins, weil auch
+     * Privates auf diesem Server liegt und eine Löschanfrage ihn erreichen
+     * muss. Alle anderen bekommen dasselbe 404 wie für einen Slug, den es nie
+     * gab: ob hinter einem Link ein privater Clip steckt, verrät die Antwort
+     * nicht.
+     */
     internal fun visible(slug: String, principal: PortalPrincipal?): Pair<AnimationPackage, PackageVersion> {
         val pkg = packages.findBySlug(slug) ?: throw PortalException.notFound("Package not found")
         val privileged = principal != null && (principal.isAdmin || principal.accountId == pkg.ownerId)
 
         if (pkg.status != PackageStatus.PUBLISHED && !privileged) throw PortalException.notFound("Package not found")
+        if (pkg.license != AwclipSchema.LICENSE_PUBLIC && !privileged) throw PortalException.notFound("Package not found")
 
         val version = pkg.currentVersionId?.let { versions.findById(it).orElse(null) }
             ?: throw PortalException.notFound("Package not found")

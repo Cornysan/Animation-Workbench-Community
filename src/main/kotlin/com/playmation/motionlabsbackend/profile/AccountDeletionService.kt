@@ -35,9 +35,9 @@ import java.util.UUID
  *
  * WAS BLEIBT UND WARUM:
  *   Geteilte Clips werden ZURUECKGEZOGEN, nicht geloescht. Sie sind unter
- *   CC BY 4.0 geteilt worden, und diese Lizenz ist fuer Kopien, die andere
- *   schon haben, nicht ruecknehmbar (Nutzungsbedingungen §3). Aus dem Katalog
- *   verschwinden sie trotzdem sofort.
+ *   CC0 geteilt worden (bis Schema 10 unter CC BY 4.0), und das ist fuer
+ *   Kopien, die andere schon haben, nicht ruecknehmbar (Nutzungsbedingungen
+ *   §3). Aus dem Katalog verschwinden sie trotzdem sofort.
  *
  *   Kommentare bleiben stehen, ohne Namen. Ein Gespraech, aus dem nachtraeglich
  *   die Haelfte verschwindet, ist fuer alle anderen unlesbar.

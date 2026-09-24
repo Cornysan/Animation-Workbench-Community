@@ -3,7 +3,7 @@
  "version": 1,
  "manifest": {
   "title": "Door Swing",
-  "license": "CC-BY-4.0",
+  "license": "CC0-1.0",
   "rig": "generic",
   "frameRate": 30,
   "duration": 1

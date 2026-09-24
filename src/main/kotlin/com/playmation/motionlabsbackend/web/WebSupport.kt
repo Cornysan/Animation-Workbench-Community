@@ -78,19 +78,20 @@ class StatusController(
 
     /**
      * Zwei Möglichkeiten, nicht fünf Lizenzen: teilen oder nicht. Wer eine
-     * Animation lädt, will sie benutzen und ändern dürfen - dafür reicht CC BY,
-     * und alles andere war beim Hochladen nur eine Hürde.
+     * Animation lädt, will sie benutzen und ändern dürfen, ohne Buch darüber
+     * zu führen, wem er sie verdankt - dafür CC0. Privat heißt: nur man
+     * selbst (seit Schema 10; vorher jeder mit dem Link).
      */
     @GetMapping("/licenses")
     fun licenses() = listOf(
         LicenseInfo(
-            AwclipSchema.LICENSE_PUBLIC, "CC BY 4.0",
-            "Public. Anyone may use and change it, also commercially, if they credit you.",
-            "https://creativecommons.org/licenses/by/4.0/",
+            AwclipSchema.LICENSE_PUBLIC, "CC0",
+            "Public. Anyone may use and change it, also commercially, without having to credit you.",
+            "https://creativecommons.org/publicdomain/zero/1.0/",
         ),
         LicenseInfo(
             AwclipSchema.LICENSE_PRIVATE, "Private",
-            "Not listed and not searchable. Only reachable with the link, and nobody gets any rights.",
+            "Only you can see it - not listed, not searchable, and its link opens it for nobody else.",
             "",
         ),
     ).also { list -> check(list.map { it.id } == AwclipSchema.LICENSES) }

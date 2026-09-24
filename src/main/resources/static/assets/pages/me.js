@@ -33,7 +33,10 @@
   body.replaceChildren(...(clips.length === 0
     ? [el("tr", {}, el("td", { colspan: 5, class: "muted" }, "You have not shared a clip yet."))]
     : clips.map((clip) => el("tr", {},
-        el("td", {}, el("a", { href: "/clip.html?p=" + encodeURIComponent(clip.slug) }, clip.title)),
+        //  Privat heisst "nur ich" - hier, wo nur man selbst hinsieht, steht
+        //  es dabei, sonst sieht die Liste aus, als waere alles im Katalog.
+        el("td", {}, el("a", { href: "/clip.html?p=" + encodeURIComponent(clip.slug) }, clip.title),
+          clip.license === "ARR" ? el("span", { class: "chip", "data-tip": "Only you can see it" }, "Private") : null),
         el("td", {}, el("span", { class: "status " + clip.status }, clip.status)),
         el("td", {}, clip.version),
         el("td", {}, clip.downloads),
@@ -55,7 +58,7 @@
       body: [
         el("p", {}, el("strong", {}, "Gone: "), "your name, your profile, your collections, your likes, who you follow."),
         el("p", {}, el("strong", {}, "Withdrawn: "), "your shared clips disappear from the catalogue - but copies other people " +
-          "already took stay theirs, as CC BY 4.0 says."),
+          "already took stay theirs, as CC0 says."),
         el("p", {}, el("strong", {}, "Kept without your name: "), "your comments, so conversations under other people's clips " +
           "stay readable."),
         el("p", { class: "muted" }, "This cannot be undone."),

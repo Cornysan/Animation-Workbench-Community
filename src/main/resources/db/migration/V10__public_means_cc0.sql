@@ -1,0 +1,21 @@
+-- ---------------------------------------------------------------------------
+-- Schema 10: Oeffentlich heisst CC0, privat heisst "nur ich".
+--
+-- Bis hierher stand jeder oeffentliche Clip unter CC BY 4.0, und "privat" hiess
+-- nicht gelistet, aber fuer jeden mit dem Link sichtbar. Ab jetzt:
+--   oeffentlich -> CC0 1.0: benutzen, aendern, verkaufen, ohne Namensnennung
+--   privat      -> nur der Besitzer sieht den Clip (dazu die Admins)
+--
+-- Die Clips, die bis hierher im Portal lagen, waren nach Aussage des
+-- Betreibers (2026-09-24) ausnahmslos Testclips. Sie ziehen deshalb mit um,
+-- statt unter einer zweiten Kennung stehen zu bleiben - sonst fielen sie aus
+-- jedem Filter, der "oeffentlich" fragt, und der Katalog stuende leer.
+--
+-- NICHT angefasst:
+--   upload_declaration.license - das Protokoll haelt fest, was beim Hochladen
+--     gewaehlt wurde, und bleibt so, wie es war.
+--   die hochgeladenen Dateien - ihr Inhalts-Hash haengt am Manifest. Die
+--     Workbench liest die alte Kennung deshalb weiter (AWClipSchema).
+-- ---------------------------------------------------------------------------
+
+update animation_package set license = 'CC0-1.0' where license = 'CC-BY-4.0';
