@@ -984,16 +984,6 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
   border: 1px solid var(--line-strong);
   color: var(--text-dim);
 }
-.license-note {
-  background: var(--bg-soft);
-  border-left: 3px solid var(--accent);
-  border-radius: var(--radius-sm);
-  padding: 12px 14px;
-  font-size: 14px;
-  color: var(--text-dim);
-  line-height: 1.5;
-}
-.license-note strong { color: var(--text); }
 
 /* ── Nachbarschaft ─────────────────────────────────────────────────────
    Wer einen Laufzyklus ansieht, will meistens Laufzyklen sehen. Zeilen, keine
@@ -1494,11 +1484,12 @@ table.list tr:hover td { background: var(--row-hover); }
 .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .hero-actions .button { padding: 11px 20px; }
 
-/* Drei kurze Marken statt eines Satzes.
+/* Kurze Marken statt eines Satzes.
    Hier stand die Lizenz als Prosa: "Everything listed here is CC BY 4.0: use
    it, change it, ship it commercially - just credit whoever made it." Achtzehn
-   Woerter neben einer Figur, die sich bewegt - gelesen hat sie niemand. Wer es
-   genau wissen will, klickt auf die Marke; die anderen sehen weiter die Figur. */
+   Woerter neben einer Figur, die sich bewegt - gelesen hat sie niemand. Danach
+   war sie eine Marke; seit CC0 sagt die Ueberschrift "free to use" dasselbe,
+   und wer es genau wissen will, findet "Licenses" im Fuss. */
 .badge-row {
   display: flex;
   flex-wrap: wrap;
@@ -1520,14 +1511,6 @@ table.list tr:hover td { background: var(--row-hover); }
   font-size: 12.5px;
   font-weight: 550;
   white-space: nowrap;
-}
-.badge-row a:hover { color: var(--text); border-color: var(--line-strong); text-decoration: none; }
-.badge-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--accent);
-  flex: none;
 }
 
 /* Was hier liegt, in drei Zahlen. Ein Portal, das seinen Umfang nicht nennt,

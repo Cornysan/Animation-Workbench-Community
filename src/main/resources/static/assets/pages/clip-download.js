@@ -147,8 +147,8 @@ async function downloadAwclip() {
   document.body.append(a);
   a.click();
   a.remove();
-  toast('Downloaded. In Unity: Tools > Animation Workbench > Community > Import .awclip File. License: '
-    + link.license + '.', { kind: 'ok', duration: 9000 });
+  toast('Downloaded. In Unity: Tools > Animation Workbench > Community > Import .awclip File.',
+    { kind: 'ok', duration: 9000 });
 }
 
 async function downloadWithCharacter() {

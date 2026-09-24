@@ -23,7 +23,6 @@
   //  Was nicht vom Clip abhaengt, laeuft gleich mit los. Vorher stand jede
   //  Abfrage hinter der vorigen - Clip, dann Lizenzen, dann Konto, dann
   //  Nachbarschaft -, und die Seite wartete viermal nacheinander auf das Netz.
-  const licensesRequest = api("GET", "/api/v1/licenses").catch(() => null);
   const userRequest = me().catch(() => null);
 
   let clip;
@@ -58,7 +57,7 @@
     ...clip.tags.map((tag) => el("a", { class: "tag", href: "/browse.html?tag=" + encodeURIComponent(tag) }, tag)));
 
   //  Die Nachbarschaft braucht nur die Schlagworte - sie wartet nicht auf
-  //  Lizenzen und Konto.
+  //  das Konto.
   showRelated();
 
   //  "Used in projects" und "Likes" stehen nicht mehr hier: die eine Zahl steht
@@ -70,21 +69,13 @@
     el("dt", {}, "Curves"), el("dd", {}, clip.curveCount),
     el("dt", {}, "Rig"), el("dd", {}, clip.rig === "generic" ? "Generic" : "Humanoid"),
     el("dt", {}, "Version"), el("dd", {}, clip.version),
+    //  Die Lizenz steht nicht mehr auf der Seite: jeder oeffentliche Clip hat
+    //  dieselbe, und die erklaert "Licenses" unten im Fuss. Ein Kasten mit
+    //  demselben Satz ueber jedem Download-Knopf war der lauteste Teil der
+    //  Spalte. Was bleibt, ist der eine Fall, der nicht fuer alle gilt: ein
+    //  privater Clip, den nur sein Besitzer sieht.
+    ...(clip.license === "ARR" ? [el("dt", {}, "Visibility"), el("dd", {}, "Only you")] : []),
     ...(clip.status ? [el("dt", {}, "Status"), el("dd", {}, el("span", { class: "status " + clip.status }, clip.status))] : []));
-
-  try {
-    const licenses = await licensesRequest;
-    const license = licenses && licenses.find((l) => l.id === clip.license);
-    if (!licenses) throw new Error("no licenses");
-    document.getElementById("license").replaceChildren(...[
-      el("strong", {}, license ? license.name : clip.license), el("br"),
-      license ? license.summary + " " : "",
-      // Der private Fall hat keine Lizenzseite, auf die man verweisen könnte.
-      license && license.url ? el("a", { href: license.url, rel: "noopener", target: "_blank" }, "Full license") : null,
-    ].filter(Boolean));
-  } catch {
-    document.getElementById("license").textContent = clip.license;
-  }
 
   //  Die Vorschau gehoert `pages/clip-viewer.js` - einem Modul, weil die Buehne
   //  three.js laedt. Es holt seine Daten selbst und ist der einzige Schreiber
