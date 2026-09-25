@@ -902,7 +902,9 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
   bottom: 11px;
   right: 11px;
   font-variant-numeric: tabular-nums;
-  color: var(--text-dim);
+  /* Bühnenmarke, nicht `--text-dim`: die Pille liegt auf dem Bild, nicht auf
+     der Seite. In Hell stand hier dunkler Text auf der dunklen Pille. */
+  color: var(--on-stage-dim);
 }
 
 /* ── Wenn eine Adresse ins Leere fuehrt ────────────────────────────────
@@ -1205,6 +1207,9 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
    auf dunklem Grund wie ein Fremdkoerper in der Leiste. */
 .viewer-controls input[type=range] {
   flex: 1;
+  /* Ohne das behaelt der Regler seine Eigenbreite von 129 px und schob auf
+     einem Telefon den Vollbild-Knopf aus der Leiste. */
+  min-width: 0;
   appearance: none;
   -webkit-appearance: none;
   height: 4px;
