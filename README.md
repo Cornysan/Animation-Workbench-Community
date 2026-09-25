@@ -289,7 +289,7 @@ npx esbuild entry.js --bundle --format=esm --minify --legal-comments=none   --ta
 
 ## Betrieb
 
-Live-Adresse: **https://community.playmations.com**, auf demselben Server wie
+Live-Adresse: **https://www.playmations.com**, auf demselben Server wie
 die Doku-Site (SSH-Alias `linux`), hinter dem Caddy, der dort schon laeuft.
 Der ganze Weg - DNS, Discord-Anwendung, `.env`, erstes Ausrollen, Sicherung,
 Rueckfall, Not-Aus - steht in [`server/DEPLOY.md`](server/DEPLOY.md).
@@ -300,7 +300,7 @@ Alles Geheime kommt aus der Umgebung; `server/docker-compose.yml` liest
 | Variable | Zweck |
 |---|---|
 | `DB_PASSWORD` | PostgreSQL im Docker-Netz |
-| `PORTAL_BASE_URL` | oeffentliche Adresse, `https://community.playmations.com` |
+| `PORTAL_BASE_URL` | oeffentliche Adresse, `https://www.playmations.com` |
 | `PORTAL_DOWNLOAD_SECRET` | HMAC fuer Download-Links (zufaellig, >= 32 Zeichen) |
 | `PORTAL_PSEUDONYM_SECRET` | HMAC fuer IP-Pseudonyme (ein anderer!) |
 | `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET` | Discord-Anwendung, Redirect `.../login/oauth2/code/discord`, Scope `identify` |

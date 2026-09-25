@@ -1,0 +1,63 @@
+# ---------------------------------------------------------------------------
+# Gehoert ans Ende von /etc/caddy/Caddyfile auf dem Server (SSH-Alias `linux`).
+# Dort stehen schon docs., feedback., hub., lauf. und stocks. im selben Stil.
+#
+# Uebernehmen:
+#   ssh linux "cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.bak.$(date +%F-%H%M)"
+#   ...Bloecke einsetzen...
+#   ssh linux "caddy validate --config /etc/caddy/Caddyfile && systemctl reload caddy"
+#
+# Voraussetzung: DNS fuer playmations.com, www.playmations.com und
+# community.playmations.com zeigt auf 207.180.226.248. Es gibt KEIN Wildcard
+# auf playmations.com, jede Subdomain hat ihren eigenen Eintrag bei STRATO
+# (www ist ein Alias auf den nackten Namen). Ohne Eintrag bekommt Caddy kein
+# Zertifikat und schreibt das alle paar Minuten ins Journal.
+#
+# Seit 2026-09-25 wohnt das Portal auf www. Vorher auf community., und der
+# nackte Name und www leiteten dorthin.
+# ---------------------------------------------------------------------------
+
+www.playmations.com {
+	# zstd zuerst: jeder aktuelle Browser kann es, und es ist schneller und
+	# kleiner als gzip. Wer es nicht kann, bekommt weiter gzip.
+	encode zstd gzip
+
+	# Das Portal nimmt .awclip bis 8 MB an (AwclipSchema), der Rest ist Luft
+	# fuer die uebrigen Formularteile. Ohne die Grenze hier laedt jemand erst
+	# 500 MB hoch und bekommt dann vom Spring-Multipart eine Absage.
+	request_body {
+		max_size 10MB
+	}
+
+	# Sicherheits-Header kommen aus Spring Security (CSP, Frame-Options, HSTS).
+	# Hier keine zweiten setzen, sonst stehen sie doppelt in der Antwort.
+	reverse_proxy 127.0.0.1:8090
+}
+
+playmations.com {
+	redir https://www.playmations.com{uri} permanent
+}
+
+# Die alte Adresse. Seiten leiten auf www, damit Links und Suchmaschinen
+# mitziehen. /api/ reicht sie dagegen weiter durch: eine Workbench, die noch
+# die alte Adresse kennt, schickt ihr Token im Authorization-Header, und den
+# laesst eine Weiterleitung auf einen anderen Host fallen. Das Portal
+# antwortet 401, und die Workbench meldet sich daraufhin ab.
+# Die Workbench liest die alte Adresse seit 2026-09-25 als die neue
+# (AWPortalClient.BaseUrl); der Durchgang hier kann weg, sobald keine
+# Workbench mit altem Stand mehr laeuft.
+community.playmations.com {
+	encode zstd gzip
+
+	request_body {
+		max_size 10MB
+	}
+
+	handle /api/* {
+		reverse_proxy 127.0.0.1:8090
+	}
+
+	handle {
+		redir https://www.playmations.com{uri} permanent
+	}
+}

@@ -1,4 +1,4 @@
-# Betrieb - community.playmations.com
+# Betrieb - www.playmations.com
 
 Das Portal laeuft auf demselben Server wie die Doku-Site: Ubuntu, SSH-Alias
 `linux` (207.180.226.248), Caddy auf 80/443. Dort liegen schon
@@ -25,16 +25,17 @@ noetig). Marken: `main` = letzter Stand, `main-<sha>` = eine feste Fassung.
 
 ## Vor dem ersten Mal
 
-1. **DNS.** Bei STRATO einen A-Record `community` -> `207.180.226.248`.
-   Es gibt **kein Wildcard** auf `playmations.com`, auch wenn das frueher in
-   `docs-site/DEPLOY.md` stand - jede Subdomain hat ihren eigenen Eintrag.
-   Pruefen: `nslookup community.playmations.com` muss die IP zeigen.
+1. **DNS.** Bei STRATO zeigen der nackte Name, `www` (als Alias darauf) und
+   `community` auf `207.180.226.248`. Es gibt **kein Wildcard** auf
+   `playmations.com`, auch wenn das frueher in `docs-site/DEPLOY.md` stand -
+   jede Subdomain hat ihren eigenen Eintrag.
+   Pruefen: `nslookup www.playmations.com` muss die IP zeigen.
    Kommt keine Adresse zurueck, bekommt Caddy kein Zertifikat.
 
 2. **Discord-Anwendung** (Plan P1) anlegen:
    https://discord.com/developers/applications > New Application > OAuth2.
    Scope `identify`, Redirect-URI
-   `https://community.playmations.com/login/oauth2/code/discord` -
+   `https://www.playmations.com/login/oauth2/code/discord` -
    zeichengleich, sonst bricht der Login mit `redirect_uri mismatch` ab.
    Client-ID und Secret notieren.
 
@@ -81,38 +82,56 @@ docker compose logs -f portal   # bis "Started ... in ... seconds"
 
 Die Tabellen legt Flyway beim ersten Start selbst an.
 
-Caddy-Block anhaengen (der Inhalt steht in
-`server/caddy/community.playmations.com.caddy`):
+Caddy-Bloecke anhaengen (der Inhalt steht in
+`server/caddy/www.playmations.com.caddy`):
 
 ```bash
 cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.bak.$(date +%F-%H%M)
-cat >> /etc/caddy/Caddyfile   # Block einfuegen, dann Strg-D
+cat >> /etc/caddy/Caddyfile   # Bloecke einfuegen, dann Strg-D
 caddy validate --config /etc/caddy/Caddyfile
 systemctl reload caddy
 ```
 
-**Der Block ist schon drin, aber die Datei im Repo hat sich geaendert?** Nur die
-geaenderten Zeilen im Server-Block nachziehen, nicht noch einmal anhaengen -
-zwei Bloecke fuer denselben Namen lehnt `caddy validate` ab. Seit 2026-09-23
-steht dort `encode zstd gzip` statt `encode gzip`:
-
-```bash
-cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.bak.$(date +%F-%H%M)
-sed -i 's/^	encode gzip$/	encode zstd gzip/' /etc/caddy/Caddyfile
-caddy validate --config /etc/caddy/Caddyfile && systemctl reload caddy
-curl -sI -H 'Accept-Encoding: zstd' https://community.playmations.com/browse.html | grep -i content-encoding
-```
-
-Achtung: das `sed` trifft JEDEN Block mit genau dieser Zeile, auch docs. und
-die anderen. Vorher mit `grep -n 'encode gzip' /etc/caddy/Caddyfile` nachsehen
-und notfalls von Hand im Portal-Block aendern.
+**Die Bloecke sind schon drin, aber die Datei im Repo hat sich geaendert?**
+Die Portal-Bloecke im Caddyfile durch die aus dem Repo ersetzen, nicht noch
+einmal anhaengen - zwei Bloecke fuer denselben Namen lehnt `caddy validate`
+ab. Die anderen Bloecke (docs. usw.) bleiben, wie sie sind.
 
 Pruefen:
 
 ```bash
-curl -s https://community.playmations.com/api/v1/status
-curl -sI https://playmations.com/ | head -3     # 301 aufs Portal
+curl -s https://www.playmations.com/api/v1/status
+curl -sI https://playmations.com/ | head -3                   # 301 auf www
+curl -sI https://community.playmations.com/clip.html | head -3  # 301 auf www
+curl -s https://community.playmations.com/api/v1/status       # antwortet selbst
 ```
+
+## Umzug von community. auf www (2026-09-25)
+
+Bis dahin wohnte das Portal auf `community.playmations.com`, der nackte Name
+und `www` leiteten dorthin. Die Reihenfolge zaehlt, sonst geht die Anmeldung
+kaputt: die Rueckkehradresse der Anbieter baut Spring aus dem Host, auf dem
+die Anfrage ankommt.
+
+1. **Bei den Anbietern die neue Rueckkehradresse DAZU eintragen**, die alte
+   stehen lassen, bis alles laeuft:
+   - Discord: Developer Portal > App > OAuth2 > Redirects >
+     `https://www.playmations.com/login/oauth2/code/discord`
+   - GitHub: Settings > Developer settings > OAuth Apps > App > Callback URL
+     hinzufuegen: `https://www.playmations.com/login/oauth2/code/github`
+     (GitHub nimmt inzwischen mehrere).
+   - Google: Cloud Console > Credentials > OAuth-Client > Authorized redirect
+     URIs: `https://www.playmations.com/login/oauth2/code/google`
+2. Sicherung (`/srv/aw-community/backup.sh`), dann in der Server-`.env`
+   `PORTAL_BASE_URL=https://www.playmations.com` und `docker compose up -d`.
+3. Im Caddyfile den alten `community.`-Block und den Weiterleitungsblock
+   `playmations.com, www.playmations.com` durch die drei Bloecke aus dem
+   Repo ersetzen, `caddy validate`, `systemctl reload caddy`.
+4. Pruefen wie oben, dann einmal mit jedem Anbieter anmelden.
+
+Wer angemeldet war, ist danach abgemeldet: das Merk-Cookie gehoerte zum alten
+Host. Die Homepage-/Datenschutz-Links in den Anbieter-Konsolen koennen
+nachgezogen werden, muessen aber nicht - die alten leiten weiter.
 
 Zuletzt die taegliche Sicherung eintragen:
 

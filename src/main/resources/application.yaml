@@ -109,7 +109,7 @@ springdoc:
     enabled: ${API_DOCS_ENABLED:false}
 
 portal:
-  public-base-url: ${PORTAL_BASE_URL:https://community.playmations.com}
+  public-base-url: ${PORTAL_BASE_URL:https://www.playmations.com}
   storage:
     directory: ${PORTAL_STORAGE_DIR:/var/lib/aw-community/blobs}
   # HMAC-Schlüssel für Download-Links und IP-Pseudonyme. Zwei getrennte, damit
