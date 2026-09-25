@@ -479,22 +479,21 @@ const CAMERA_FAR = 120;
  * durchsichtig. `haze` ist der Ton, in den der Boden am Horizont uebergeht -
  * er muss zu diesem Hintergrund passen, sonst steht dort eine Kante.
  *
- * Violett traegt in Hell nur noch die Figur selbst (ihre Gelenkringe). Das
- * Gegenlicht ist dort weiss: violettes Licht auf einer weissen Figur vor
- * hellem Grund sah aus wie ein Farbstich.
+ * Violett traegt in beiden Themen nur noch die Figur selbst (ihre
+ * Gelenkringe). Bis 2026-09-25 waren auf Dunkel auch Boden, Himmelslicht,
+ * Gegenlicht, Raster und Schein violett - "zu viel Lila" (Pablo). Jetzt ist
+ * alles davon grau; das Gegenlicht ein kuehles Weiss.
  */
 const STAGE_LOOKS = {
   dark: {
-    sky: 0xb9aeff, ground: 0x0b0a10, hemi: 1.0,
+    sky: 0xbcbcc6, ground: 0x0b0b0d, hemi: 1.0,
     key: 2.5,
-    rim: ACCENT, rimIntensity: 3.0,
+    rim: 0xd8dbe6, rimIntensity: 2.4,
     fill: 0x6f7bb0, fillIntensity: 0.85,
-    haze: 0x2d2a3e,
-    //  Grau statt Violett: das Violett gehoert den Gelenken der Figur, und
-    //  auf dem Raster darunter war es zu viel davon.
+    haze: 0x2c2c32,
     grid: 0xb4b4b8,
     contact: 0.5,
-    bone: 0xd9d5e4, dot: 0xeeecf3,
+    bone: 0xd9d9de, dot: 0xeeeef2,
   },
   light: {
     sky: 0xf6f6fb, ground: 0x8f8d9c, hemi: 1.0,

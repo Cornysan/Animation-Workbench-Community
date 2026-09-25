@@ -14,7 +14,7 @@
 //  das helle Grau und die weissen Punkte unsichtbar. Links und rechts
 //  behalten ihre Markenfarben.
 const SKELETON_INK = {
-  dark: { bone: "#d9d5e4", dot: "#eeecf3", floor: "rgba(169, 164, 182, 0.16)" },
+  dark: { bone: "#d9d9de", dot: "#eeeef2", floor: "rgba(170, 170, 178, 0.16)" },
   light: { bone: "#4a4658", dot: "#2a2733", floor: "rgba(60, 56, 80, 0.16)" },
 };
 const skeletonInk = () =>

@@ -119,8 +119,8 @@
      `--stage-bg` ist der Himmel hinter der Figur - die Leinwand ist
      durchsichtig. Karte und grosse Buehne setzen die Mitte des Verlaufs
      verschieden hoch (20 % und 15 %), daher zwei. */
-  --stage-bg: radial-gradient(120% 90% at 50% 15%, #1e1c28 0%, #0f0e14 70%);
-  --stage-bg-card: radial-gradient(120% 90% at 50% 20%, #1e1c28 0%, #100f15 70%);
+  --stage-bg: radial-gradient(120% 90% at 50% 15%, #1e1e23 0%, #0f0f12 70%);
+  --stage-bg-card: radial-gradient(120% 90% at 50% 20%, #1e1e23 0%, #101013 70%);
   --stage-sheen: rgba(255, 255, 255, 0.045);
   --on-stage-ink: #eeecf3;
   --on-stage-dim: #a9a4b6;
