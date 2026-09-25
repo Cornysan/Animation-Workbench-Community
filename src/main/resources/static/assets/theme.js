@@ -31,8 +31,9 @@
  * ── Und der Rest der Seite ───────────────────────────────────────────────
  *
  * Alles Weitere steht im Stylesheet: `:root` ist dunkel, `[data-theme=light]`
- * ist hell, und die Buehnen (`--on-stage-*`) bleiben in beiden Faellen
- * dunkel. Hier wird nur das Attribut gesetzt.
+ * ist hell, und die Buehnen folgen mit (`--stage-bg`, `--on-stage-*`, und in
+ * stage.js `STAGE_LOOKS`, das auf dieses Attribut horcht). Hier wird nur das
+ * Attribut gesetzt.
  */
 (function () {
   var KEY = 'aw-theme';

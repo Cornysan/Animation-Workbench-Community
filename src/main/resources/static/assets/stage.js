@@ -450,10 +450,8 @@ function solvePreview(preview) {
 /** Kantenlaenge des Lichtscheins unter der Figur. */
 const GROUND_SIZE = 6.4;
 
-/** Ein Rasterfeld, in Metern. Grau statt Violett: das Violett gehoert den
- *  Gelenken der Figur, und auf dem Raster darunter war es zu viel davon. */
+/** Ein Rasterfeld, in Metern. */
 const GRID_CELL = 0.32;
-const GRID_COLOR = 0xb4b4b8;
 
 /** Wie weit das Raster ueber die Wege der Figur hinaus reicht, in
  *  Koerperhoehen - bei 1,8 Metern gut zwanzig Meter. So weit, dass es nicht
@@ -468,7 +466,63 @@ const GRID_REACH = 12;
  *  Handbreit darunter - die Kamera sieht dafuer bis [CAMERA_FAR]. */
 const FLOOR_RADIUS = 80;
 const CAMERA_FAR = 120;
-const FLOOR_HAZE = 0x2d2a3e;
+
+/**
+ * DIE BUEHNE FOLGT DEM THEMA. Bis 2026-09-25 blieb sie auch in Hell dunkel,
+ * "ein Viewport wie in Blender und Unity". Auf einer hellen Seite stand damit
+ * auf jeder Karte ein dunkelvioletter Kasten, und unter der grossen Buehne
+ * lag eine helle Leiste mit dunklen Knoepfen. Hell ist jetzt ein Studio in
+ * Grau: heller Himmel, ein etwas dunklerer Boden, der Schein unter der Figur
+ * ist Licht statt Farbe.
+ *
+ * Der Hintergrund selbst ist CSS (`--stage-bg`), die Leinwand ist
+ * durchsichtig. `haze` ist der Ton, in den der Boden am Horizont uebergeht -
+ * er muss zu diesem Hintergrund passen, sonst steht dort eine Kante.
+ *
+ * Violett traegt in Hell nur noch die Figur selbst (ihre Gelenkringe). Das
+ * Gegenlicht ist dort weiss: violettes Licht auf einer weissen Figur vor
+ * hellem Grund sah aus wie ein Farbstich.
+ */
+const STAGE_LOOKS = {
+  dark: {
+    sky: 0xb9aeff, ground: 0x0b0a10, hemi: 1.0,
+    key: 2.5,
+    rim: ACCENT, rimIntensity: 3.0,
+    fill: 0x6f7bb0, fillIntensity: 0.85,
+    haze: 0x2d2a3e,
+    //  Grau statt Violett: das Violett gehoert den Gelenken der Figur, und
+    //  auf dem Raster darunter war es zu viel davon.
+    grid: 0xb4b4b8,
+    contact: 0.5,
+    bone: 0xd9d5e4, dot: 0xeeecf3,
+  },
+  light: {
+    sky: 0xf6f6fb, ground: 0x8f8d9c, hemi: 1.0,
+    key: 2.2,
+    rim: 0xffffff, rimIntensity: 1.6,
+    fill: 0xc9cde0, fillIntensity: 0.7,
+    haze: 0xcfced8,
+    grid: 0x5d5b6b,
+    contact: 0.3,
+    bone: 0x4a4658, dot: 0x2a2733,
+  },
+};
+
+/** Welches Thema die Seite gerade traegt (theme.js setzt das Attribut). */
+function stageTheme() {
+  return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+}
+
+/** Alle Buehnen, die gerade stehen - damit ein Wechsel des Themas sie alle
+ *  umfaerbt, nicht erst die naechste. */
+const liveStages = new Set();
+let themeWatch = null;
+
+function watchTheme() {
+  if (themeWatch || typeof MutationObserver !== 'function') return;
+  themeWatch = new MutationObserver(() => liveStages.forEach((stage) => stage.applyLook()));
+  themeWatch.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+}
 
 /** three.js `RepeatWrapping`. Das Buendel exportiert die Konstante nicht
  *  (`vendor/entry.js` nennt nur, was das Portal bis dahin brauchte); beim
@@ -520,17 +574,25 @@ function fadeOut(ctx, size) {
   ctx.fillRect(0, 0, size, size);
 }
 
-/** Der Lichtschein unter der Figur, schon mit Abfall. Wandert mit. */
-function poolTexture(size = 1024) {
-  if (groundTextures.pool) return groundTextures.pool;
+/** Der Lichtschein unter der Figur, schon mit Abfall. Wandert mit. Auf Dunkel
+ *  ein violetter Schimmer, auf Hell ein weisser Lichtfleck. */
+function poolTexture(theme, size = 1024) {
+  const key = 'pool-' + theme;
+  if (groundTextures[key]) return groundTextures[key];
   const canvas = groundCanvas(size);
   const ctx = canvas.getContext('2d');
   const mid = size / 2;
 
   const pool = ctx.createRadialGradient(mid, mid, 0, mid, mid, size * 0.26);
-  pool.addColorStop(0, 'rgba(70, 60, 118, 0.85)');
-  pool.addColorStop(0.45, 'rgba(42, 36, 72, 0.55)');
-  pool.addColorStop(1, 'rgba(18, 16, 28, 0)');
+  if (theme === 'light') {
+    pool.addColorStop(0, 'rgba(255, 255, 255, 0.85)');
+    pool.addColorStop(0.5, 'rgba(255, 255, 255, 0.45)');
+    pool.addColorStop(1, 'rgba(255, 255, 255, 0)');
+  } else {
+    pool.addColorStop(0, 'rgba(70, 60, 118, 0.85)');
+    pool.addColorStop(0.45, 'rgba(42, 36, 72, 0.55)');
+    pool.addColorStop(1, 'rgba(18, 16, 28, 0)');
+  }
   ctx.fillStyle = pool;
   ctx.fillRect(0, 0, size, size);
   fadeOut(ctx, size);
@@ -538,7 +600,7 @@ function poolTexture(size = 1024) {
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
   texture.anisotropy = 4;
-  return (groundTextures.pool = texture);
+  return (groundTextures[key] = texture);
 }
 
 /** Nur der Abfall: weiss, die Deckung im Alpha. Ueber die ganze Rasterebene
@@ -558,21 +620,26 @@ function fadeTexture(size = 1024) {
 
 /** Der Boden: hell in der Ferne, dunkler unter der Figur, und nach aussen
  *  weich auslaufend. Die Farbe ist ein Faktor - das Material bringt den Ton
- *  mit ([FLOOR_HAZE]), hier stehen nur Helligkeit und Deckung.
+ *  mit (`haze` in [STAGE_LOOKS]), hier stehen nur Helligkeit und Deckung.
  *
  *  Die Perspektive presst die letzten Meter in einen schmalen Streifen knapp
  *  unter dem Horizont. Der Abfall liegt deshalb weit draussen: nah an der
  *  Figur ist der Boden voll, und was ausblendet, landet als heller Dunst genau
- *  dort, wo Boden und Himmel sich treffen. */
-function floorTexture(size = 512) {
-  if (groundTextures.floor) return groundTextures.floor;
+ *  dort, wo Boden und Himmel sich treffen.
+ *
+ *  In Hell faellt das Abdunkeln unter der Figur weg: auf einem hellen Boden
+ *  war es ein grauer Fleck, in dem die Figur stand wie in einer Pfuetze. */
+function floorTexture(theme, size = 512) {
+  const key = 'floor-' + theme;
+  if (groundTextures[key]) return groundTextures[key];
   const canvas = groundCanvas(size);
   const ctx = canvas.getContext('2d');
   const mid = size / 2;
 
   const tone = ctx.createRadialGradient(mid, mid, 0, mid, mid, size * 0.48);
-  tone.addColorStop(0, 'rgb(186, 186, 186)');
-  tone.addColorStop(0.3, 'rgb(196, 196, 196)');
+  const near = theme === 'light' ? 'rgb(255, 255, 255)' : 'rgb(186, 186, 186)';
+  tone.addColorStop(0, near);
+  tone.addColorStop(0.3, theme === 'light' ? near : 'rgb(196, 196, 196)');
   tone.addColorStop(0.8, 'rgb(255, 255, 255)');
   tone.addColorStop(1, 'rgb(255, 255, 255)');
   ctx.fillStyle = tone;
@@ -595,7 +662,7 @@ function floorTexture(size = 512) {
 
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
-  return (groundTextures.floor = texture);
+  return (groundTextures[key] = texture);
 }
 
 /** EIN Rasterfeld, als Graustufen auf Schwarz, und die Ebene kachelt es. Die
@@ -747,6 +814,9 @@ export class MannequinStage {
     this.applyProportions();
     this.buildSkeletonLines();
     this.bindRetarget();
+    this.applyLook();
+    liveStages.add(this);
+    watchTheme();
 
     if (options.interactive !== false) this.attachInput();
     this.resize();
@@ -870,7 +940,9 @@ export class MannequinStage {
     this.scene = new Scene();
     this.camera = new PerspectiveCamera(32, 1, 0.05, CAMERA_FAR);
 
-    this.scene.add(new HemisphereLight(0xb9aeff, 0x0b0a10, 1.0));
+    //  Farben und Staerken setzt [applyLook] - sie haengen am Thema.
+    this.hemi = new HemisphereLight(0xffffff, 0x000000, 1.0);
+    this.scene.add(this.hemi);
 
     const key = new DirectionalLight(0xfff4e8, 2.5);
     key.position.set(2.1, 4.9, -2.4);
@@ -887,17 +959,17 @@ export class MannequinStage {
     this.scene.add(key);
     this.key = key;
 
-    const rim = new DirectionalLight(ACCENT, 3.0);
-    rim.position.set(-3.0, 2.2, 3.0);
-    this.scene.add(rim);
+    this.rim = new DirectionalLight(0xffffff, 1.0);
+    this.rim.position.set(-3.0, 2.2, 3.0);
+    this.scene.add(this.rim);
 
-    const fill = new DirectionalLight(0x6f7bb0, 0.85);
-    fill.position.set(-2.6, 1.0, -2.2);
-    this.scene.add(fill);
+    this.fill = new DirectionalLight(0xffffff, 1.0);
+    this.fill.position.set(-2.6, 1.0, -2.2);
+    this.scene.add(this.fill);
 
     //  Schein und Raster als zwei Ebenen - warum, steht bei [groundTextures].
     this.pool = new Mesh(new PlaneGeometry(GROUND_SIZE, GROUND_SIZE),
-      new MeshBasicMaterial({ map: poolTexture(), transparent: true, depthWrite: false, toneMapped: false }));
+      new MeshBasicMaterial({ transparent: true, depthWrite: false, toneMapped: false }));
     this.pool.rotation.x = -Math.PI / 2;
 
     //  Der Boden unter allem, der Horizont. Er folgt dem Kameraziel
@@ -905,7 +977,7 @@ export class MannequinStage {
     //  steht der Horizont bei jedem Clip gleich weit weg, auch am Ende eines
     //  langen Laufs.
     this.backdrop = new Mesh(new PlaneGeometry(FLOOR_RADIUS * 2, FLOOR_RADIUS * 2), new MeshBasicMaterial({
-      color: FLOOR_HAZE, map: floorTexture(), transparent: true, depthWrite: false, toneMapped: false,
+      transparent: true, depthWrite: false, toneMapped: false,
     }));
     this.backdrop.rotation.x = -Math.PI / 2;
     this.backdrop.renderOrder = -1;
@@ -923,7 +995,7 @@ export class MannequinStage {
     if (this.hasGrid) {
       this.gridMap = gridTexture().clone();
       this.grid = new Mesh(new PlaneGeometry(1, 1), new MeshBasicMaterial({
-        color: GRID_COLOR, map: fadeTexture(), alphaMap: this.gridMap,
+        map: fadeTexture(), alphaMap: this.gridMap,
         transparent: true, depthWrite: false, toneMapped: false,
       }));
       this.grid.rotation.x = -Math.PI / 2;
@@ -1657,16 +1729,8 @@ export class MannequinStage {
 
     const geometry = new BufferGeometry();
     geometry.setAttribute('position', new BufferAttribute(new Float32Array(pairs.length * 6), 3));
-    const colors = new Float32Array(pairs.length * 6);
-    const left = new Color(ACCENT), right = new Color(WARM), mid = new Color(0xd9d5e4);
-    pairs.forEach(([, i], n) => {
-      const name = this.preview.bones[i];
-      const base = name.startsWith('Left') ? left : name.startsWith('Right') ? right : mid;
-      const fine = DETAIL.test(name);
-      const c = base.clone().multiplyScalar(fine ? 0.45 : 1);
-      for (let v = 0; v < 2; v++) c.toArray(colors, n * 6 + v * 3);
-    });
-    geometry.setAttribute('color', new BufferAttribute(colors, 3));
+    //  Die Farben setzt [colorLines], sobald das Thema feststeht.
+    geometry.setAttribute('color', new BufferAttribute(new Float32Array(pairs.length * 6), 3));
 
     // Ohne `toneMapped: false` laufen die Seitenfarben durch ACES und kommen
     // als zwei Grautoene heraus - die Unterscheidung links/rechts waere weg.
@@ -1709,6 +1773,55 @@ export class MannequinStage {
     this.dots = points(shown.length, 0.055);
     this.headDot = points(1, 0.19);
     this.headIndex = this.preview.bones.indexOf('Head');
+  }
+
+  /** Seitenfarben der Strichfigur: links Violett, rechts der Warmton, die Mitte
+   *  im Ton des Themas - auf hellem Grund waere das helle Grau unsichtbar. */
+  colorLines(look) {
+    const attribute = this.lines.geometry.getAttribute('color');
+    const left = new Color(ACCENT), right = new Color(WARM), mid = new Color(look.bone);
+    this.linePairs.forEach(([, i], n) => {
+      const name = this.preview.bones[i];
+      const base = name.startsWith('Left') ? left : name.startsWith('Right') ? right : mid;
+      const fine = DETAIL.test(name);
+      const c = base.clone().multiplyScalar(fine ? 0.45 : 1);
+      for (let v = 0; v < 2; v++) c.toArray(attribute.array, n * 6 + v * 3);
+    });
+    attribute.needsUpdate = true;
+    this.dots.material.color.setHex(look.dot);
+    this.headDot.material.color.setHex(look.dot);
+  }
+
+  /**
+   * Boden, Licht und Strichfigur in den Farben des Themas. Laeuft beim Aufbau
+   * und jedes Mal, wenn jemand oben rechts umschaltet ([watchTheme]).
+   */
+  applyLook() {
+    const theme = stageTheme();
+    const look = STAGE_LOOKS[theme];
+
+    this.hemi.color.setHex(look.sky);
+    this.hemi.groundColor.setHex(look.ground);
+    this.hemi.intensity = look.hemi;
+    this.key.intensity = look.key;
+    this.rim.color.setHex(look.rim);
+    this.rim.intensity = look.rimIntensity;
+    this.fill.color.setHex(look.fill);
+    this.fill.intensity = look.fillIntensity;
+
+    this.pool.material.map = poolTexture(theme);
+    this.pool.material.needsUpdate = true;
+    this.backdrop.material.color.setHex(look.haze);
+    this.backdrop.material.map = floorTexture(theme);
+    this.backdrop.material.needsUpdate = true;
+    if (this.grid) this.grid.material.color.setHex(look.grid);
+    this.contact.material.opacity = look.contact;
+
+    this.colorLines(look);
+
+    //  Eine stehende Buehne zeichnet nur, wenn sich etwas geaendert hat - das
+    //  hier ist so eine Aenderung.
+    this.drawnKey = null;
   }
 
   // ── Zustand ────────────────────────────────────────────────────────────
@@ -1949,6 +2062,7 @@ export class MannequinStage {
    * zaehlt die Nutzer aber mit und loescht es erst mit der letzten.
    */
   dispose() {
+    liveStages.delete(this);
     if (!this.surface) this.renderer.setAnimationLoop(null);
     if (this.observer) this.observer.disconnect();
     if (this.visibility) this.visibility.disconnect();

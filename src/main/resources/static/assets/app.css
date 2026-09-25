@@ -106,15 +106,22 @@
   --selection-ink: #ffffff;
 
   /* ── AUF DER BUEHNE ──────────────────────────────────────────────────
-     Diese Werte wechseln NICHT mit dem Thema, und das ist ihr ganzer
-     Sinn. Die Buehne bleibt dunkel - ein Viewport, wie ihn Blender und
-     Unity zwei Fenster weiter auch haben -, und was auf ihr liegt, muss
-     mit ihr lesbar bleiben: die Dauerpille auf einer Vorschau, die
-     Schalter am Rand, der leere Rahmen, wenn ein Clip nicht laedt.
+     Was auf der Vorschau liegt - die Dauerpille, die Schalter am Rand, der
+     leere Rahmen, wenn ein Clip nicht laedt -, richtet sich nach der
+     BUEHNE, nicht nach der Seite. Deshalb eigene Marken: ein Pillentext
+     aus `--text-dim` stand in Hell dunkel auf der dunklen Pille.
 
-     Ohne sie stuende in Hell heller Text auf einem dunklen Bild - nicht
-     als Fehler in einer Regel, sondern als Folge davon, dass dieselbe
-     Marke zwei verschiedene Untergruende meinen muesste. */
+     Bis 2026-09-25 blieb die Buehne in beiden Themen dunkel ("ein
+     Viewport wie in Blender"). In Hell war sie damit auf jeder Karte ein
+     dunkelvioletter Kasten; jetzt folgt sie dem Thema (stage.js,
+     STAGE_LOOKS), und diese Marken folgen mit.
+
+     `--stage-bg` ist der Himmel hinter der Figur - die Leinwand ist
+     durchsichtig. Karte und grosse Buehne setzen die Mitte des Verlaufs
+     verschieden hoch (20 % und 15 %), daher zwei. */
+  --stage-bg: radial-gradient(120% 90% at 50% 15%, #1e1c28 0%, #0f0e14 70%);
+  --stage-bg-card: radial-gradient(120% 90% at 50% 20%, #1e1c28 0%, #100f15 70%);
+  --stage-sheen: rgba(255, 255, 255, 0.045);
   --on-stage-ink: #eeecf3;
   --on-stage-dim: #a9a4b6;
   --on-stage-faint: #8a8497;
@@ -135,7 +142,7 @@
 
    Kein zweites Stylesheet und keine Kopie der Regeln: derselbe Satz
    Marken, andere Werte. Was hier NICHT noch einmal steht, gilt weiter -
-   Radien, Schriftgroessen, Bewegung, und die Buehnenfarben.
+   Radien, Schriftgroessen, Bewegung.
 
    WER UMSCHALTET, STEHT IN `theme.js`. Das Attribut ist die einzige
    Weiche; eine zweite Fassung dieser Werte unter `prefers-color-scheme`
@@ -196,6 +203,24 @@
   --row-hover: rgba(24, 20, 40, 0.035);
   --selection-bg: rgba(95, 63, 214, 0.22);
   --selection-ink: #17151f;
+
+  /* Die Buehne als Fotostudio: heller Himmel, der nach unten in dasselbe
+     Grau laeuft wie der Boden am Horizont (`haze` in stage.js). Die Figur
+     ist weiss, also darf der Grund nicht ganz weiss sein - sonst hat sie
+     keine Kante. */
+  --stage-bg: radial-gradient(120% 90% at 50% 15%, #f2f2f6 0%, #dddce4 72%);
+  --stage-bg-card: radial-gradient(120% 90% at 50% 20%, #f2f2f6 0%, #dddce4 72%);
+  --stage-sheen: rgba(255, 255, 255, 0.55);
+  --on-stage-ink: #17151f;
+  --on-stage-dim: #4f4a62;
+  --on-stage-faint: #676180;
+  --on-stage-line: rgba(23, 21, 31, 0.12);
+  --on-stage-accent: #5f3fd6;
+  --on-stage-accent-line: rgba(95, 63, 214, 0.30);
+  --on-stage-accent-veil: rgba(95, 63, 214, 0.10);
+  --on-stage-scrim: rgba(255, 255, 255, 0.72);
+  --on-stage-scrim-strong: rgba(255, 255, 255, 0.88);
+  --stage-void: #ebeaf0;
 
   color-scheme: light;
 }
@@ -839,7 +864,7 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
 .card canvas, .card .viewer-empty {
   width: 100%;
   height: 206px;
-  background: radial-gradient(120% 90% at 50% 20%, #1e1c28 0%, #100f15 70%);
+  background: var(--stage-bg-card);
   display: block;
 }
 .card .viewer-empty { display: flex; align-items: center; justify-content: center; color: var(--on-stage-faint); font-size: 13px; }
@@ -1072,7 +1097,7 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
 @media (hover: none) { .link-button { opacity: 1; } }
 
 .viewer {
-  background: radial-gradient(120% 90% at 50% 15%, #1e1c28 0%, #0f0e14 70%);
+  background: var(--stage-bg);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   overflow: hidden;
@@ -1917,7 +1942,7 @@ dialog.bone-sheet .bone-scroll { overflow-y: auto; flex: 1 1 auto; padding-right
    card-stage.js und viewer.js). Darunter liegt derselbe Verlauf, den die
    Leinwand sonst selbst traegt - so blitzt beim Einblenden nichts auf. Solange
    sie laedt, zieht ein Schimmer darueber. */
-.card-stage { background: radial-gradient(120% 90% at 50% 20%, #1e1c28 0%, #100f15 70%); overflow: hidden; }
+.card-stage { background: var(--stage-bg-card); overflow: hidden; }
 .card canvas.fade-in { opacity: 0; transition: opacity var(--dur-slow) var(--ease-out); }
 .card canvas.fade-in.is-drawn { opacity: 1; }
 .card-stage:has(> canvas.fade-in:not(.is-drawn))::after,
@@ -1926,7 +1951,7 @@ dialog.bone-sheet .bone-scroll { overflow-y: auto; flex: 1 1 auto; padding-right
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.045) 50%, transparent 70%);
+  background: linear-gradient(100deg, transparent 30%, var(--stage-sheen) 50%, transparent 70%);
   animation: aw-sheen 1.5s var(--ease-in-out) infinite;
 }
 

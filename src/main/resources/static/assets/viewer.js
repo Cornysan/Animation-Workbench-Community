@@ -9,6 +9,17 @@
 // Bibliothek - ein Canvas genügt, und die Rechtefrage an einer Figur stellt
 // sich gar nicht (Plan O7).
 
+//  Die Mitte der Figur, ihre Punkte und das Raster folgen dem Thema, wie
+//  die Mannequin-Buehne (stage.js, STAGE_LOOKS): auf hellem Grund waeren
+//  das helle Grau und die weissen Punkte unsichtbar. Links und rechts
+//  behalten ihre Markenfarben.
+const SKELETON_INK = {
+  dark: { bone: "#d9d5e4", dot: "#eeecf3", floor: "rgba(169, 164, 182, 0.16)" },
+  light: { bone: "#4a4658", dot: "#2a2733", floor: "rgba(60, 56, 80, 0.16)" },
+};
+const skeletonInk = () =>
+  SKELETON_INK[document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark"];
+
 class SkeletonViewer {
   /** Dieselben Prefixe wie AWCommunitySkeleton.DetailPrefixes in der Workbench. */
   static DETAIL = /^(Left|Right)(Thumb|Index|Middle|Ring|Little)/;
@@ -325,6 +336,7 @@ class SkeletonViewer {
     const order = projected.map((_, i) => i).sort((a, b) => projected[b][2] - projected[a][2]);
 
     ctx.lineCap = "round";
+    const ink = skeletonInk();
     const lineWidth = Math.max(2, w / 260);
 
     for (const i of order) {
@@ -333,7 +345,7 @@ class SkeletonViewer {
       const a = projected[parent], b = projected[i];
       const name = this.preview.bones[i];
       //  Seitenfarben aus der Marke: Akzentviolett links, Warmton rechts.
-      ctx.strokeStyle = name.startsWith("Left") ? "#8e77ff" : name.startsWith("Right") ? "#fb923c" : "#d9d5e4";
+      ctx.strokeStyle = name.startsWith("Left") ? "#8e77ff" : name.startsWith("Right") ? "#fb923c" : ink.bone;
       //  Feine Knochen duenner und blasser - sie sollen die Silhouette
       //  ergaenzen, nicht mit ihr konkurrieren. Werte wie in der Workbench.
       const fine = this.detail[i];
@@ -346,7 +358,7 @@ class SkeletonViewer {
       ctx.globalAlpha = 1;
     }
 
-    ctx.fillStyle = "#eeecf3";
+    ctx.fillStyle = ink.dot;
     for (const i of order) {
       const p = projected[i];
       if (this.detail[i]) continue;  // 30 weisse Punkte an den Fingern sind nur Rauschen
@@ -363,7 +375,7 @@ class SkeletonViewer {
     const size = Math.max(1, Math.ceil(this.extent * 3));
     const step = Math.max(0.25, size / 6);
     const y = this.floorY;
-    ctx.strokeStyle = "rgba(169, 164, 182, 0.16)";
+    ctx.strokeStyle = skeletonInk().floor;
     ctx.lineWidth = Math.max(1, width / 900);
 
     const cx = Math.round(target[0] / step) * step;
