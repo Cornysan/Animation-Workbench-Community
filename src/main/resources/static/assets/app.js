@@ -621,12 +621,17 @@ const AW = (() => {
     return button;
   }
 
-  /** Den Zustand eines Icon-Knopfes umschalten: gefuelltes Zeichen, neue Zahl. */
+  /**
+   * Den Zustand eines Icon-Knopfes umschalten: gefuelltes Zeichen, neue Zahl.
+   *
+   * Ohne Zahl bekommt `replaceChildren` nur das Zeichen. Anders als `el`
+   * uebergeht es kein `null`, sondern macht Text daraus: ein Like, das man
+   * zuruecknimmt, stand danach als "null" neben dem Herz.
+   */
   function setIconState(button, name, on, count) {
     button.classList.toggle("on", !!on);
-    button.replaceChildren(icon(name, on), count === undefined || count === null
-      ? null
-      : el("span", { class: "count" }, String(count)));
+    if (count === undefined || count === null) button.replaceChildren(icon(name, on));
+    else button.replaceChildren(icon(name, on), el("span", { class: "count" }, String(count)));
   }
 
   // ── Ein Kasten, der an etwas haengt ──────────────────────────────────
@@ -1115,15 +1120,40 @@ const AW = (() => {
     return image;
   }
 
-  //  Ein Tooltip am Seitenrand haengt nach innen (app.css, `data-tip-edge`).
+  //  Ein Tooltip am Rand haengt nach innen (app.css, `data-tip-edge`).
   //  Gemessen wird beim Hinzeigen, nicht beim Bauen: wo ein Knopf steht,
   //  entscheidet das Layout, und das aendert sich mit der Fensterbreite.
+  //
+  //  DER RAND IST NICHT NUR DAS FENSTER. Die Karte hat `overflow: hidden`
+  //  (runde Ecken, Vorschau), und der Stern ganz rechts auf ihr schnitt
+  //  "Save to a collection" an ihrer Kante ab, mitten im Fenster. Deshalb
+  //  zaehlt der engste Vorfahr, der abschneidet, und dazu die echte Breite
+  //  des Zettels statt einer geschaetzten.
+  const tipBounds = (node) => {
+    let left = 0;
+    let right = document.documentElement.clientWidth;
+    for (let parent = node.parentElement; parent && parent !== document.body; parent = parent.parentElement) {
+      if (getComputedStyle(parent).overflowX === "visible") continue;
+      const box = parent.getBoundingClientRect();
+      left = Math.max(left, box.left + parent.clientLeft);
+      right = Math.min(right, box.left + parent.clientLeft + parent.clientWidth);
+    }
+    return { left, right };
+  };
+
   const alignTip = (event) => {
     const target = event.target.closest && event.target.closest("[data-tip]");
     if (!target) return;
     const rect = target.getBoundingClientRect();
-    const room = 140;
-    const edge = rect.right > window.innerWidth - room ? "end" : rect.left < room ? "start" : null;
+    //  ::after faellt nicht unter `* { box-sizing: border-box }`: seine
+    //  Breite ist nur der Text, Polster und Rahmen kommen dazu.
+    const tip = getComputedStyle(target, "::after");
+    const width = parseFloat(tip.width) + parseFloat(tip.paddingLeft) + parseFloat(tip.paddingRight)
+      + parseFloat(tip.borderLeftWidth) + parseFloat(tip.borderRightWidth);
+    const half = (Number.isFinite(width) ? width : 240) / 2 + 4;
+    const middle = rect.left + rect.width / 2;
+    const bounds = tipBounds(target);
+    const edge = middle + half > bounds.right ? "end" : middle - half < bounds.left ? "start" : null;
     if (edge) target.setAttribute("data-tip-edge", edge);
     else target.removeAttribute("data-tip-edge");
   };
