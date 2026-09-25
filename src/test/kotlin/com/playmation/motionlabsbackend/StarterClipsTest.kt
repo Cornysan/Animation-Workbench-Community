@@ -165,9 +165,11 @@ class StarterClipsTest {
         }
 
         seed(admin, exported(0.96737)).andExpect { status { isCreated() } }
+        //  Der erste gehoert dem Starter-Konto - fuer das Einspielen ist das
+        //  die eigene Kopie.
         seed(admin, exported(0.96737)).andExpect {
             status { isConflict() }
-            jsonPath("$.error.code") { value("duplicate") }
+            jsonPath("$.error.code") { value("own-copy") }
         }
     }
 }

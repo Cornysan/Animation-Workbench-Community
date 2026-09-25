@@ -675,11 +675,62 @@ class PortalFlowTest {
     @Test
     fun `the same motion cannot be uploaded twice`() {
         val bytes = awclip(0.31, "Original")
-        uploadOk(login("first-${unique()}"), bytes)
+        val slug = uploadOk(login("first-${unique()}"), bytes)
 
         upload(login("second-${unique()}"), awclip(0.31, "Renamed copy", license = "ARR")).andExpect {
             status { isConflict() }
             jsonPath("$.error.code") { value("duplicate") }
+            jsonPath("$.error.slug") { value(slug) }
+        }
+    }
+
+    /**
+     * Die Duplikat-Pruefung sperrt nur, was man sehen kann. Ein fremder
+     * privater Clip wirkt nach aussen nicht - sperrte er, verriete schon die
+     * Absage, dass es ihn gibt.
+     */
+    @Test
+    fun `someone else's private clip does not block the same motion`() {
+        uploadOk(login("hidden-first-${unique()}"), awclip(0.5401, "Secret", license = AwclipSchema.LICENSE_PRIVATE))
+
+        uploadOk(login("hidden-second-${unique()}"), awclip(0.5401, "Mine"))
+    }
+
+    /** Zurueckgezogen heisst weg - fuer den Besitzer wie fuer alle anderen. */
+    @Test
+    fun `a withdrawn clip frees its motion`() {
+        val owner = login("gone-owner-${unique()}")
+
+        val theirs = uploadOk(owner, awclip(0.5402))
+        mvc.delete("/api/v1/packages/$theirs") { header("Authorization", "Bearer $owner") }.andExpect { status { isOk() } }
+        uploadOk(login("gone-other-${unique()}"), awclip(0.5402, "Taken over"))
+
+        val mine = uploadOk(owner, awclip(0.5403))
+        mvc.delete("/api/v1/packages/$mine") { header("Authorization", "Bearer $owner") }.andExpect { status { isOk() } }
+        uploadOk(owner, awclip(0.5403, "Back again"))
+    }
+
+    /**
+     * Die eigene Kopie ist kein Duplikat, sondern ein Wegweiser: eigener
+     * Code, und der Slug fuehrt die Workbench hin - auch zu einem privaten.
+     */
+    @Test
+    fun `your own copy is pointed out, public or private`() {
+        val owner = login("own-copy-${unique()}")
+
+        val shared = uploadOk(owner, awclip(0.5404))
+        upload(owner, awclip(0.5404, license = AwclipSchema.LICENSE_PRIVATE)).andExpect {
+            status { isConflict() }
+            jsonPath("$.error.code") { value("own-copy") }
+            jsonPath("$.error.slug") { value(shared) }
+        }
+
+        val kept = uploadOk(owner, awclip(0.5405, "Kept Back", license = AwclipSchema.LICENSE_PRIVATE))
+        upload(owner, awclip(0.5405)).andExpect {
+            status { isConflict() }
+            jsonPath("$.error.code") { value("own-copy") }
+            jsonPath("$.error.slug") { value(kept) }
+            jsonPath("$.error.message") { value("You already have this animation as a private clip, 'Kept Back'.") }
         }
     }
 
@@ -726,6 +777,7 @@ class PortalFlowTest {
         upload(login("reuploader-${unique()}"), awclip(0.51, "Totally new")).andExpect {
             status { isConflict() }
             jsonPath("$.error.code") { value("removed-content") }
+            jsonPath("$.error.slug") { doesNotExist() }
         }
     }
 
@@ -1071,7 +1123,8 @@ class PortalFlowTest {
 
         upload(owner, bytes).andExpect {
             status { isConflict() }
-            jsonPath("$.error.code") { value("duplicate") }
+            jsonPath("$.error.code") { value("own-copy") }
+            jsonPath("$.error.slug") { value(slug) }
         }
 
         //  Die Karte sagt ihrem Besitzer, dass sie ihm gehoert - daran haengt
@@ -1127,5 +1180,30 @@ class PortalFlowTest {
         edit(owner, slug, """{"title":"Test Clip","description":"","tags":["walk"],"license":"ARR"}""")
             .andExpect { status { isOk() } }
         mvc.get("/api/v1/packages/$slug").andExpect { status { isNotFound() } }
+    }
+
+    /**
+     * Ein privater Clip sperrt fremde Uploads nicht - also muss der Wechsel
+     * auf oeffentlich dieselbe Frage stellen wie ein Upload. Sonst staenden
+     * danach zwei oeffentliche Kopien da.
+     */
+    @Test
+    fun `going public is refused when the motion is already public elsewhere`() {
+        val owner = login("f-late-${unique()}")
+        val kept = uploadOk(owner, awclip(0.5406, license = AwclipSchema.LICENSE_PRIVATE))
+        val shared = uploadOk(login("f-early-${unique()}"), awclip(0.5406, "Public first"))
+
+        edit(owner, kept, """{"title":"Test Clip","description":"","tags":["walk"],"license":"CC0-1.0",
+            "declarationAccepted":true,"declarationText":"${Declaration.TEXT}","declarationVersion":${Declaration.VERSION}}""")
+            .andExpect {
+                status { isConflict() }
+                jsonPath("$.error.code") { value("duplicate") }
+                jsonPath("$.error.slug") { value(shared) }
+            }
+        mvc.get("/api/v1/packages/$kept").andExpect { status { isNotFound() } }
+
+        //  Alles, was nicht sichtbar macht, geht weiter.
+        edit(owner, kept, """{"title":"Renamed","description":"","tags":["walk"],"license":"ARR"}""")
+            .andExpect { status { isOk() } }
     }
 }

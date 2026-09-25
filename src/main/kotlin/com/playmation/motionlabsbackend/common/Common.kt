@@ -1,5 +1,6 @@
 package com.playmation.motionlabsbackend.common
 
+import com.fasterxml.jackson.annotation.JsonInclude
 import jakarta.servlet.http.HttpServletRequest
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -14,19 +15,27 @@ import javax.crypto.spec.SecretKeySpec
 /**
  * Fachlicher Fehler mit stabilem Code. Die Workbench zeigt `message` an und
  * entscheidet über `code` - Codes sind Teil der Schnittstelle, Texte nicht.
+ *
+ * [slug] nennt den Clip, um den es geht, wenn der Fehler auf einen anderen
+ * zeigt ("das gibt es schon - hier"). Nur setzen, wenn der Fragende diesen
+ * Clip auch sehen darf.
  */
-class PortalException(val status: HttpStatus, val code: String, message: String) : RuntimeException(message) {
+class PortalException(
+    val status: HttpStatus, val code: String, message: String, val slug: String? = null,
+) : RuntimeException(message) {
     companion object {
         fun notFound(what: String = "Not found") = PortalException(HttpStatus.NOT_FOUND, "not-found", what)
         fun forbidden(message: String) = PortalException(HttpStatus.FORBIDDEN, "forbidden", message)
         fun badRequest(code: String, message: String) = PortalException(HttpStatus.BAD_REQUEST, code, message)
-        fun conflict(code: String, message: String) = PortalException(HttpStatus.CONFLICT, code, message)
+        fun conflict(code: String, message: String, slug: String? = null) =
+            PortalException(HttpStatus.CONFLICT, code, message, slug)
         fun rateLimited() = PortalException(HttpStatus.TOO_MANY_REQUESTS, "rate-limited", "Too many requests - try again later.")
         fun unavailable(message: String) = PortalException(HttpStatus.SERVICE_UNAVAILABLE, "unavailable", message)
     }
 }
 
-data class ApiError(val code: String, val message: String)
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class ApiError(val code: String, val message: String, val slug: String? = null)
 data class ApiErrorResponse(val error: ApiError)
 
 @Configuration

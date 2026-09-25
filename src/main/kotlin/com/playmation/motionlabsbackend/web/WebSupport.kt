@@ -109,11 +109,11 @@ class StatusController(
 class ApiExceptionHandler(private val shell: ShellModel) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    private fun error(status: HttpStatus, code: String, message: String) =
-        ResponseEntity.status(status).body(ApiErrorResponse(ApiError(code, message)))
+    private fun error(status: HttpStatus, code: String, message: String, slug: String? = null) =
+        ResponseEntity.status(status).body(ApiErrorResponse(ApiError(code, message, slug)))
 
     @ExceptionHandler(PortalException::class)
-    fun portal(ex: PortalException) = error(ex.status, ex.code, ex.message ?: ex.code)
+    fun portal(ex: PortalException) = error(ex.status, ex.code, ex.message ?: ex.code, ex.slug)
 
     @ExceptionHandler(MaxUploadSizeExceededException::class)
     fun tooLarge(ex: MaxUploadSizeExceededException) = error(HttpStatus.PAYLOAD_TOO_LARGE, "too-large", "The file is too large.")

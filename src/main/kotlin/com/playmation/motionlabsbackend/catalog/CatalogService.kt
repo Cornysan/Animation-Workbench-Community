@@ -223,7 +223,7 @@ class CatalogService(
         }
 
         val hash = AwclipHash.compute(doc)
-        checkNotAlreadyThere(hash, account.id)
+        val sameMotion = checkNotAlreadyThere(hash, account.id)
 
         val existing = targetSlug?.let { slug ->
             val pkg = packages.findBySlug(slug) ?: throw PortalException.notFound("Package not found")
@@ -290,7 +290,7 @@ class CatalogService(
         )
 
         audit.record(account.id, if (existing == null) "package.created" else "package.version-added", "package", pkg.slug,
-            "v${version.versionNumber} hash=$hash origin=${doc.origin} license=${manifest.license}", ip)
+            "v${version.versionNumber} hash=$hash origin=${doc.origin} license=${manifest.license}" + sameMotionNote(sameMotion), ip)
 
         //  Wer jemandem folgt, folgt ihm wegen genau dieses Augenblicks. Nur
         //  beim neuen Clip: eine zweite Fassung ist keine Nachricht wert, und
@@ -367,7 +367,7 @@ class CatalogService(
                 "The file has no preview. Export it again with a humanoid character in the project.")
 
         val hash = AwclipHash.compute(doc)
-        checkNotAlreadyThere(hash, StarterClips.ACCOUNT_ID)
+        val sameMotion = checkNotAlreadyThere(hash, StarterClips.ACCOUNT_ID)
 
         val manifest = doc.manifest
         val title = (if (input.tidyTitle) tidy(manifest.title) else manifest.title.trim())
@@ -429,7 +429,8 @@ class CatalogService(
             )
         )
 
-        audit.record(admin.accountId, "package.seeded", "package", pkg.slug, "hash=$hash source=$credit", ip)
+        audit.record(admin.accountId, "package.seeded", "package", pkg.slug,
+            "hash=$hash source=$credit" + sameMotionNote(sameMotion), ip)
         overview.invalidate()
 
         return detail(pkg, version, admin)
@@ -451,22 +452,59 @@ class CatalogService(
         principal != null && (principal.accountId == pkg.ownerId ||
             (principal.isAdmin && pkg.ownerId == StarterClips.ACCOUNT_ID))
 
-    private fun checkNotAlreadyThere(hash: String, accountId: UUID) {
-        for (version in versions.findByContentHash(hash)) {
-            val pkg = packages.findById(version.packageId).orElse(null) ?: continue
+    /**
+     * Gibt es diese Bewegung schon? Drei Fragen, die bis 2026-09-25 alle
+     * denselben Fehler warfen:
+     *
+     * MODERATION gilt fuer alle: was entfernt wurde, kommt nicht wieder, und
+     * was gerade geprueft wird, wartet - egal, wer es jetzt hochlaedt.
+     *
+     * KEINE ZWEITE OEFFENTLICHE KOPIE: sperren darf nur ein fremder Clip, den
+     * man auch sehen kann, also veroeffentlicht und CC0. Ein fremder PRIVATER
+     * zaehlt nicht - "only you can see it" haelt nur, wenn er fuer andere auch
+     * sonst keine Wirkung hat; vorher sperrte er, und die Antwort nannte dabei
+     * seinen Titel. Ein ZURUECKGEZOGENER zaehlt auch nicht, zurueckgezogen
+     * heisst weg. Dass jemand die Bewegung schon hatte, ist ein Hinweis, aber
+     * kein Beweis, wer sie gemacht hat (zwei Kaeufer desselben Pakets) - sie
+     * steht deshalb im Audit statt in einer Sperre.
+     *
+     * DIE EIGENE KOPIE ist kein Duplikat, sondern ein Wegweiser: `own-copy`
+     * samt Slug, damit die Workbench dorthin fuehren kann.
+     *
+     * @param except ein Paket, das nicht mitzaehlt - beim Wechsel auf
+     *   oeffentlich der Clip selbst ([edit]).
+     * @return fremde Clips mit derselben Bewegung, die nicht zaehlten.
+     */
+    private fun checkNotAlreadyThere(hash: String, accountId: UUID, except: UUID? = null): List<String> {
+        val matches = versions.findByContentHash(hash)
+            .filter { it.packageId != except }
+            .mapNotNull { version -> packages.findById(version.packageId).orElse(null)?.let { version to it } }
 
-            if (version.status == VersionStatus.REMOVED || pkg.status == PackageStatus.REMOVED)
-                throw PortalException.conflict("removed-content", "This animation was removed from the community and cannot be uploaded again.")
-            if (pkg.status == PackageStatus.AUTO_HIDDEN)
-                throw PortalException.conflict("under-review", "This animation is currently under review.")
-            if (pkg.status == PackageStatus.WITHDRAWN && pkg.ownerId == accountId)
-                continue
+        if (matches.any { (version, pkg) -> version.status == VersionStatus.REMOVED || pkg.status == PackageStatus.REMOVED })
+            throw PortalException.conflict("removed-content", "This animation was removed from the community and cannot be shared again.")
+        if (matches.any { (_, pkg) -> pkg.status == PackageStatus.AUTO_HIDDEN })
+            throw PortalException.conflict("under-review", "This animation is currently under review.")
 
-            throw PortalException.conflict("duplicate",
-                if (pkg.status == PackageStatus.PUBLISHED) "This exact animation is already in the community as '${pkg.title}'."
-                else "This exact animation was already uploaded.")
+        val live = matches.map { it.second }.filter { it.status == PackageStatus.PUBLISHED }
+
+        live.firstOrNull { it.ownerId == accountId }?.let { pkg ->
+            throw PortalException.conflict("own-copy",
+                if (pkg.license == AwclipSchema.LICENSE_PUBLIC) "You already shared this animation as '${pkg.title}'."
+                else "You already have this animation as a private clip, '${pkg.title}'.",
+                pkg.slug)
         }
+
+        live.firstOrNull { it.license == AwclipSchema.LICENSE_PUBLIC }?.let { pkg ->
+            throw PortalException.conflict("duplicate",
+                "This exact animation is already in the community as '${pkg.title}'.", pkg.slug)
+        }
+
+        return matches.map { it.second }.filter { it.ownerId != accountId }.map { it.slug }.distinct()
     }
+
+    /** Fuers Audit: fremde Clips mit derselben Bewegung, die nicht sperrten. */
+    private fun sameMotionNote(slugs: List<String>) =
+        if (slugs.isEmpty()) "" else " same-motion=" + slugs.joinToString(",")
 
     private fun newSlug(): String {
         repeat(10) {
@@ -574,6 +612,12 @@ class CatalogService(
                 input.declarationVersion != Declaration.VERSION))
             throw PortalException.badRequest("declaration-required", "Confirm that you made this animation to share it publicly.")
 
+        //  Ein privater Clip sperrt fremde Uploads nicht mehr - wird er jetzt
+        //  sichtbar, gilt fuer ihn, was beim Hochladen gegolten haette. Sonst
+        //  staenden nach "A privat, B oeffentlich, A schaltet um" zwei Kopien da.
+        val sameMotion =
+            if (goingPublic) checkNotAlreadyThere(version.contentHash, pkg.ownerId, except = pkg.id) else emptyList()
+
         val changes = buildList {
             if (title != pkg.title) add("title")
             if (description != pkg.description) add("description")
@@ -610,7 +654,7 @@ class CatalogService(
         pkg.updatedAt = now
         packages.save(pkg)
 
-        audit.record(account.id, "package.edited", "package", slug, changes.joinToString(", "), ip)
+        audit.record(account.id, "package.edited", "package", slug, changes.joinToString(", ") + sameMotionNote(sameMotion), ip)
         overview.invalidate()
         return detail(pkg, version, principal)
     }
