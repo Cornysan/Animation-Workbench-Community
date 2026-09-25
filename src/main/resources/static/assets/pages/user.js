@@ -30,7 +30,7 @@
     return;
   }
 
-  document.title = profile.displayName + " - Animation Workbench Community (Beta)";
+  document.title = profile.displayName + " - Animation Workbench Community";
   document.getElementById("profile").classList.remove("hidden");
 
   // ── Kopf ─────────────────────────────────────────────────────────────

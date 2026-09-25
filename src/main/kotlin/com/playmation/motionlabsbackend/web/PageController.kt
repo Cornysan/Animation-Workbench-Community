@@ -200,7 +200,7 @@ class PageController(
         if (meta != null) {
             val base = portal.publicBaseUrl.trimEnd('/')
             model.addAttribute("meta", ShellModel.PageMeta(
-                title = meta.displayName + " on Animation Workbench Community (Beta)",
+                title = meta.displayName + " on Animation Workbench Community",
                 description = meta.bio
                     ?: "Animation clips shared by ${meta.displayName} - free to use under CC0, no credit needed.",
                 image = meta.cardSlug?.let { "$base/clip-card/$it.png" },

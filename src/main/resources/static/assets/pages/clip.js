@@ -58,7 +58,7 @@
   //  EINER Funktion: sie laeuft beim Laden und nach dem Speichern. Zwei
   //  Stellen, die dieselben Felder fuellen, liefen sonst auseinander.
   function showClip() {
-    document.title = clip.title + " - Animation Workbench Community (Beta)";
+    document.title = clip.title + " - Animation Workbench Community";
     document.getElementById("title").textContent = clip.title;
     document.getElementById("description").textContent = clip.description || "No description.";
     //  Ein Starter-Clip hat keinen Ersteller in der Community - er kommt aus

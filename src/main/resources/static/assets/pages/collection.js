@@ -31,7 +31,7 @@
     return;
   }
 
-  document.title = collection.title + " - Animation Workbench Community (Beta)";
+  document.title = collection.title + " - Animation Workbench Community";
   document.getElementById("collection").classList.remove("hidden");
 
   //  Kopf und Wand getrennt: eine Umbenennung beruehrt die Karten nicht, und
