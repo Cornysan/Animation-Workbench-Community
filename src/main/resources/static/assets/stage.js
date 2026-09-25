@@ -21,8 +21,40 @@
  * Rotationen einfach uebernimmt, bekommt bei gleicher Konvention ein exaktes
  * Bild und bei anderer eine verdrehte Figur.
  *
- * Also wird pro Knochen eine feste Korrektur bestimmt. Dafuer braucht es ZWEI
- * Richtungen, die in beiden Skeletten bekannt sind:
+ * Also wird pro Knochen eine feste Korrektur bestimmt, und dafuer gibt es
+ * zwei Wege.
+ *
+ * ── Mit der T-Pose der Quelle ────────────────────────────────────────────
+ *
+ * Seit dem 2026-09-24 bringt eine Vorschau die T-Pose ihrer Quellfigur mit
+ * (`restRot`, in der Workbench gemessen mit allen Muskeln auf 0). Dann wird
+ * nichts mehr geraten: die Korrektur ist die Drehung von der T-Pose der
+ * Quelle in die T-Pose des Ziels, je Knochen ([tracksFromRestPose]). Jeder
+ * Zielknochen dreht sich gegen SEINE T-Pose so, wie der Quellknochen gegen
+ * seine - so legt auch Unity eine humanoide Clip auf eine andere Figur.
+ *
+ * Gemessen an einem Clip, der auf Sidekick gebacken ist, auf dem Mannequin -
+ * Grad je Knochen, gemittelt ueber alle 56 Bilder, gegen diese Rechnung mit
+ * der T-Pose aus dem Avatar des Mannequins:
+ *
+ *                 geraten    aus der T-Pose
+ *   Rumpf            5,5          0,0
+ *   Beine           12,4          0,0
+ *   Arme            61,5          0,0
+ *   Finger          90,4          0,0
+ *   Zehen            7,3          0,0
+ *
+ * Die Null heisst: Umrechnung und T-Pose in der Datei stimmen - die Referenz
+ * ist dieselbe Rechnung. Eine fremde Figur, deren T-Pose niemand kennt, liegt
+ * bei 3,3 Grad, in A-Pose mit 45 Grad gesenkten Armen bei 3,4
+ * ([SWING_TO_TPOSE]). Und selbst auf der Figur, auf der der Clip gebacken
+ * ist, drehte das Raten die Oberarme um bis zu 99 Grad falsch.
+ *
+ * ── Ohne sie: geraten ───────────────────────────────────────────────────
+ *
+ * Aeltere Uploads und die Starter-Clips haben keine T-Pose. Fuer sie wird die
+ * Korrektur aus ZWEI Richtungen bestimmt, die in beiden Skeletten bekannt
+ * sind ([tracksFromGuess]):
  *
  *   1. die Richtung zum Kindknochen - im lokalen Raum des Knochens (Quelle:
  *      `rest`, Ziel: die Bindepose des Modells). Sie sagt, wo der Knochen
@@ -33,6 +65,13 @@
  *
  * Aus beiden entsteht je ein Dreibein, und die Drehung zwischen den Dreibeinen
  * ist die Korrektur. Bei gleicher Konvention ist sie die Einheit.
+ *
+ * WAS DAS RATEN KOSTET, steht in der Tabelle oben. Die Richtung trifft es
+ * (Arme 4 bis 7 Grad daneben), die Drehung UM den Knochen nicht: Oberarme 124
+ * bis 142 Grad, Finger 80 bis 120. Die zweite Richtung ist die Querachse des
+ * KOERPERS, und gegen den dreht sich ein Arm im Clip staendig - gemittelt
+ * bleibt davon keine feste Achse uebrig. Am runden Arm des Mannequins faellt
+ * das kaum auf, an Schulter und Fingern schon.
  *
  * WARUM ZWEI UND NICHT EINE. Bis zum 2026-09-21 stand hier nur die erste
  * Richtung und `setFromUnitVectors` dazu. Das bildet eine Richtung auf eine
@@ -60,6 +99,7 @@ import {
   PlaneGeometry, Points, PointsMaterial, Quaternion, SRGBColorSpace, Scene, ShadowMaterial,
   Vector3, WebGLRenderer,
 } from './vendor/three.module.js';
+import { measuredRestPose } from './rest-pose.js';
 
 // Relativ zu diesem Modul, damit das Mannequin dieselbe Build-Version traegt
 // wie das Skript, das es laedt (siehe StaticAssets.kt).
@@ -184,11 +224,101 @@ function axisGroupOf(name) {
   return 'body';
 }
 
+/** Das Achsenkreuz eines Geruests aus einer Haltung (Weltkoordinaten). */
+function axesOf(group, positionOf) {
+  const across = new Vector3();
+  for (const [leftName, rightName] of group.across) {
+    const left = positionOf(leftName), right = positionOf(rightName);
+    if (!left || !right) continue;
+    const d = left.clone().sub(right);
+    if (d.lengthSq() > 1e-12) across.add(d.normalize());
+  }
+  const base = positionOf(group.up[0]), tip = positionOf(group.up[1]);
+  if (across.lengthSq() < 1e-12 || !base || !tip) return null;
+  across.normalize();
+
+  const up = tip.clone().sub(base);
+  if (up.lengthSq() < 1e-12) return null;
+  up.normalize();
+
+  const forward = new Vector3().crossVectors(across, up);
+  if (forward.lengthSq() < 1e-12) return null;
+  return [across, up, forward.normalize()];
+}
+
+/** Rechtshaendiges Dreibein aus einer Haupt- und einer Hilfsrichtung. */
+function triad(aim, side) {
+  const u = aim.clone().normalize();
+  const w = new Vector3().crossVectors(u, side);
+  if (w.lengthSq() < 1e-6) return null;      // (anti)parallel - nichts zu holen
+  w.normalize();
+  const v = new Vector3().crossVectors(w, u).normalize();
+  return new Quaternion().setFromRotationMatrix(new Matrix4().makeBasis(u, v, w));
+}
+
+/**
+ * Wie eine Figur in ihrer T-Pose im Raum steht, als Drehung - damit lassen
+ * sich zwei Figuren gleich aufstellen, bevor ihre T-Posen verglichen werden.
+ *
+ * Hoch ist von den Fuessen zu den Hueftgelenken, quer ist Huefte zu Huefte.
+ * DIE BEINE UND NICHT DIE WIRBELSAEULE, weil Unity die Beine in der T-Pose
+ * gerade stellt und die Wirbelsaeule so laesst, wie der Rigger sie gekruemmt
+ * hat. Gemessen an zwei Figuren in ihrer Unity-T-Pose (Sidekick und das
+ * Mannequin) neigen sich die Beine um 1,1 Grad gegeneinander, Becken zum
+ * Kopf um 3,5, Beinmitte zur Schultermitte um 9,0.
+ *
+ * GANZ AUFGESTELLT WIRD NUR EINE FREMDE BINDEPOSE. Die steht im Raum des
+ * Meshes, und der liegt nicht unbedingt aufrecht - beim Mannequin ist er gegen
+ * die Welt um 90 Grad gekippt. Eine T-Pose, die in der Welt steht, wird nur
+ * in der Blickrichtung angeglichen ([turnBetween]): auch Unity laesst einer
+ * Figur die Neigung ihrer T-Pose. Gemessen kostete das volle Aufstellen dort
+ * 1,1 Grad je Knochen.
+ */
+function standingFrame(positionOf) {
+  const leftHip = positionOf('LeftUpperLeg'), rightHip = positionOf('RightUpperLeg');
+  const leftFoot = positionOf('LeftFoot'), rightFoot = positionOf('RightFoot');
+  if (!leftHip || !rightHip || !leftFoot || !rightFoot) return null;
+  const up = leftHip.clone().add(rightHip).sub(leftFoot).sub(rightFoot);
+  const across = leftHip.clone().sub(rightHip);
+  if (up.lengthSq() < 1e-12 || across.lengthSq() < 1e-12) return null;
+  return triad(up, across);
+}
+
+/** Die Drehung um die Hochachse, die die Blickrichtung von `from` auf die von `to` legt. */
+function turnBetween(to, from) {
+  const heading = (frame) => {
+    const forward = new Vector3(0, 0, 1).applyQuaternion(frame);
+    return Math.atan2(forward.x, forward.z);
+  };
+  return new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), heading(to) - heading(from));
+}
+
+/**
+ * Was auf einer FREMDEN Figur vor dem Vergleich in die T-Pose geschwenkt
+ * wird.
+ *
+ * Die Korrektur aus den T-Posen braucht die T-Pose beider Figuren, und nur
+ * zwei Ziele bringen ihre mit: das Mannequin und eine Figur aus der
+ * Workbench (siehe [MannequinStage.targetTPose]). Eine Datei von woanders
+ * steht in irgendeiner Bindepose, oft in der A-Pose: die Arme 30 bis 50 Grad
+ * unter der Waagerechten. Ohne Ausgleich hingen sie in jedem Bild genau so
+ * viel zu tief.
+ *
+ * NUR OBER- UND UNTERARM, OBER- UND UNTERSCHENKEL. Die stellt Unity in jeder
+ * T-Pose gleich - gemessen zwischen Sidekick und Mannequin 1 bis 7 Grad.
+ * Schluesselbein (18 Grad), Wirbelsaeule, Fuss und Finger legt jeder Rigger
+ * anders; dort ist die eigene Bindepose die bessere Schaetzung als die
+ * Richtung der Quelle.
+ */
+const SWING_TO_TPOSE = /^(Left|Right)(UpperArm|LowerArm|UpperLeg|LowerLeg)$/;
+
 /** Feine Knochen - dieselbe Unterscheidung wie im Strichmaennchen. */
 const DETAIL = /^(Left|Right)(Thumb|Index|Middle|Ring|Little)/;
 
 /**
- * Knochen, die in ihrer Bindepose bleiben, statt der Vorschau zu folgen.
+ * Knochen, die in ihrer Bindepose bleiben, statt der Vorschau zu folgen -
+ * NUR BEIM RATEN ([tracksFromGuess]). Bringt die Vorschau die T-Pose ihrer
+ * Quelle mit, rechnen die Zehen wie jeder andere Knochen und rollen ab.
  *
  * DIE ZEHEN, UND DAS IST EINE EINSCHRAENKUNG, KEINE LOESUNG. Ein Zehenknochen
  * hat kein Kind und damit keine eigene Richtung; er kann seine Korrektur nur
@@ -198,18 +328,17 @@ const DETAIL = /^(Left|Right)(Thumb|Index|Middle|Ring|Little)/;
  * Achsenkonvention, und geerbt bleibt er als Knick stehen - die Fussspitzen
  * klappten nach unten, um 109 und 133 Grad an ihrer Bindepose vorbei.
  *
- * Trennen liesse sich Konvention von Haltung nur mit den Ruhepose-
- * Orientierungen der Quelle, und die stehen nicht im `.awclip`: `rest` sind
- * blosse Versaetze, summiert man sie ohne Rotationen auf, liegt die Figur auf
- * einer Geraden. Das Format muesste ein Feld mehr tragen (und Client, Server
- * und Formatversion muessten es zusammen bekommen).
+ * Trennen laesst sich Konvention von Haltung nur mit den Ruhepose-
+ * Orientierungen der Quelle: `rest` sind blosse Versaetze, summiert man sie
+ * ohne Rotationen auf, liegt die Figur auf einer Geraden. Genau die bringt
+ * `restRot` - aeltere Clips haben es nicht.
  *
- * Bis dahin ist ein glatter Fuss ohne Abrollen ehrlicher als ein geknickter
+ * Fuer sie ist ein glatter Fuss ohne Abrollen ehrlicher als ein geknickter
  * mit. Es kostet die 5 Grad, die die Zehen in einem Clip wirklich tun.
  *
  * Die FINGER stehen aus demselben Grund nicht hier: bei ihnen ist die grosse
- * lokale Drehung tatsaechlich die Haltung - die Faust -, und Erben gibt sie
- * richtig weiter.
+ * lokale Drehung tatsaechlich die Haltung - die Faust -, und Erben gibt ihren
+ * Winkel richtig weiter (die Achse nicht, siehe [tracksFromGuess]).
  */
 const KEEP_BIND_POSE = /Toes$/;
 
@@ -583,13 +712,14 @@ export class MannequinStage {
      * Vorschau nennt ihren Knochen `LeftUpperArm`, das Skelett in der Datei
      * heisst vielleicht `B_UpperArm_L`.
      *
-     * Alles andere an der Rechnung bleibt, wie es ist. Die Korrektur je
-     * Knochen wird ohnehin aus der Bindepose des ZIELS bestimmt, und ob das
-     * Ziel unser Mannequin ist oder die Figur von jemandem, macht dabei
-     * keinen Unterschied.
+     * Alles andere an der Rechnung bleibt, wie es ist - mit einer Ausnahme:
+     * ob die T-Pose des Ziels bekannt ist. Das Mannequin und eine Figur aus
+     * der Workbench sagen es (`extras.pose === 'tpose'`), eine fremde Datei
+     * nicht. Siehe [targetTPose].
      */
     this.own = !!options.own;
     this.boneMap = options.boneMap || BONE_MAP;
+    this.tposeInRest = gltf.userData?.pose === 'tpose';
 
     /**
      * METER JE ZAHLENSCHRITT DER DATEI - und der Grund, warum das hier
@@ -973,7 +1103,16 @@ export class MannequinStage {
       return unit ? bind.premultiply(unit) : bind;
     });
     const bindPos = bindWorld.map((m) => new Vector3().setFromMatrixPosition(m));
-    const bindRot = bindWorld.map((m) => new Quaternion().setFromRotationMatrix(m));
+
+    //  ZERLEGT, NICHT `setFromRotationMatrix`. Das verlangt eine Matrix ohne
+    //  Massstab, und hier steckt einer drin: `unit` bei einer .fbx (0,01), beim
+    //  Mannequin die Quantisierung seiner Haut (1,0286). Mit 0,01 kam aus einer
+    //  Drehung um 90 Grad eine um 2,3 heraus.
+    const bindRot = bindWorld.map((m) => {
+      const q = new Quaternion();
+      m.decompose(new Vector3(), q, new Vector3());
+      return q;
+    });
 
     //  Reihenfolge: Eltern vor Kindern. Zweimal gebraucht - gleich fuer die
     //  Proportionen und weiter unten beim Umrechnen ins Lokale.
@@ -1011,240 +1150,12 @@ export class MannequinStage {
       }
     }
 
-    /**
-     * Die Richtung zum Kind, einmal in der Quelle und einmal im Modell, beide
-     * im lokalen Raum des Knochens `ti`.
-     */
-    const dirTo = (ti, childName) => {
-      const ci = srcIndex.get(childName);
-      const tci = byKey.get(boneKey(this.boneMap[childName] || ''));
-      if (ci === undefined || tci === undefined) return null;
-      //  Quelle: `rest` ist der Versatz des Kindes IM lokalen Raum des
-      //  Elternknochens - genau die Richtung, die wir brauchen.
-      const src = toVec(this.preview.rest[ci]);
-      const dst = bindPos[tci].clone().sub(bindPos[ti]).applyQuaternion(bindRot[ti].clone().invert());
-      if (src.lengthSq() < 1e-12 || dst.lengthSq() < 1e-12) return null;
-      return { src: src.normalize(), dst: dst.normalize() };
-    };
-
-
-    /**
-     * Die Referenzachse je Knochen - das, was die Richtung zum Kind offen
-     * laesst: wie der Knochen UM seine eigene Achse gedreht ist.
-     *
-     * ERSTER VERSUCH WAR: ein symmetrisches Kinderpaar am Knochen selbst
-     * (Beckenbreite, Schulterbreite), und wer keins hat, erbt vom Vorfahren.
-     * Das ergab einen Knoten im Bauch. Der Grund: ein Rig dreht den Roll
-     * seiner Wirbelsaeulenknochen, gemessen um 180 Grad zwischen Becken und
-     * Spine. Wer die Beckenkonvention weitergibt, legt den Sprung an die
-     * falsche Stelle - zwischen Chest und UpperChest - und verdrillt den Rumpf
-     * dazwischen.
-     *
-     * JETZT WIRD SIE GEMESSEN STATT VERERBT. Jedes Geruest aus [AXIS_GROUPS]
-     * gibt drei Achsen, und alle drei sind in jedem Frame aus der Geometrie
-     * bekannt. Rechnet man sie in den lokalen Raum eines Knochens zurueck,
-     * stehen sie ueber die Frames fast still - dreht sich das Geruest, dreht
-     * sich die Weltrotation des Knochens mit und hebt die Drehung auf. Nur
-     * eine echte Verdrehung DIESES Knochens gegen sein Geruest bewegt sie, und
-     * die mittelt sich ueber einen Clip heraus.
-     *
-     * Die Wahl der Achse faellt an der QUELLE und gilt fuer beide Seiten. Zwei
-     * verschiedene Achsen zu vergleichen waere schlimmer als eine schlechte.
-     */
-    const groupNames = Object.keys(AXIS_GROUPS);
-
-    /** Das Achsenkreuz eines Geruests aus einer Haltung (Weltkoordinaten). */
-    const axesOf = (group, positionOf) => {
-      const across = new Vector3();
-      for (const [leftName, rightName] of group.across) {
-        const left = positionOf(leftName), right = positionOf(rightName);
-        if (!left || !right) continue;
-        const d = left.clone().sub(right);
-        if (d.lengthSq() > 1e-12) across.add(d.normalize());
-      }
-      const base = positionOf(group.up[0]), tip = positionOf(group.up[1]);
-      if (across.lengthSq() < 1e-12 || !base || !tip) return null;
-      across.normalize();
-
-      const up = tip.clone().sub(base);
-      if (up.lengthSq() < 1e-12) return null;
-      up.normalize();
-
-      const forward = new Vector3().crossVectors(across, up);
-      if (forward.lengthSq() < 1e-12) return null;
-      return [across, up, forward.normalize()];
-    };
-
-    //  Quelle: je Knochen und Achse ueber alle Frames mitteln - in dem
-    //  Geruest, zu dem der Knochen gehoert.
-    const srcAxes = this.preview.bones.map(() => [new Vector3(), new Vector3(), new Vector3()]);
-    const groupOfBone = this.preview.bones.map((name) => axisGroupOf(name));
-    const groupUsable = {};
-
-    for (const key of groupNames) {
-      const group = AXIS_GROUPS[key];
-      const members = [];
-      for (let i = 0; i < this.preview.bones.length; i++) if (groupOfBone[i] === key) members.push(i);
-      if (members.length === 0) { groupUsable[key] = false; continue; }
-
-      let frames = 0;
-      for (let f = 0; f < this.solved.frames; f++) {
-        const positions = this.solved.positions[f];
-        const axes = axesOf(group, (name) => {
-          const i = srcIndex.get(name);
-          return i === undefined ? null : positions[i];
-        });
-        if (!axes) break;
-        frames++;
-        const rotations = this.solved.rotations[f];
-        for (const i of members) {
-          const inverse = rotations[i].clone().invert();
-          for (let k = 0; k < 3; k++) srcAxes[i][k].add(axes[k].clone().applyQuaternion(inverse));
-        }
-      }
-      groupUsable[key] = frames > 0;
-    }
-    srcAxes.forEach((set) => set.forEach((v) => { if (v.lengthSq() > 1e-12) v.normalize(); }));
-
-    //  Ziel: dieselben Gerueste aus der Bindepose des Modells, in Weltkoordinaten.
-    const dstAxes = {};
-    for (const key of groupNames) {
-      if (!groupUsable[key]) continue;
-      dstAxes[key] = axesOf(AXIS_GROUPS[key], (name) => {
-        const t = byKey.get(boneKey(this.boneMap[name] || ''));
-        return t === undefined ? null : bindPos[t];
-      });
-    }
-
-    /**
-     * Welche der drei Achsen dieser Knochen als Referenz nimmt: die, die am
-     * weitesten von seiner eigenen Richtung wegzeigt.
-     *
-     * Die Frage stellt sich, weil ein Knochen mit seiner Achse zusammenfallen
-     * kann - ein Schluesselbein zeigt selbst nach der Seite, wo die Querachse
-     * liegt. Gemessen 10,9 Grad an der linken Schulter, wo 90 stehen sollten.
-     * Aus so einem Paar wird kein Dreibein, sondern Rauschen, und das Rauschen
-     * sass sichtbar im Oberkoerper.
-     */
-    const pickAxis = (si, aimSrc) => {
-      let best = -1, bestDot = 1;
-      for (let k = 0; k < 3; k++) {
-        const axis = srcAxes[si][k];
-        if (axis.lengthSq() < 1e-12) continue;
-        const dot = Math.abs(aimSrc.dot(axis));
-        if (dot < bestDot) { bestDot = dot; best = k; }
-      }
-      return best;
-    };
-
-    const referenceOf = (ti, si, aimSrc) => {
-      const axes = dstAxes[groupOfBone[si]];
-      if (!axes) return null;
-      const k = pickAxis(si, aimSrc);
-      if (k < 0) return null;
-      return { src: srcAxes[si][k], dst: axes[k].clone().applyQuaternion(bindRot[ti].clone().invert()) };
-    };
-
-    /** Rechtshaendiges Dreibein aus einer Haupt- und einer Hilfsrichtung. */
-    const frame = (aim, side) => {
-      const u = aim.clone().normalize();
-      const w = new Vector3().crossVectors(u, side);
-      if (w.lengthSq() < 1e-6) return null;      // (anti)parallel - nichts zu holen
-      w.normalize();
-      const v = new Vector3().crossVectors(w, u).normalize();
-      return new Quaternion().setFromRotationMatrix(new Matrix4().makeBasis(u, v, w));
-    };
-
-
-    this.tracks = [];
-    const corrections = new Map();
-
-    for (const [srcName, defName] of Object.entries(this.boneMap)) {
-      const si = srcIndex.get(srcName);
-      const ti = byKey.get(boneKey(defName));
-      if (si === undefined || ti === undefined) continue;
-      //  Ohne Track bleibt der Knochen in seiner Bindepose - siehe applyFrame.
-      if (KEEP_BIND_POSE.test(srcName)) continue;
-
-      const childName = aimChildOf(srcName);
-      const aim = childName ? dirTo(ti, childName) : null;
-      let correction = null;
-
-      if (aim) {
-        //  DIE REFERENZACHSE IST DER GRUND, WARUM HIER EIN DREIBEIN STEHT UND
-        //  NICHT DIE KUERZESTE DREHUNG. `setFromUnitVectors` bildet eine
-        //  Richtung auf eine andere ab und laesst die Drehung UM diese Richtung
-        //  offen; sie waehlt die kuerzeste, und das ist eine willkuerliche
-        //  Wahl. An einem Oberschenkel sieht das niemand - der ist rund. Am
-        //  Becken und am Brustkorb sieht es jeder, denn ein Rumpf ist breit:
-        //  die Figur stand mit dem Oberkoerper quer zu den Beinen.
-        const reference = referenceOf(ti, si, aim.src);
-        if (reference) {
-          const qSrc = frame(aim.src, reference.src);
-          const qDst = frame(aim.dst, reference.dst);
-          if (qSrc && qDst) correction = qSrc.multiply(qDst.invert());
-        }
-        //  Ohne brauchbare Referenz bleibt die alte Naeherung: die Richtung
-        //  stimmt, die Rolle ist geraten. Dazu kommt es nur, wenn die
-        //  Koerperachsen selbst fehlen - also bei einer Vorschau ohne Beine
-        //  oder ohne Schultern.
-        if (!correction) correction = new Quaternion().setFromUnitVectors(aim.dst, aim.src);
-      }
-
-      this.tracks.push({ src: si, bone: ti, srcName, correction });
-      if (correction) corrections.set(srcName, correction);
-    }
-
-    /**
-     * FINGER RECHNEN NICHT SELBST, sie nehmen die Korrektur ihrer Hand.
-     *
-     * Eine eigene je Fingerglied klingt genauer und ist es nicht. Ein
-     * Fingerglied ist kurz und bewegt sich viel; die gemessene Achse streut
-     * dort staerker als am Rumpf, und schon kleine Unterschiede zwischen
-     * benachbarten Gliedern summieren sich zu einer sichtbaren Rolle - die
-     * Finger standen gespreizt und verdreht, wo eine Faust sein sollte.
-     *
-     * Tragen alle Glieder DIESELBE Korrektur C, wird aus der Umrechnung eine
-     * Konjugation - C hoch -1 mal lokale Drehung mal C -, und die erhaelt den
-     * Winkel. Die Fingerbewegung kommt damit unveraendert an, nur in den Raum
-     * des Modells gedreht. Gemessen, Quelle gegen Modell:
-     *
-     *                                   eigene Achse   Hand geerbt
-     *   Hand -> IndexProximal    51,2       97,0          51,2
-     *   Proximal -> Intermediate 71,3       71,2          71,3
-     *   Intermediate -> Distal   63,3      128,7          63,3
-     *
-     * Das gilt, weil ein Rig seine Konvention innerhalb einer Hand nicht
-     * wechselt. An der Wirbelsaeule tut es das sehr wohl - dort waere Erben
-     * falsch, und genau daran ist ein frueherer Anlauf gescheitert.
-     */
-    for (const track of this.tracks) {
-      if (!DETAIL.test(track.srcName)) continue;
-      const hand = corrections.get(track.srcName.startsWith('Left') ? 'LeftHand' : 'RightHand');
-      if (hand) track.correction = hand;
-    }
-
-    //  Endknochen - Zehen, Fingerspitzen - haben kein Kind und damit keine
-    //  eigene Richtung. Sie erben die Korrektur ihres Elternknochens.
-    //
-    //  EIN UMWEG, DEN ICH GEGANGEN BIN: die Zehen knickten einmal nach unten,
-    //  und ich habe daraufhin versucht, ihnen aus zwei Koerperachsen ein
-    //  eigenes Dreibein zu bauen. Das war die falsche Stelle - geknickt hatte
-    //  sie die damals noch falsche FUSSKORREKTUR, die sie erbten. Gemessen ist
-    //  die Vererbung exakt (Fuss zu Zehe: 121,6 Grad in der Quelle, 121,6 im
-    //  Modell), das eigene Dreibein lag bei 176,2. Ein Rig wechselt seine
-    //  Konvention am letzten Glied einer Kette nicht.
-    for (const track of this.tracks) {
-      if (track.correction) continue;
-
-      let p = this.preview.parents[track.src];
-      while (p >= 0) {
-        const parentName = this.preview.bones[p];
-        if (corrections.has(parentName)) { track.correction = corrections.get(parentName); break; }
-        p = this.preview.parents[p];
-      }
-      if (!track.correction) track.correction = new Quaternion();
-    }
+    //  MIT DER T-POSE DER QUELLE WIRD GERECHNET, SONST GERATEN. Beide Wege
+    //  liefern dasselbe: je Knochen eine feste Korrektur fuer applyFrame.
+    const restRot = measuredRestPose(this.preview);
+    this.tracks = restRot
+      ? this.tracksFromRestPose(restRot, { bones, byKey, srcIndex, aimChildOf, bindPos, bindRot, order })
+      : this.tracksFromGuess({ bones, byKey, srcIndex, aimChildOf, bindPos, bindRot });
 
     this.order = order;
     this.trackOf = new Map(this.tracks.map((t) => [t.bone, t]));
@@ -1322,6 +1233,351 @@ export class MannequinStage {
     this.offsetY = 0;
     this.offsetY = -this.measureFloor();
     this.layGround();
+  }
+
+  /**
+   * DIE KORREKTUR, GERATEN - fuer eine Vorschau ohne `restRot` (aeltere
+   * Uploads, Starter-Clips). Warum sie so aussieht, steht im Kopf dieser
+   * Datei; mit der T-Pose der Quelle rechnet [tracksFromRestPose].
+   */
+  tracksFromGuess({ bones, byKey, srcIndex, aimChildOf, bindPos, bindRot }) {
+    /**
+     * Die Richtung zum Kind, einmal in der Quelle und einmal im Modell, beide
+     * im lokalen Raum des Knochens `ti`.
+     */
+    const dirTo = (ti, childName) => {
+      const ci = srcIndex.get(childName);
+      const tci = byKey.get(boneKey(this.boneMap[childName] || ''));
+      if (ci === undefined || tci === undefined) return null;
+      //  Quelle: `rest` ist der Versatz des Kindes IM lokalen Raum des
+      //  Elternknochens - genau die Richtung, die wir brauchen.
+      const src = toVec(this.preview.rest[ci]);
+      const dst = bindPos[tci].clone().sub(bindPos[ti]).applyQuaternion(bindRot[ti].clone().invert());
+      if (src.lengthSq() < 1e-12 || dst.lengthSq() < 1e-12) return null;
+      return { src: src.normalize(), dst: dst.normalize() };
+    };
+
+
+    /**
+     * Die Referenzachse je Knochen - das, was die Richtung zum Kind offen
+     * laesst: wie der Knochen UM seine eigene Achse gedreht ist.
+     *
+     * ERSTER VERSUCH WAR: ein symmetrisches Kinderpaar am Knochen selbst
+     * (Beckenbreite, Schulterbreite), und wer keins hat, erbt vom Vorfahren.
+     * Das ergab einen Knoten im Bauch. Der Grund: ein Rig dreht den Roll
+     * seiner Wirbelsaeulenknochen, gemessen um 180 Grad zwischen Becken und
+     * Spine. Wer die Beckenkonvention weitergibt, legt den Sprung an die
+     * falsche Stelle - zwischen Chest und UpperChest - und verdrillt den Rumpf
+     * dazwischen.
+     *
+     * JETZT WIRD SIE GEMESSEN STATT VERERBT. Jedes Geruest aus [AXIS_GROUPS]
+     * gibt drei Achsen, und alle drei sind in jedem Frame aus der Geometrie
+     * bekannt. Rechnet man sie in den lokalen Raum eines Knochens zurueck,
+     * stehen sie ueber die Frames fast still - dreht sich das Geruest, dreht
+     * sich die Weltrotation des Knochens mit und hebt die Drehung auf. Nur
+     * eine echte Verdrehung DIESES Knochens gegen sein Geruest bewegt sie, und
+     * die mittelt sich ueber einen Clip heraus.
+     *
+     * Die Wahl der Achse faellt an der QUELLE und gilt fuer beide Seiten. Zwei
+     * verschiedene Achsen zu vergleichen waere schlimmer als eine schlechte.
+     */
+    const groupNames = Object.keys(AXIS_GROUPS);
+
+    //  Quelle: je Knochen und Achse ueber alle Frames mitteln - in dem
+    //  Geruest, zu dem der Knochen gehoert.
+    const srcAxes = this.preview.bones.map(() => [new Vector3(), new Vector3(), new Vector3()]);
+    const groupOfBone = this.preview.bones.map((name) => axisGroupOf(name));
+    const groupUsable = {};
+
+    for (const key of groupNames) {
+      const group = AXIS_GROUPS[key];
+      const members = [];
+      for (let i = 0; i < this.preview.bones.length; i++) if (groupOfBone[i] === key) members.push(i);
+      if (members.length === 0) { groupUsable[key] = false; continue; }
+
+      let frames = 0;
+      for (let f = 0; f < this.solved.frames; f++) {
+        const positions = this.solved.positions[f];
+        const axes = axesOf(group, (name) => {
+          const i = srcIndex.get(name);
+          return i === undefined ? null : positions[i];
+        });
+        if (!axes) break;
+        frames++;
+        const rotations = this.solved.rotations[f];
+        for (const i of members) {
+          const inverse = rotations[i].clone().invert();
+          for (let k = 0; k < 3; k++) srcAxes[i][k].add(axes[k].clone().applyQuaternion(inverse));
+        }
+      }
+      groupUsable[key] = frames > 0;
+    }
+    srcAxes.forEach((set) => set.forEach((v) => { if (v.lengthSq() > 1e-12) v.normalize(); }));
+
+    //  Ziel: dieselben Gerueste aus der Bindepose des Modells, in Weltkoordinaten.
+    const dstAxes = {};
+    for (const key of groupNames) {
+      if (!groupUsable[key]) continue;
+      dstAxes[key] = axesOf(AXIS_GROUPS[key], (name) => {
+        const t = byKey.get(boneKey(this.boneMap[name] || ''));
+        return t === undefined ? null : bindPos[t];
+      });
+    }
+
+    /**
+     * Welche der drei Achsen dieser Knochen als Referenz nimmt: die, die am
+     * weitesten von seiner eigenen Richtung wegzeigt.
+     *
+     * Die Frage stellt sich, weil ein Knochen mit seiner Achse zusammenfallen
+     * kann - ein Schluesselbein zeigt selbst nach der Seite, wo die Querachse
+     * liegt. Gemessen 10,9 Grad an der linken Schulter, wo 90 stehen sollten.
+     * Aus so einem Paar wird kein Dreibein, sondern Rauschen, und das Rauschen
+     * sass sichtbar im Oberkoerper.
+     */
+    const pickAxis = (si, aimSrc) => {
+      let best = -1, bestDot = 1;
+      for (let k = 0; k < 3; k++) {
+        const axis = srcAxes[si][k];
+        if (axis.lengthSq() < 1e-12) continue;
+        const dot = Math.abs(aimSrc.dot(axis));
+        if (dot < bestDot) { bestDot = dot; best = k; }
+      }
+      return best;
+    };
+
+    const referenceOf = (ti, si, aimSrc) => {
+      const axes = dstAxes[groupOfBone[si]];
+      if (!axes) return null;
+      const k = pickAxis(si, aimSrc);
+      if (k < 0) return null;
+      return { src: srcAxes[si][k], dst: axes[k].clone().applyQuaternion(bindRot[ti].clone().invert()) };
+    };
+
+    const tracks = [];
+    const corrections = new Map();
+
+    for (const [srcName, defName] of Object.entries(this.boneMap)) {
+      const si = srcIndex.get(srcName);
+      const ti = byKey.get(boneKey(defName));
+      if (si === undefined || ti === undefined) continue;
+      //  Ohne Track bleibt der Knochen in seiner Bindepose - siehe applyFrame.
+      if (KEEP_BIND_POSE.test(srcName)) continue;
+
+      const childName = aimChildOf(srcName);
+      const aim = childName ? dirTo(ti, childName) : null;
+      let correction = null;
+
+      if (aim) {
+        //  DIE REFERENZACHSE IST DER GRUND, WARUM HIER EIN DREIBEIN STEHT UND
+        //  NICHT DIE KUERZESTE DREHUNG. `setFromUnitVectors` bildet eine
+        //  Richtung auf eine andere ab und laesst die Drehung UM diese Richtung
+        //  offen; sie waehlt die kuerzeste, und das ist eine willkuerliche
+        //  Wahl. An einem Oberschenkel sieht das niemand - der ist rund. Am
+        //  Becken und am Brustkorb sieht es jeder, denn ein Rumpf ist breit:
+        //  die Figur stand mit dem Oberkoerper quer zu den Beinen.
+        const reference = referenceOf(ti, si, aim.src);
+        if (reference) {
+          const qSrc = triad(aim.src, reference.src);
+          const qDst = triad(aim.dst, reference.dst);
+          if (qSrc && qDst) correction = qSrc.multiply(qDst.invert());
+        }
+        //  Ohne brauchbare Referenz bleibt die alte Naeherung: die Richtung
+        //  stimmt, die Rolle ist geraten. Dazu kommt es nur, wenn die
+        //  Koerperachsen selbst fehlen - also bei einer Vorschau ohne Beine
+        //  oder ohne Schultern.
+        if (!correction) correction = new Quaternion().setFromUnitVectors(aim.dst, aim.src);
+      }
+
+      tracks.push({ src: si, bone: ti, srcName, correction });
+      if (correction) corrections.set(srcName, correction);
+    }
+
+    /**
+     * FINGER RECHNEN NICHT SELBST, sie nehmen die Korrektur ihrer Hand.
+     *
+     * Eine eigene je Fingerglied klingt genauer und ist es nicht. Ein
+     * Fingerglied ist kurz und bewegt sich viel; die gemessene Achse streut
+     * dort staerker als am Rumpf, und schon kleine Unterschiede zwischen
+     * benachbarten Gliedern summieren sich zu einer sichtbaren Rolle - die
+     * Finger standen gespreizt und verdreht, wo eine Faust sein sollte.
+     *
+     * Tragen alle Glieder DIESELBE Korrektur C, wird aus der Umrechnung eine
+     * Konjugation - C hoch -1 mal lokale Drehung mal C -, und die erhaelt den
+     * Winkel. Die Fingerbewegung kommt damit unveraendert an, nur in den Raum
+     * des Modells gedreht. Gemessen, Quelle gegen Modell:
+     *
+     *                                   eigene Achse   Hand geerbt
+     *   Hand -> IndexProximal    51,2       97,0          51,2
+     *   Proximal -> Intermediate 71,3       71,2          71,3
+     *   Intermediate -> Distal   63,3      128,7          63,3
+     *
+     * Das gilt, weil ein Rig seine Konvention innerhalb einer Hand nicht
+     * wechselt. An der Wirbelsaeule tut es das sehr wohl - dort waere Erben
+     * falsch, und genau daran ist ein frueherer Anlauf gescheitert.
+     *
+     * GEMESSEN GEGEN DIE T-POSE (2026-09-25) stimmt davon nur der WINKEL. Die
+     * ACHSE, um die ein Finger sich beugt, liegt 80 bis 120 Grad daneben:
+     * zwei Rigs legen ihre Finger verschieden gegen die Hand, und die
+     * Korrektur der Hand kennt nur die Hand. Genauer geht es erst mit
+     * `restRot` ([tracksFromRestPose]).
+     */
+    for (const track of tracks) {
+      if (!DETAIL.test(track.srcName)) continue;
+      const hand = corrections.get(track.srcName.startsWith('Left') ? 'LeftHand' : 'RightHand');
+      if (hand) track.correction = hand;
+    }
+
+    //  Endknochen - Zehen, Fingerspitzen - haben kein Kind und damit keine
+    //  eigene Richtung. Sie erben die Korrektur ihres Elternknochens.
+    //
+    //  EIN UMWEG, DEN ICH GEGANGEN BIN: die Zehen knickten einmal nach unten,
+    //  und ich habe daraufhin versucht, ihnen aus zwei Koerperachsen ein
+    //  eigenes Dreibein zu bauen. Das war die falsche Stelle - geknickt hatte
+    //  sie die damals noch falsche FUSSKORREKTUR, die sie erbten. Gemessen ist
+    //  die Vererbung exakt (Fuss zu Zehe: 121,6 Grad in der Quelle, 121,6 im
+    //  Modell), das eigene Dreibein lag bei 176,2. Ein Rig wechselt seine
+    //  Konvention am letzten Glied einer Kette nicht.
+    for (const track of tracks) {
+      if (track.correction) continue;
+
+      let p = this.preview.parents[track.src];
+      while (p >= 0) {
+        const parentName = this.preview.bones[p];
+        if (corrections.has(parentName)) { track.correction = corrections.get(parentName); break; }
+        p = this.preview.parents[p];
+      }
+      if (!track.correction) track.correction = new Quaternion();
+    }
+
+    return tracks;
+  }
+
+  /**
+   * DIE KORREKTUR AUS DEN T-POSEN, sobald die Vorschau die der Quelle
+   * mitbringt (`restRot`). Warum, steht im Kopf dieser Datei.
+   *
+   * Je Knochen  Korrektur = T_Quelle^-1 * T_Ziel,  mit beiden T-Posen als
+   * Weltdrehung und das Ziel schon so aufgestellt wie die Quelle
+   * ([standingFrame]). applyFrame rechnet daraus  Quelle(t) * Korrektur:
+   * jeder Zielknochen dreht sich gegen SEINE T-Pose, wie der Quellknochen
+   * gegen seine.
+   *
+   * Kein Kind, keine Referenzachse, nichts ueber Bilder gemittelt - und darum
+   * auch keine Ausnahme fuer Zehen, Kopf oder Finger mehr: jeder Knochen hat
+   * seine eigene T-Pose und rechnet damit.
+   */
+  tracksFromRestPose(restRot, { bones, byKey, srcIndex, aimChildOf, bindPos, bindRot, order }) {
+    const preview = this.preview;
+    const count = preview.bones.length;
+
+    //  Die Quelle in ihrer T-Pose. `restRot` ist lokal, nach derselben Formel
+    //  wie ein Bild - also genauso die Kette hinunter zusammensetzen.
+    const srcRot = new Array(count);
+    const srcPos = new Array(count);
+    for (let i = 0; i < count; i++) {
+      const local = toQuat(restRot[i], 0);
+      const p = preview.parents[i];
+      srcRot[i] = p < 0 ? local : srcRot[p].clone().multiply(local);
+      srcPos[i] = p < 0 ? new Vector3() : toVec(preview.rest[i]).applyQuaternion(srcRot[p]).add(srcPos[p]);
+    }
+
+    const targetOf = (name) => byKey.get(boneKey(this.boneMap[name] || ''));
+    const { rot: dstRot, pos: dstPos, known } = this.targetTPose(bones, bindPos, bindRot);
+
+    const srcFrame = standingFrame((name) => {
+      const i = srcIndex.get(name);
+      return i === undefined ? null : srcPos[i];
+    });
+    const dstFrame = standingFrame((name) => {
+      const t = targetOf(name);
+      return t === undefined ? null : dstPos[t];
+    });
+    const align = !srcFrame || !dstFrame ? new Quaternion()
+      : known ? turnBetween(srcFrame, dstFrame)
+      : srcFrame.multiply(dstFrame.invert());
+
+    //  `lift[t]` dreht den Zielknochen t aus der Lage, die `dstRot` nennt, in
+    //  seine aufgestellte T-Pose. Ein Knochen erbt die seines naechsten
+    //  Vorfahren im Skelett - schwenkt der Oberarm, geht der Unterarm mit, und
+    //  seine eigene Richtung wird erst danach verglichen.
+    const srcNameOf = new Map();
+    for (const [srcName, defName] of Object.entries(this.boneMap)) {
+      const t = byKey.get(boneKey(defName));
+      if (t !== undefined) srcNameOf.set(t, srcName);
+    }
+    //  Ueber das Objekt, nicht ueber den Namen: eine .fbx traegt Namen auch
+    //  doppelt (Sidekick), und ein gleichnamiger Knochen tiefer im Baum ist
+    //  noch nicht gerechnet, wenn sein Namensvetter ihn fragt.
+    const indexOf = new Map(bones.map((bone, i) => [bone, i]));
+    const jointParent = bones.map((bone) => {
+      for (let p = bone.parent; p; p = p.parent) {
+        const i = indexOf.get(p);
+        if (i !== undefined) return i;
+      }
+      return -1;
+    });
+
+    const lift = new Array(bones.length);
+    for (const t of order) {
+      const inherited = jointParent[t] >= 0 ? lift[jointParent[t]] : align;
+      lift[t] = inherited;
+
+      //  Nur auf einer Figur, deren T-Pose unbekannt ist - siehe SWING_TO_TPOSE.
+      const name = srcNameOf.get(t);
+      if (known || !name || !SWING_TO_TPOSE.test(name)) continue;
+      const child = aimChildOf(name);
+      const tc = child ? targetOf(child) : undefined;
+      if (tc === undefined) continue;
+
+      const now = dstPos[tc].clone().sub(dstPos[t]).applyQuaternion(inherited);
+      const want = srcPos[srcIndex.get(child)].clone().sub(srcPos[srcIndex.get(name)]);
+      if (now.lengthSq() < 1e-12 || want.lengthSq() < 1e-12) continue;
+      lift[t] = new Quaternion().setFromUnitVectors(now.normalize(), want.normalize()).multiply(inherited);
+    }
+
+    const tracks = [];
+    for (const [srcName, defName] of Object.entries(this.boneMap)) {
+      const si = srcIndex.get(srcName);
+      const ti = byKey.get(boneKey(defName));
+      if (si === undefined || ti === undefined) continue;
+      const tpose = lift[ti].clone().multiply(dstRot[ti]);
+      tracks.push({ src: si, bone: ti, srcName, correction: srcRot[si].clone().invert().multiply(tpose) });
+    }
+    return tracks;
+  }
+
+  /**
+   * Die T-Pose des Ziels als Weltdrehung und -lage je Knochen - und ob sie das
+   * wirklich ist (`known`) oder nur die Bindepose einer fremden Datei.
+   *
+   * DIE RUHELAGE DER KNOTEN, WO DIE DATEI SAGT, DASS SIE DIE T-POSE IST
+   * (`extras.pose === 'tpose'`). Eine Figur aus der Workbench wird vor dem
+   * Einsammeln hineingestellt (AWFigureGlbExport), das Mannequin wird mit der
+   * T-Pose seines Avatars gebaut (`unity-mesh-to-glb.py --tpose`).
+   *
+   * Die BINDEPOSE taugt dafuer nicht, auch wenn sie danach aussieht. Beim
+   * Mannequin stehen darin die Schluesselbeine 20,5 Grad und die Daumen 27
+   * neben seiner T-Pose, bei einer Figur aus der Workbench ist es die
+   * Bindepose ihrer Quelldatei - bei einem Modell in A-Pose die A-Pose. Nur
+   * eine fremde Datei hat nichts Besseres; fuer sie gilt SWING_TO_TPOSE.
+   *
+   * Die Ruhelage wird beim ersten Binden gemerkt. Danach stehen die Knochen
+   * in einer Pose des Clips, und ein zweites Binden laese die als T-Pose.
+   */
+  targetTPose(bones, bindPos, bindRot) {
+    if (!this.tposeInRest) return { rot: bindRot, pos: bindPos, known: false };
+
+    if (!this.restTPose) {
+      const scale = new Vector3();
+      this.restTPose = { rot: [], pos: [] };
+      for (const bone of bones) {
+        const rot = new Quaternion(), pos = new Vector3();
+        bone.matrixWorld.decompose(pos, rot, scale);
+        this.restTPose.rot.push(rot);
+        this.restTPose.pos.push(pos);
+      }
+    }
+    return { rot: this.restTPose.rot, pos: this.restTPose.pos, known: true };
   }
 
   /**

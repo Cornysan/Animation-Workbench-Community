@@ -206,8 +206,13 @@ export function restPose(preview) {
   return { rotations: estimateRestPose(preview), measured: false };
 }
 
-/** `restRot`, wenn es zur Vorschau passt - sonst null. */
-function measuredRestPose(preview) {
+/**
+ * `restRot`, wenn es zur Vorschau passt - sonst null.
+ *
+ * Exportiert fuer die Buehne (`stage.js`): die rechnet mit der gemessenen
+ * T-Pose exakt und braucht die Schaetzung dafuer nicht.
+ */
+export function measuredRestPose(preview) {
   const rows = preview.restRot;
   if (!Array.isArray(rows) || rows.length !== preview.bones.length) return null;
   const out = [];
