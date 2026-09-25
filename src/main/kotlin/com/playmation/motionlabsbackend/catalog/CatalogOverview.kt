@@ -52,17 +52,41 @@ class CatalogOverviewService(
     )
 
     /**
+     * Alle Schlagworte des Katalogs mit ihrer Zahl, und welche zusammen an
+     * einem Clip stehen. Die Leiste oben braucht nur die ersten 18; das
+     * Schlagwortfeld beim Teilen und Bearbeiten ([TagService]) braucht alle,
+     * um vorzuschlagen, was es schon gibt, statt ein zweites `walking` neben
+     * dem ersten `walk` entstehen zu lassen.
+     */
+    class TagStats(
+        val counts: Map<String, Int>,
+        /** `pairs["walk"]["loop"]` = an so vielen Clips stehen beide. */
+        private val pairs: Map<String, Map<String, Int>>,
+    ) {
+        fun count(tag: String) = counts[tag] ?: 0
+        fun related(tag: String): Map<String, Int> = pairs[tag].orEmpty()
+    }
+
+    private class Snapshot(val overview: Overview, val tags: TagStats)
+
+    /**
      * Eine Minute. Lang genug, dass ein Besucher, der durch den Katalog
      * blaettert, die Rechnung nur einmal ausloest; kurz genug, dass ein
      * frischer Upload sich nicht wie ein Fehler anfuehlt.
      */
     private val cacheFor = Duration.ofMinutes(1)
 
-    @Volatile private var cached: Overview? = null
+    @Volatile private var cached: Snapshot? = null
     @Volatile private var cachedAt: Instant = Instant.EPOCH
 
     @Transactional(readOnly = true)
-    fun overview(): Overview {
+    fun overview(): Overview = snapshot().overview
+
+    /** Dieselbe Zaehlung, dieselbe Minute - nur vollstaendig. */
+    @Transactional(readOnly = true)
+    fun tagStats(): TagStats = snapshot().tags
+
+    private fun snapshot(): Snapshot {
         val now = clock.instant()
         cached?.let { if (Duration.between(cachedAt, now) < cacheFor) return it }
 
@@ -80,7 +104,15 @@ class CatalogOverviewService(
         }
 
         val counts = HashMap<String, Int>()
-        for (pkg in listed) for (tag in pkg.tagList()) counts[tag] = (counts[tag] ?: 0) + 1
+        val pairs = HashMap<String, HashMap<String, Int>>()
+        for (pkg in listed) {
+            val tags = pkg.tagList()
+            for (tag in tags) {
+                counts[tag] = (counts[tag] ?: 0) + 1
+                val with = pairs.getOrPut(tag) { HashMap() }
+                for (other in tags) if (other != tag) with[other] = (with[other] ?: 0) + 1
+            }
+        }
 
         val fresh = Overview(
             clips = listed.size,
@@ -94,9 +126,10 @@ class CatalogOverviewService(
                 .map { TagCount(it.key, it.value) },
         )
 
-        cached = fresh
+        val snapshot = Snapshot(fresh, TagStats(counts, pairs))
+        cached = snapshot
         cachedAt = now
-        return fresh
+        return snapshot
     }
 
     /** Der Cache haelt eine Minute - ein frischer Upload darf nicht so lange warten. */

@@ -82,6 +82,11 @@ class SecurityConfig {
                 //  Umfang und Schlagworte des Katalogs - dieselbe Auskunft, die
                 //  jede Karte im Katalog ohnehin traegt, nur zusammengezaehlt.
                 authorize(HttpMethod.GET, "/api/v1/overview", permitAll)
+                //  Dasselbe, einzeln nachgeschlagen: das Schlagwortfeld beim
+                //  Teilen fragt schon, bevor jemand angemeldet ist. Eigene
+                //  Schlagworte kommen nur mit Anmeldung dazu (TagService).
+                authorize(HttpMethod.GET, "/api/v1/tags", permitAll)
+                authorize(HttpMethod.GET, "/api/v1/tags/suggest", permitAll)
                 authorize(HttpMethod.GET, "/api/v1/packages", permitAll)
                 authorize(HttpMethod.GET, "/api/v1/packages/*", permitAll)
                 authorize(HttpMethod.GET, "/api/v1/packages/*/preview", permitAll)

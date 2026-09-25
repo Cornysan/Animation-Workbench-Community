@@ -1968,3 +1968,158 @@ dialog[open]::backdrop { animation: aw-fade var(--dur) var(--ease-out) backwards
   }
   @view-transition { navigation: none; }
 }
+
+/* ── Das Schlagwortfeld (tag-input.js) ──────────────────────────────────
+   Sieht aus wie ein Eingabefeld und verhaelt sich wie eins: Rahmen,
+   Fokusring und Hoehe sind die von `input`. Darin stehen die Chips in
+   Akzentfarbe - das, was schon gilt -, darunter gestrichelt die
+   Vorschlaege: das, was gelten KOENNTE. Gestrichelt statt gefuellt, damit
+   niemand einen Vorschlag fuer ein gewaehltes Schlagwort haelt. */
+
+.field-label { display: block; color: var(--text-dim); font-size: 14px; margin-bottom: 6px; }
+
+.tag-anchor { position: relative; }
+
+.tag-box {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 5px 6px;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  cursor: text;
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.tag-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+.tag-chips { display: contents; list-style: none; margin: 0; padding: 0; }
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  height: 28px;
+  padding: 0 3px 0 11px;
+  background: var(--accent-soft);
+  color: var(--text);
+  border: 1px solid var(--accent-line);
+  border-radius: var(--radius-pill);
+  font-size: 13.5px;
+  line-height: 1;
+  white-space: nowrap;
+  animation: aw-rise-small var(--dur) var(--ease-out) backwards;
+}
+.tag-chip.nudge { animation: aw-tag-nudge 360ms var(--ease-out); }
+
+.tag-box .tag-chip-remove {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-dim);
+}
+.tag-box .tag-chip-remove:hover { background: var(--surface-hover); color: var(--text); }
+.tag-chip-remove .icon { width: 13px; height: 13px; }
+
+.tag-box .tag-entry {
+  flex: 1 1 140px;
+  min-width: 140px;
+  min-height: 28px;
+  padding: 2px 6px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  font-size: 14.5px;
+}
+.tag-box .tag-entry:focus { border: 0; box-shadow: none; }
+
+.tag-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 90;
+  max-height: 272px;
+  overflow-y: auto;
+  padding: 6px;
+  background: var(--bg-soft);
+  color: var(--text);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  animation: aw-rise-small var(--dur-fast) var(--ease-out) backwards;
+}
+/* In der obersten Ebene steht sie fest; Ort und Breite setzt das Skript. */
+.tag-menu[popover] { position: fixed; inset: auto; margin: 0; }
+.tag-menu[hidden] { display: none; }
+
+.tag-option {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+  font-size: 14px;
+  cursor: pointer;
+}
+.tag-option:hover, .tag-option[aria-selected="true"] { background: var(--surface-hover); color: var(--text); }
+.tag-option mark { background: none; color: var(--text); font-weight: 650; }
+.tag-option-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tag-option-meta { color: var(--text-faint); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.tag-hint {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 6px;
+  color: var(--text-faint);
+  font-size: 12.5px;
+}
+.tag-hint.warn { color: var(--warn); }
+.tag-room { margin-left: auto; font-variant-numeric: tabular-nums; }
+.tag-room.full { color: var(--accent); }
+
+.tag-suggest { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+.tag-suggest[hidden] { display: none; }
+.tag-suggest-label { color: var(--text-faint); font-size: 12.5px; margin-right: 4px; }
+
+.tag-suggest .tag-suggestion {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  min-height: 0;
+  padding: 0 11px 0 8px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-dim);
+  font-size: 13px;
+  font-weight: 500;
+  animation: aw-rise-small var(--dur) var(--ease-out) backwards;
+}
+.tag-suggest .tag-suggestion:hover {
+  border-style: solid;
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--text);
+}
+.tag-suggestion .icon { width: 13px; height: 13px; }
+
+@keyframes aw-tag-nudge {
+  0% { transform: none; }
+  35% { transform: scale(1.08); border-color: var(--accent); }
+  100% { transform: none; }
+}

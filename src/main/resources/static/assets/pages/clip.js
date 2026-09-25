@@ -273,8 +273,21 @@
       const description = el("textarea", { name: "description", maxlength: "2000", rows: "5" }, current.description || "");
       const counter = el("span", { class: "faint small counter" }, description.value.length + "/2000");
       description.addEventListener("input", () => { counter.textContent = description.value.length + "/2000"; });
-      const tags = el("input", { type: "text", name: "tags", value: current.tags.join(", "),
-        placeholder: "walk, loop, stealth", autocomplete: "off", spellcheck: "false" });
+
+      //  Chips statt Kommaliste (tag-input.js). Die Vorschlaege lesen Titel
+      //  und Beschreibung aus DIESEM Dialog, nicht vom gespeicherten Clip -
+      //  wer den Titel aendert, bekommt Vorschlaege zum neuen.
+      const tags = AWTags.field({
+        tags: current.tags,
+        context: () => ({ title: title.value, text: description.value, slug: current.slug }),
+      });
+      let retitled = 0;
+      const refreshTags = () => {
+        clearTimeout(retitled);
+        retitled = setTimeout(tags.refresh, 500);
+      };
+      title.addEventListener("input", refreshTags);
+      description.addEventListener("input", refreshTags);
 
       const publicChoice = el("input", { type: "radio", name: "visibility", value: PUBLIC, checked: wasPublic });
       const privateChoice = el("input", { type: "radio", name: "visibility", value: PRIVATE, checked: !wasPublic });
@@ -310,9 +323,13 @@
         el("label", { class: "field" },
           el("span", {}, "Description ", el("span", { class: "faint small" }, "optional"), counter),
           description),
-        el("label", { class: "field" },
-          el("span", {}, "Tags ", el("span", { class: "faint small" }, "up to 10, separated by commas")),
-          tags),
+        //  Kein <label> um das Feld: es enthaelt Knoepfe, und ein Klick auf
+        //  die Beschriftung loeste sonst den ersten davon aus - den, der den
+        //  ersten Chip entfernt.
+        el("div", { class: "field" },
+          el("label", { class: "field-label", for: tags.inputId },
+            "Tags ", el("span", { class: "faint small" }, "up to " + AWTags.MAX_TAGS)),
+          tags.element),
         el("fieldset", { class: "choices" },
           el("legend", {}, "Who can see it"),
           el("label", {}, publicChoice,
@@ -364,8 +381,8 @@
           finish(await api("PATCH", "/api/v1/packages/" + encodeURIComponent(current.slug), {
             title: title.value,
             description: description.value,
-            //  Getrennt wie beim Teilen in der Workbench: Komma, Leerzeichen, Semikolon.
-            tags: tags.value.split(/[,;\s]+/).map((tag) => tag.trim().toLowerCase()).filter(Boolean),
+            //  Was noch getippt im Feld steht, zaehlt mit.
+            tags: tags.commit(),
             license: publicChoice.checked ? PUBLIC : PRIVATE,
             declarationAccepted: goingPublic && declared.checked,
             declarationText: declaration ? declaration.declarationText : null,

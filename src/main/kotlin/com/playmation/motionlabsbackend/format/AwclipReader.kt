@@ -43,6 +43,12 @@ data class AwclipDocument(
     val curves: List<AwclipCurve>,
     val hasSettings: Boolean,
     val preview: StrictJson.Value.Obj?,
+    /**
+     * `settings.loopTime` - der Clip ist als Schleife gedacht. Nur fuer die
+     * Schlagwort-Vorschlaege ([com.playmation.motionlabsbackend.catalog.TagService]);
+     * alle anderen Einstellungen reicht der Server ungelesen durch.
+     */
+    val loops: Boolean = false,
 )
 
 sealed class AwclipReadResult {
@@ -169,7 +175,9 @@ object AwclipReader {
 
         val preview = obj["preview"]?.let { readPreview(it, manifest.rig) }
 
-        return AwclipDocument(manifest, origin, curves, settings != null, preview)
+        val loops = ((settings as? StrictJson.Value.Obj)?.get("loopTime") as? StrictJson.Value.Bool)?.value == true
+
+        return AwclipDocument(manifest, origin, curves, settings != null, preview, loops)
     }
 
     private fun readManifest(node: StrictJson.Value): AwclipManifest {
