@@ -575,7 +575,8 @@ function fadeOut(ctx, size) {
 }
 
 /** Der Lichtschein unter der Figur, schon mit Abfall. Wandert mit. Auf Dunkel
- *  ein violetter Schimmer, auf Hell ein weisser Lichtfleck. */
+ *  ein grauer Schimmer, auf Hell ein weisser Lichtfleck. Bis 2026-09-25 war
+ *  er auf Dunkel violett - zu viel Violett neben den Gelenkringen der Figur. */
 function poolTexture(theme, size = 1024) {
   const key = 'pool-' + theme;
   if (groundTextures[key]) return groundTextures[key];
@@ -589,9 +590,9 @@ function poolTexture(theme, size = 1024) {
     pool.addColorStop(0.5, 'rgba(255, 255, 255, 0.45)');
     pool.addColorStop(1, 'rgba(255, 255, 255, 0)');
   } else {
-    pool.addColorStop(0, 'rgba(70, 60, 118, 0.85)');
-    pool.addColorStop(0.45, 'rgba(42, 36, 72, 0.55)');
-    pool.addColorStop(1, 'rgba(18, 16, 28, 0)');
+    pool.addColorStop(0, 'rgba(80, 80, 88, 0.85)');
+    pool.addColorStop(0.45, 'rgba(46, 46, 52, 0.55)');
+    pool.addColorStop(1, 'rgba(18, 18, 20, 0)');
   }
   ctx.fillStyle = pool;
   ctx.fillRect(0, 0, size, size);
