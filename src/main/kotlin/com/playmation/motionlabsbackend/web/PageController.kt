@@ -129,8 +129,8 @@ class PageController(
         "redirect:/" + (request.queryString?.let { "?$it" } ?: "")
 
     /**
-     * Der zweite Reiter oben: alle oeffentlichen Sammlungen, und wer
-     * angemeldet ist, dazu die eigenen und die der Leute, denen er folgt.
+     * Der zweite Reiter oben: die eigenen Sammlungen und die der Leute, denen
+     * man folgt - ohne Anmeldung nur der Weg dorthin.
      */
     @GetMapping("/collections.html")
     fun collectionsPage(model: Model) = view(model, "collections", active = "collections")

@@ -67,8 +67,11 @@ class SitemapController(
             xml.append("</url>\n")
         }
 
-        //  Die zwei Reiter und die Seiten im Fuss.
-        for (path in listOf("/", "/collections.html", "/licenses.html", "/rules.html", "/terms.html",
+        //  Der Katalog und die Seiten im Fuss. "/collections.html" nicht mehr:
+        //  seit dort nur noch die eigenen und die gefolgten Sammlungen stehen
+        //  (2026-09-25), sieht ein Suchroboter nur den Weg zur Anmeldung. Die
+        //  Sammlungen selbst stehen weiter unten einzeln.
+        for (path in listOf("/", "/licenses.html", "/rules.html", "/terms.html",
                 "/privacy.html", "/impressum.html"))
             url(path)
 
@@ -85,7 +88,7 @@ class SitemapController(
             owners += pkg.ownerId
         }
 
-        //  Sammlungen: oeffentlich und nicht leer, wie auf /collections.html.
+        //  Sammlungen: oeffentlich und nicht leer.
         for (collection in collections.findByStatusAndVisibilityOrderByUpdatedAtDesc(
                 CollectionStatus.PUBLISHED, CollectionVisibility.PUBLIC)) {
             if (collection.itemCount <= 0) continue
