@@ -1,44 +1,50 @@
 <!doctype html>
-<html lang="de" xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments/shell :: head('Impressum')}"></head>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/shell :: head('Legal notice')}"></head>
 <body th:attr="data-signed-in=${user != null}">
 <header th:replace="~{fragments/shell :: header}"></header>
 <main id="main">
   <div th:replace="~{fragments/shell :: paused}"></div>
   <div class="prose">
-  <h1>Impressum</h1>
-  <p class="lead">Angaben nach &sect;&nbsp;5 DDG. <span lang="en">This page is in German because German law requires it of a German operator; the rest of the site is in English.</span></p>
+  <!--
+    Englisch wie der Rest der Seite. § 5 DDG schreibt keine Sprache vor, nur dass
+    die Angaben leicht erkennbar und erreichbar sind; ein deutsches Impressum
+    mitten in einer englischen Seite war der Ausreisser. Die Adresse bleibt
+    /impressum.html, weil Sitemap, Nutzungsbedingungen und alte Links sie tragen.
+  -->
+  <h1>Legal notice</h1>
+  <p class="lead">Information pursuant to &sect;&nbsp;5 DDG (German Digital Services Act), known in Germany as the <span lang="de">Impressum</span>.</p>
 
-  <h2>Diensteanbieter</h2>
+  <h2>Service provider</h2>
   <p>
     PH Productions<br>
-    Inhaber: Paul Hammer<br>
+    Owner: Paul Hammer<br>
     Anton-Burger-Weg 35<br>
     60599 Frankfurt am Main<br>
-    Deutschland
+    Germany
   </p>
 
-  <h2>Kontakt</h2>
-  <p>E-Mail: <a href="mailto:webmaster@playmations.com">webmaster@playmations.com</a></p>
+  <h2>Contact</h2>
+  <p>Email: <a href="mailto:webmaster@playmations.com">webmaster@playmations.com</a></p>
 
-  <h2>Kontaktstelle nach dem Digital Services Act</h2>
-  <p>Zentrale Kontaktstelle f&uuml;r Nutzerinnen und Nutzer sowie f&uuml;r Beh&ouml;rden nach Art.&nbsp;11 und 12 der Verordnung (EU) 2022/2065: die oben genannte E-Mail-Adresse.
-     Sprachen der Kommunikation: Deutsch und Englisch.</p>
-  <p>Meldungen &uuml;ber rechtsverletzende Inhalte gehen am schnellsten &uuml;ber das
-     <a href="/takedown.html">Meldeformular</a>. Daf&uuml;r wird kein Konto ben&ouml;tigt.</p>
+  <h2>Point of contact under the Digital Services Act</h2>
+  <p>Single point of contact for users and for authorities under Art.&nbsp;11 and 12 of Regulation (EU) 2022/2065: the email address above.
+     Languages of communication: English and German.</p>
+  <p>The fastest way to report infringing content is the
+     <a href="/takedown.html">report form</a>. It does not require an account.</p>
 
-  <h2>Verbraucherstreitbeilegung</h2>
-  <p>Wir sind nicht bereit und nicht verpflichtet, an Streitbeilegungsverfahren vor einer
-     Verbraucherschlichtungsstelle teilzunehmen.</p>
+  <h2>Consumer dispute resolution</h2>
+  <p>We are neither willing nor obliged to take part in dispute resolution proceedings before a
+     consumer arbitration board.</p>
   <!-- Hier bewusst KEIN Link auf die OS-Plattform der EU: die wurde am 20. Juli 2025 abgeschaltet.
        Vorlagen aus dem Netz enthalten den Link oft noch - nicht uebernehmen. -->
 
-  <h2>Inhalte von Nutzerinnen und Nutzern</h2>
-  <p>Die hier geteilten Animationen stammen von den angemeldeten Personen, nicht vom Anbieter.
-     Wir pr&uuml;fen sie nicht vorab. Auf eine Meldung hin wird ein Clip sofort verborgen und
-     anschlie&szlig;end gepr&uuml;ft; Einzelheiten stehen in den
-     <a href="/terms.html">Nutzungsbedingungen</a> und den
-     <a href="/rules.html">Community-Regeln</a>.</p>
+  <h2>Content shared by users</h2>
+  <p>The animations shared here come from the people who signed in and uploaded them, not from the
+     provider. We do not review them in advance. When a clip is reported, it is hidden right away and
+     reviewed afterwards; the details are in the
+     <a href="/terms.html">terms</a> and the
+     <a href="/rules.html">community rules</a>.</p>
   </div>
   </main>
 <footer th:replace="~{fragments/shell :: footer}"></footer>
