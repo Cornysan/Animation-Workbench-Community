@@ -450,9 +450,10 @@ function solvePreview(preview) {
 /** Kantenlaenge des Lichtscheins unter der Figur. */
 const GROUND_SIZE = 6.4;
 
-/** Ein Rasterfeld, in Metern. */
+/** Ein Rasterfeld, in Metern. Grau statt Violett: das Violett gehoert den
+ *  Gelenken der Figur, und auf dem Raster darunter war es zu viel davon. */
 const GRID_CELL = 0.32;
-const GRID_COLOR = 0xa894ff;
+const GRID_COLOR = 0xb4b4b8;
 
 /** Wie weit das Raster ueber die Wege der Figur hinaus reicht, in
  *  Koerperhoehen - bei 1,8 Metern gut zwanzig Meter. So weit, dass es nicht
