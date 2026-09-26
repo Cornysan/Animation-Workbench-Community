@@ -10,7 +10,8 @@
 (async () => {
   const {
     api, ensureCsrf, el, notice, icon, iconButton, setIconState, formatDate, copyText, toastError, copyLink, pulse,
-    param, clipCard, collectionCard, previewObserver, signedIn, signInHint, collectionDialog,
+    param, collectionCard, previewObserver, signedIn, signInHint, collectionDialog,
+    entryCard, packDialog, packCandidates, toast,
   } = AW;
 
   const handle = param("u");
@@ -325,16 +326,42 @@
     return el("div", { class: "empty" }, el("p", {}, text), action || null);
   }
 
+  //  Die Wand dieser Person, mit ihren Packs gefaltet - wie der Katalog
+  //  (CatalogWall). Sie selbst bekommt hier den Knopf fuer einen neuen Pack:
+  //  hier stehen die Clips, aus denen er entsteht.
   async function loadClips() {
-    const page = await api("GET", "/api/v1/users/" + encodeURIComponent(profile.handle) + "/packages?size=24");
+    const page = await api("GET", "/api/v1/catalog?owner=" + encodeURIComponent(profile.handle) + "&size=48");
     if (!page.items.length) {
       return empty(profile.isMe
         ? "You have not shared a clip yet. In the Workbench: right-click a clip, Share with the Community."
         : profile.displayName + " has not shared a clip yet.");
     }
 
+    const make = profile.isMe && page.clips >= 2
+      ? el("button", { class: "button", type: "button", "data-tip": "Put clips that belong together into one pack" },
+          icon("pack"), "New pack")
+      : null;
+
+    if (make) {
+      make.addEventListener("click", async () => {
+        let candidates;
+        try {
+          candidates = await packCandidates();
+        } catch (e) {
+          toastError(e);
+          return;
+        }
+        const made = await packDialog({ candidates });
+        if (!made) return;
+        toast("Pack created", { kind: "ok" });
+        location.href = "/pack.html?k=" + encodeURIComponent(made.slug);
+      });
+    }
+
     const observer = previewObserver();
-    return el("div", { class: "grid" }, ...page.items.map((item) => clipCard(item, observer)));
+    return el("div", {},
+      make ? el("div", { class: "filters" }, make) : null,
+      el("div", { class: "grid" }, ...page.items.map((entry) => entryCard(entry, observer))));
   }
 
   async function loadCollections() {

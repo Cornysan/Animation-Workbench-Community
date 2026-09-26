@@ -73,6 +73,14 @@
           : clip.source.credit,
         " · CC0 · added by the operator, not made by a community member");
     }
+    //  Ein Clip aus einem Pack hat Geschwister - und wer ueber die Suche hier
+    //  gelandet ist, weiss das sonst nicht.
+    const packLine = document.getElementById("clip-pack");
+    packLine.hidden = !clip.pack;
+    if (clip.pack) {
+      packLine.replaceChildren(AW.icon("pack"), "Part of the pack ",
+        el("a", { href: "/pack.html?k=" + encodeURIComponent(clip.pack.slug) }, clip.pack.title));
+    }
     document.getElementById("tags").replaceChildren(
       ...clip.tags.map((tag) => el("a", { class: "tag", href: "/?tag=" + encodeURIComponent(tag) }, tag)));
     showFacts();

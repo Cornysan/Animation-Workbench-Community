@@ -1,5 +1,5 @@
 (async () => {
-  const { api, ensureCsrf, me, el, notice, formatDate } = AW;
+  const { api, ensureCsrf, me, el, notice, formatDate, packDialog, packCandidates, toastError } = AW;
 
   const state = document.getElementById("state");
   const casesBox = document.getElementById("cases");
@@ -189,4 +189,32 @@
     starterFiles.value = "";
     notice(state, added + " of " + files.length + " added.", added === files.length ? "ok" : "error");
   });
+
+  // ── Starter-Packs ────────────────────────────────────────────────────
+  //  Die Liste der bestehenden, und der Weg zu einem neuen. Bearbeitet wird
+  //  auf der Seite des Packs selbst - dort stehen Admins wie Besitzer.
+  const packList = document.getElementById("starter-packs");
+
+  async function loadPacks() {
+    const packs = await api("GET", "/api/v1/packs?owner=starter-clips");
+    packList.replaceChildren(...(packs.length
+      ? packs.map((pack) => el("li", {},
+          el("a", { href: "/pack.html?k=" + encodeURIComponent(pack.slug) }, pack.title),
+          el("span", { class: "muted" }, " \u00b7 " + (pack.clips === 1 ? "1 clip" : pack.clips + " clips"))))
+      : [el("li", { class: "muted" }, "No starter pack yet.")]));
+  }
+
+  document.getElementById("starter-pack").addEventListener("click", async () => {
+    let candidates;
+    try {
+      candidates = await packCandidates(true);
+    } catch (e) {
+      toastError(e);
+      return;
+    }
+    const made = await packDialog({ candidates, starter: true });
+    if (made) location.href = "/pack.html?k=" + encodeURIComponent(made.slug);
+  });
+
+  loadPacks().catch((e) => notice(state, e.message, "error"));
 })();

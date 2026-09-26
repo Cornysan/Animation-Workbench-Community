@@ -1,0 +1,41 @@
+<!doctype html>
+<!--
+  Ein Pack: die Clips, die ein Ersteller zusammen veroeffentlicht hat.
+
+  Derselbe Aufbau wie eine Sammlung - Kopf, dann Kachelwand -, und doch ein
+  anderes Ding: eine Sammlung traegt fremde Clips zusammen, ein Pack ist das
+  eigene Werk als Satz. Deshalb steht er unter "Animations" und nicht unter
+  "Collections".
+-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/shell :: head('Pack')}"></head>
+<body th:attr="data-signed-in=${user != null}">
+<header th:replace="~{fragments/shell :: header}"></header>
+<main id="main" class="wide">
+  <div th:replace="~{fragments/shell :: paused}"></div>
+  <div id="state"></div>
+
+  <div id="pack" class="hidden">
+    <section class="collection-head pack-head">
+      <div class="collection-copy">
+        <div class="pack-eyebrow faint small">Pack</div>
+        <h1 id="title"></h1>
+        <div class="faint small" id="sub"></div>
+        <p id="source" class="clip-source" hidden></p>
+        <p id="description" hidden></p>
+        <div class="tags" id="tags"></div>
+      </div>
+      <div class="collection-actions" id="actions"></div>
+    </section>
+
+    <div id="action-state"></div>
+    <div id="results" class="grid"></div>
+    <div id="empty"></div>
+  </div>
+</main>
+<footer th:replace="~{fragments/shell :: footer}"></footer>
+<script th:src="|${@buildStamp.assets}/app.js|"></script>
+<script th:src="|${@buildStamp.assets}/viewer.js|"></script>
+<script th:src="|${@buildStamp.assets}/pages/pack.js|"></script>
+</body>
+</html>

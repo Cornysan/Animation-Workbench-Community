@@ -1757,6 +1757,90 @@ dialog.sheet form > p:last-of-type { margin-bottom: 20px; }
 
 .collection-card .card-duration { background: var(--on-stage-scrim-strong); }
 
+/* ── Packs ────────────────────────────────────────────────────────────────
+   Die Pack-Karte ist eine Clip-Karte mit einem Stapel dahinter: zwei Blaetter,
+   nach rechts unten versetzt, wie bei Mixamo. Gezeichnet als Schatten und
+   nicht als eigene Elemente, weil die Karte `overflow: hidden` traegt (runde
+   Ecken, Vorschau) - einen Schatten schneidet sie nicht ab, ein Kind schon.
+   Je Blatt zwei Schatten: die Flaeche, und einen Pixel groesser darunter der
+   Rand. Der Stapel liegt im Abstand des Rasters (20 px) und braucht 10 davon -
+   ohne eigenen Rand, damit die Karten einer Reihe gleich gross bleiben. */
+.pack-card {
+  --stack:
+    5px 5px 0 -1px var(--surface-2), 5px 5px 0 0 var(--line-strong),
+    10px 10px 0 -3px var(--surface-2), 10px 10px 0 -2px var(--line);
+  box-shadow: var(--stack), var(--shadow-sm), var(--highlight);
+}
+.pack-card:hover { box-shadow: var(--stack), var(--glow), var(--highlight); }
+
+/* Die Zahl auf dem Stapel sitzt, wo beim Clip die Dauer steht. */
+.card-count { display: inline-flex; align-items: center; gap: 5px; color: var(--on-stage-ink); }
+.card-count .icon { width: 14px; height: 14px; }
+.card-kind { color: var(--text-faint); font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+
+/* Ein Clip aus einem Pack sagt es unten links auf dem Bild - und fuehrt hin.
+   Er liegt ueber der Flaeche, die der Titel abdeckt, sonst waere er nicht zu
+   treffen. Lange Pack-Namen werden gekuerzt, die Dauer rechts bleibt frei. */
+.card-pack {
+  position: absolute;
+  left: 11px;
+  bottom: 11px;
+  z-index: 1;
+  max-width: calc(100% - 100px);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--on-stage-scrim-strong);
+  border: 1px solid var(--on-stage-line);
+  color: var(--on-stage-dim);
+  border-radius: var(--radius-pill);
+  padding: 2px 10px 2px 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.card-pack span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card-pack .icon { width: 14px; height: 14px; }
+.card-pack:hover { color: var(--on-stage-ink); text-decoration: none; border-color: var(--accent-line); }
+
+/* Auf der Clip-Seite: der Weg zu den Geschwistern. */
+.clip-pack { margin: 10px 0 0; color: var(--text-dim); font-size: var(--fs-sm); display: flex; align-items: center; gap: 6px; }
+.clip-pack .icon { width: 16px; height: 16px; color: var(--text-faint); }
+.clip-pack a { color: var(--text); font-weight: 600; }
+
+.pack-eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; margin-bottom: 4px; }
+.pack-head .tags { margin-top: 12px; }
+.pack-head .clip-source { margin-top: 6px; }
+.filters .button .icon { width: 16px; height: 16px; margin-right: 6px; display: inline-block; vertical-align: -3px; }
+
+/* Die Auswahl im Pack-Dialog: eine Liste zum Abhaken, die scrollt, statt den
+   Dialog ueber den Bildschirm hinaus wachsen zu lassen. */
+.pick-list {
+  max-height: min(320px, 45vh);
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 4px;
+  background: var(--surface-2);
+}
+.pick {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: calc(var(--radius) - 2px);
+  cursor: pointer;
+  font-size: 14.5px;
+}
+.pick:hover { background: var(--surface); }
+.pick input { min-height: 0; margin: 0; accent-color: var(--accent); flex: none; }
+.pick-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pick.taken { cursor: default; opacity: 0.55; }
+.pick-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+.pick-all { opacity: 1; }
+.pick-all[hidden] { display: none; }
+.pick.taken:hover { background: none; }
+.starter-packs { margin: 6px 0 10px; padding-left: 18px; }
+
 @media (max-width: 720px) {
   .profile-head { gap: 16px; }
   .profile-avatar { width: 64px; height: 64px; font-size: 26px; }

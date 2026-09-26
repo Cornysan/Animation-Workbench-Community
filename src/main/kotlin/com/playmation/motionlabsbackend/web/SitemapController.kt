@@ -3,6 +3,7 @@ package com.playmation.motionlabsbackend.web
 import com.playmation.motionlabsbackend.account.AccountRepository
 import com.playmation.motionlabsbackend.account.AccountStatus
 import com.playmation.motionlabsbackend.catalog.AnimationPackageRepository
+import com.playmation.motionlabsbackend.catalog.PackService
 import com.playmation.motionlabsbackend.catalog.PackageStatus
 import com.playmation.motionlabsbackend.catalog.PackageVersionRepository
 import com.playmation.motionlabsbackend.collection.ClipCollectionRepository
@@ -45,6 +46,7 @@ class SitemapController(
     private val packages: AnimationPackageRepository,
     private val versions: PackageVersionRepository,
     private val collections: ClipCollectionRepository,
+    private val packs: PackService,
     private val accounts: AccountRepository,
     private val portal: PortalProperties,
 ) {
@@ -94,6 +96,11 @@ class SitemapController(
             if (collection.itemCount <= 0) continue
             url("/collection.html?c=" + collection.slug, collection.updatedAt)
             owners += collection.ownerId
+        }
+
+        //  Packs: alle, in denen ein Clip zu sehen ist - dieselbe Frage wie die Wand.
+        for (pack in packs.matching(null, null, null, null)) {
+            url("/pack.html?k=" + pack.slug, pack.updatedAt)
         }
 
         for (account in accounts.findAllById(owners)) {

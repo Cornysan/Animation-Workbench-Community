@@ -544,6 +544,8 @@ const AW = (() => {
     award: '<circle cx="12" cy="9" r="4.6"/><path d="m9.2 13.4-1.7 6.6 4.5-2.6 4.5 2.6-1.7-6.6"/>',
     share: '<path d="M12 4v11"/><path d="m8 8 4-4 4 4"/><path d="M5 14v5.5h14V14"/>',
     grid: '<path d="M4 4h6v6H4z"/><path d="M14 4h6v6h-6z"/><path d="M4 14h6v6H4z"/><path d="M14 14h6v6h-6z"/>',
+    //  Ein Stapel: zwei Blaetter hinter einem - das Zeichen der Pack-Karte.
+    pack: '<rect x="3" y="9" width="12.5" height="11" rx="1.6"/><path d="M6.5 6h10.7a1.3 1.3 0 0 1 1.3 1.3V16"/><path d="M10 3h10.2a1.3 1.3 0 0 1 1.3 1.3V12.5"/>',
     dots: '<circle cx="6" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="18" cy="12" r="1.4"/>',
   };
 
@@ -1054,7 +1056,7 @@ const AW = (() => {
    * Knopf war ein zweiter Weg zum selben Ziel und hat auf jeder Karte 50 px
    * gekostet.
    */
-  function clipCard(item, observer) {
+  function clipCard(item, observer, options = {}) {
     const canvas = el("canvas", {
       "data-slug": item.slug, "data-rig": item.rig || "humanoid", width: 560, height: 420,
     });
@@ -1092,10 +1094,22 @@ const AW = (() => {
     //  Flaeche anklickbar, und der Autor daneben ist ein gewoehnlicher Link,
     //  der ueber dieser Flaeche liegt. Beide sind anfassbar, ertastbar und
     //  vorlesbar.
+    //  Liegt der Clip in einem Pack, sagt es die Karte - und fuehrt hin. Das
+    //  zaehlt dort, wo Clips aus Packs einzeln stehen: in der Suche. Auf der
+    //  Seite des Packs selbst waere es dieselbe Auskunft zum zweiten Mal.
+    const pack = item.pack && !options.inPack
+      ? el("a", {
+          class: "card-pack",
+          href: "/pack.html?k=" + encodeURIComponent(item.pack.slug),
+          "data-tip": "Part of the pack “" + item.pack.title + "”",
+        }, icon("pack"), el("span", {}, item.pack.title))
+      : null;
+
     return el("article", { class: "card" },
       el("div", { class: "card-stage" },
         item.hasPreview ? canvas : el("div", { class: "viewer-empty" }, "No preview"),
         fresh ? el("span", { class: "card-flag" }, "New") : null,
+        pack,
         el("span", { class: "card-duration" }, formatDuration(item.durationSeconds))),
       el("div", { class: "card-body" },
         el("a", {
@@ -1210,6 +1224,216 @@ const AW = (() => {
   }
 
   /**
+   * Die Pack-Karte.
+   *
+   * Eine Clip-Karte mit einem Stapel dahinter (app.css, `.pack-card`): der
+   * erste Clip laeuft als Deckel, und die Zahl sagt, wie viele darunter
+   * liegen. Wer ueber die Wand scrollt, sieht, was ein Satz ist, ohne ein Wort
+   * zu lesen - wie bei Mixamo.
+   *
+   * Kein Herz und kein Stern: beides gehoert dem einzelnen Clip, und auf der
+   * Seite des Packs steht jeder mit seinen eigenen.
+   */
+  function packCard(item, observer) {
+    const cover = item.cover
+      ? el("canvas", { "data-slug": item.cover.slug, "data-rig": item.cover.rig || "humanoid", width: 560, height: 420 })
+      : el("div", { class: "viewer-empty" }, "No preview");
+    if (item.cover && observer) {
+      observer.observe(cover);
+      cover.__observer = observer;
+    }
+
+    const fresh = Date.now() - new Date(item.createdAt).getTime() < WEEK;
+
+    const author = el("a", {
+      class: "card-author",
+      href: profileHref(item),
+      "data-tip": item.authorHandle ? "Profile of " + item.author : "All clips by " + item.author,
+    }, item.author);
+
+    return el("article", { class: "card pack-card" },
+      el("div", { class: "card-stage" },
+        cover,
+        fresh ? el("span", { class: "card-flag" }, "New") : null,
+        el("span", { class: "card-duration card-count" },
+          icon("pack"), item.clips === 1 ? "1 clip" : item.clips + " clips")),
+      el("div", { class: "card-body" },
+        el("a", {
+          class: "card-title",
+          href: "/pack.html?k=" + encodeURIComponent(item.slug),
+          title: item.title,
+        }, item.title),
+        el("div", { class: "card-meta" }, author, el("span", { class: "card-kind" }, "Pack"))));
+  }
+
+  /**
+   * Die Clips, die in einen Pack duerfen: die eigenen oeffentlichen - oder,
+   * fuer einen Admin, die der Starter-Clips. Einer, der schon in einem Pack
+   * liegt, kommt trotzdem mit: [packDialog] zeigt ihn ausgegraut, mit Grund.
+   * Nach Titel sortiert, damit man in einer langen Liste etwas findet.
+   */
+  async function packCandidates(starter = false) {
+    let clips;
+    if (starter) {
+      clips = [];
+      for (let page = 0; page < 20; page++) {
+        const result = await api("GET", "/api/v1/users/starter-clips/packages?size=50&page=" + page);
+        clips.push(...result.items);
+        if (!result.items.length || clips.length >= result.total) break;
+      }
+    } else {
+      clips = (await api("GET", "/api/v1/me/packages"))
+        .filter((clip) => clip.status === "PUBLISHED" && clip.license === "CC0-1.0" && clip.rig === "humanoid");
+    }
+    return clips.sort((a, b) => a.title.localeCompare(b.title));
+  }
+
+  /** Eine Karte fuer einen Platz der Katalogwand (`/api/v1/catalog`). */
+  function entryCard(entry, observer) {
+    return entry.kind === "pack" ? packCard(entry.pack, observer) : clipCard(entry.clip, observer);
+  }
+
+  /**
+   * Der Dialog fuer einen Pack: Name, Beschreibung - und beim Anlegen die
+   * Clips, die hineinsollen.
+   *
+   * @param pack       ein bestehender Pack: ohne `candidates` aendert der
+   *                   Dialog Name und Beschreibung, mit ihnen fuegt er nur
+   *                   Clips hinzu.
+   * @param candidates Clips zur Auswahl ({slug, title, pack}). Einer, der schon
+   *                   in einem ANDEREN Pack liegt, steht ausgegraut da, mit
+   *                   dessen Namen - so sieht man, warum er nicht geht.
+   * @param starter    ein Admin legt einen Pack der Starter-Clips an.
+   * Antwort: der gespeicherte Pack, oder null.
+   */
+  function packDialog({ pack = null, candidates = null, starter = false } = {}) {
+    return new Promise((resolve) => {
+      const name = el("input", { type: "text", name: "title", maxlength: "80", required: true,
+        placeholder: "Longbow Locomotion", value: pack ? pack.title : "" });
+
+      const description = el("textarea", { name: "description", maxlength: "2000", rows: "3",
+        placeholder: "What is in it, and what is it for?" }, pack ? pack.description : "");
+
+      const counter = el("span", { class: "faint small counter" }, description.value.length + "/2000");
+      description.addEventListener("input", () => { counter.textContent = description.value.length + "/2000"; });
+
+      //  Die Auswahl. Beim Anlegen muss etwas angehakt sein, beim Ergaenzen
+      //  nicht - dann aendert der Dialog nur Name und Beschreibung.
+      const boxes = [];
+      const list = candidates ? el("div", { class: "pick-list" }, ...candidates.map((clip) => {
+        const elsewhere = clip.pack && (!pack || clip.pack.slug !== pack.slug);
+        const box = el("input", { type: "checkbox", value: clip.slug, disabled: elsewhere || null });
+        if (!elsewhere) boxes.push(box);
+        return el("label", { class: "pick" + (elsewhere ? " taken" : "") }, box,
+          el("span", { class: "pick-title" }, clip.title),
+          elsewhere ? el("span", { class: "faint small" }, "in “" + clip.pack.title + "”") : null);
+      })) : null;
+
+      const picked = el("span", { class: "faint small" });
+      //  Ein Satz aus einer Quelle ist oft ALLES, was man hat - achtzehn
+      //  Haken einzeln setzen ist dann Fleissarbeit.
+      const all = el("button", { type: "button", class: "link-button pick-all" }, "Select all");
+      const countPicked = () => {
+        const n = boxes.filter((box) => box.checked).length;
+        picked.textContent = n === 1 ? "1 picked" : n + " picked";
+        all.textContent = boxes.length && n === boxes.length ? "Select none" : "Select all";
+        all.hidden = boxes.length < 2;
+      };
+      boxes.forEach((box) => box.addEventListener("change", countPicked));
+      all.addEventListener("click", () => {
+        const on = boxes.some((box) => !box.checked);
+        boxes.forEach((box) => { box.checked = on; });
+        countPicked();
+      });
+      countPicked();
+
+      //  Hinzufuegen ist nur Hinzufuegen: Name und Beschreibung stehen dann
+      //  nicht noch einmal da - dafuer gibt es "Edit".
+      const adding = Boolean(pack && candidates);
+      const error = el("div", {});
+      const heading = adding ? "Add clips" : pack ? "Edit pack" : (starter ? "New starter pack" : "New pack");
+
+      const form = el("form", { method: "dialog" },
+        el("h2", {}, heading),
+        adding ? null : el("label", { class: "field" }, el("span", {}, "Name"), name),
+        adding ? null : el("label", { class: "field" },
+          el("span", {}, "Description ", el("span", { class: "faint small" }, "optional"), counter),
+          description),
+        list ? el("div", { class: "field" },
+          el("span", { class: "pick-head" }, el("span", {}, adding ? "Clips to add " : "Clips ", picked), all),
+          candidates.length ? list
+            : el("p", { class: "muted" }, adding
+              ? "All your public clips are in a pack already."
+              : "No clips to choose from. Share some first.")) : null,
+        error,
+        el("div", { class: "dialog-actions" },
+          el("button", { value: "cancel", type: "button", class: "ghost" }, "Cancel"),
+          el("button", { value: "save", class: "primary" }, adding ? "Add" : pack ? "Save" : "Create pack")));
+
+      const dialog = el("dialog", { class: "sheet" }, form);
+      document.body.append(dialog);
+
+      //  Aufgeraeumt wird an EINER Stelle - Begruendung bei [collectionDialog].
+      let done = false;
+      const finish = (result) => {
+        if (done) return;
+        done = true;
+        dialog.close();
+        dialog.remove();
+        resolve(result);
+      };
+
+      form.querySelector('button[value="cancel"]').addEventListener("click", (event) => {
+        event.preventDefault();
+        finish(null);
+      });
+      dialog.addEventListener("cancel", (event) => {
+        event.preventDefault();
+        finish(null);
+      });
+
+      let busy = false;
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (busy) return;
+
+        const clips = boxes.filter((box) => box.checked).map((box) => box.value);
+        if (!pack && clips.length < 2) {
+          notice(error, "Pick at least two clips. A pack of one is just a clip.", "error");
+          return;
+        }
+        if (adding && !clips.length) {
+          notice(error, "Pick the clips to add.", "error");
+          return;
+        }
+
+        busy = true;
+        try {
+          await ensureCsrf();
+          let saved;
+          if (adding) {
+            saved = await api("POST", "/api/v1/packs/" + encodeURIComponent(pack.slug) + "/clips", { clips });
+          } else if (pack) {
+            saved = await api("PATCH", "/api/v1/packs/" + encodeURIComponent(pack.slug),
+              { title: name.value, description: description.value });
+          } else {
+            saved = await api("POST", "/api/v1/packs",
+              { title: name.value, description: description.value, clips, starter });
+          }
+          finish(saved);
+        } catch (e) {
+          notice(error, e.message, "error");
+        } finally {
+          busy = false;
+        }
+      });
+
+      dialog.showModal();
+      (adding ? boxes[0] || form.querySelector("button.primary") : name).focus();
+    });
+  }
+
+  /**
    * "/" springt in die Suche - das Kuerzel, das jeder Katalog hat.
    *
    * Nicht, waehrend schon getippt wird: sonst kann in keinem Textfeld der
@@ -1240,7 +1464,9 @@ const AW = (() => {
 
   return {
     api, ApiError, ensureCsrf, me, el, notice, formatDuration, formatDate, formatRelative,
-    copyText, param, signInUrl, signInButton, clipCard, collectionCard, previewObserver,
+    copyText, param, signInUrl, signInButton, clipCard, collectionCard, packCard, entryCard, packDialog,
+    packCandidates,
+    previewObserver,
     icon, iconButton, setIconState, popover, closePopover, signInHint, signedIn,
     likeButton, saveButton, collectionDialog, profileHref, releasePreviews,
     toast, toastError, confirmDialog, copyLink, pulse, placeholderCards, avatar,

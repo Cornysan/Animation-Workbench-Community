@@ -7,7 +7,7 @@
  * Seite hat nur eine Aufgabe - lesen, was in der Adresse steht.
  */
 (async () => {
-  const { api, el, notice, clipCard, previewObserver } = AW;
+  const { api, el, notice, entryCard, previewObserver } = AW;
 
   const sortBox = document.getElementById("sort");
   const results = document.getElementById("results");
@@ -77,9 +77,11 @@
   //  Die Form der Wand steht, bevor die Daten da sind.
   AW.placeholderCards(results, 8);
 
+  //  Die WAND, nicht die flache Liste: ohne Suche steht ein Pack als eine
+  //  Karte da (CatalogWall). `/api/v1/packages` bleibt fuer die Workbench.
   let page;
   try {
-    page = await api("GET", "/api/v1/packages?" + request.toString());
+    page = await api("GET", "/api/v1/catalog?" + request.toString());
   } catch (e) {
     results.replaceChildren();
     notice(empty, e.message, "error");
@@ -93,11 +95,18 @@
   if (activeTag) filters.push(["Tag: " + activeTag, linkTo({ tag: null })]);
   if (activeAuthor) filters.push(["By " + activeAuthor, linkTo({ author: null })]);
 
+  //  Packs und Clips getrennt gezaehlt - eine Zahl hiesse sonst mal Karten,
+  //  mal Clips.
+  const counted = (n, one, many) => (n === 1 ? "1 " + one : n.toLocaleString() + " " + many);
+  const tally = [
+    page.packs ? counted(page.packs, "pack", "packs") : null,
+    page.clips || !page.packs ? counted(page.clips, "clip", "clips") : null,
+  ].filter(Boolean).join(" \u00b7 ");
+
   state.replaceChildren(
     ...filters.map(([label, href]) => el("a", { class: "chip removable", href, title: "Remove this filter" },
       label, el("span", { class: "chip-x" }, "×"))),
-    el("span", { class: "faint small" },
-      page.total === 1 ? "1 clip" : page.total.toLocaleString() + " clips"),
+    el("span", { class: "faint small" }, tally),
   );
 
   if (page.items.length === 0) {
@@ -113,7 +122,7 @@
   }
 
   const observer = previewObserver();
-  results.replaceChildren(...page.items.map((item) => clipCard(item, observer)));
+  results.replaceChildren(...page.items.map((entry) => entryCard(entry, observer)));
 
   // ── Weiter ───────────────────────────────────────────────────────────
   //  "Load more" haengt die naechste Seite an die Wand, statt die Seite zu
@@ -138,9 +147,9 @@
     more.textContent = "Loading…";
     try {
       request.set("page", String(loaded + 1));
-      const next = await api("GET", "/api/v1/packages?" + request.toString());
+      const next = await api("GET", "/api/v1/catalog?" + request.toString());
       loaded = next.page;
-      results.append(...next.items.map((item) => clipCard(item, observer)));
+      results.append(...next.items.map((entry) => entryCard(entry, observer)));
     } catch (e) {
       AW.toastError(e);
     } finally {

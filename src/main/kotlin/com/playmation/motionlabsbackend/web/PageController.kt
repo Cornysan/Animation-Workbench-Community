@@ -4,6 +4,7 @@ import com.playmation.motionlabsbackend.account.AccountService
 import com.playmation.motionlabsbackend.auth.SignInProviders
 import com.playmation.motionlabsbackend.auth.portalPrincipal
 import com.playmation.motionlabsbackend.catalog.CatalogService
+import com.playmation.motionlabsbackend.catalog.PackService
 import com.playmation.motionlabsbackend.collection.CollectionService
 import com.playmation.motionlabsbackend.collection.CollectionVisibility
 import com.playmation.motionlabsbackend.config.PortalProperties
@@ -43,6 +44,7 @@ class PageController(
     private val catalog: CatalogService,
     private val profiles: ProfileService,
     private val collections: CollectionService,
+    private val packs: PackService,
     private val portal: PortalProperties,
     private val accounts: AccountService,
     private val providers: SignInProviders,
@@ -237,6 +239,32 @@ class PageController(
         }
 
         return view(model, "collection", active = "collections")
+    }
+
+    /**
+     * Ein Pack. Das Bild ist sein Deckel, der erste Clip darin - wie bei der
+     * Sammlung. Er steht unter "Animations": ein Pack ist Teil des Katalogs,
+     * keine Auswahl von jemand anderem.
+     */
+    @GetMapping("/pack.html")
+    fun pack(@RequestParam(name = "k", required = false) slug: String?, model: Model): String {
+        val detail = slug?.let { runCatching { packs.detail(it, null) }.getOrNull() }
+
+        if (detail != null) {
+            val base = portal.publicBaseUrl.trimEnd('/')
+            val cover = detail.items.firstOrNull { it.hasPreview }?.slug
+
+            model.addAttribute("meta", ShellModel.PageMeta(
+                title = detail.title + " by " + detail.author,
+                description = detail.description.takeIf { it.isNotBlank() }
+                    ?: "A pack of ${detail.clips} humanoid animation clips, free to use under CC0 - no credit needed.",
+                image = cover?.let { "$base/clip-card/$it.png" },
+                url = "$base/pack.html?k=${detail.slug}",
+                noindex = !portal.searchIndexing,
+            ))
+        }
+
+        return view(model, "pack", active = "animations")
     }
 
     /**
