@@ -8,6 +8,7 @@ import com.playmation.motionlabsbackend.auth.ApiTokenService
 import com.playmation.motionlabsbackend.auth.PortalPrincipal
 import com.playmation.motionlabsbackend.catalog.AnimationPackageRepository
 import com.playmation.motionlabsbackend.catalog.CatalogOverviewService
+import com.playmation.motionlabsbackend.catalog.PackService
 import com.playmation.motionlabsbackend.catalog.PackageLikeRepository
 import com.playmation.motionlabsbackend.catalog.PackageStatus
 import com.playmation.motionlabsbackend.collection.ClipCollectionRepository
@@ -55,6 +56,8 @@ class AccountDeletionService(
     private val follows: AccountFollowRepository,
     private val collections: ClipCollectionRepository,
     private val collectionItems: CollectionItemRepository,
+    /** Packs gehen wie Sammlungen: Titel und Beschreibung gehoeren der Person. */
+    private val packs: PackService,
     private val notifications: NotificationRepository,
     private val tokens: ApiTokenService,
     private val overview: CatalogOverviewService,
@@ -96,6 +99,9 @@ class AccountDeletionService(
             collectionItems.deleteByCollectionId(collection.id)
             collections.delete(collection)
         }
+
+        // ── Packs: aufloesen, die Clips sind oben schon zurueckgezogen ────
+        val ownPacks = packs.deleteAllOf(account.id)
 
         // ── Herzen ───────────────────────────────────────────────────────
         val ownLikes = likes.findByAccountId(account.id)
@@ -150,7 +156,7 @@ class AccountDeletionService(
         //  Das Protokoll haelt den Vorgang fest, aber ohne Namen - die
         //  Konto-Kennung zeigt ab jetzt auf eine anonyme Zeile.
         audit.record(account.id, "account.deleted", "account", account.id.toString(),
-            "clips=$withdrawn collections=${ownCollections.size}", ip)
+            "clips=$withdrawn collections=${ownCollections.size} packs=$ownPacks", ip)
 
         overview.invalidate()
 

@@ -89,12 +89,14 @@ class PackageController(private val catalog: CatalogService) {
         @RequestParam("declarationVersion", required = false) declarationVersion: Int?,
         @RequestParam("declarationAccepted", required = false, defaultValue = "false") declarationAccepted: Boolean,
         @RequestParam("restPose", required = false) restPose: String?,
+        /** false, wenn der Clip gleich in einen Pack kommt - siehe [CatalogService.upload]. */
+        @RequestParam("notifyFollowers", required = false, defaultValue = "true") notifyFollowers: Boolean,
         authentication: Authentication?,
         request: HttpServletRequest,
     ): ResponseEntity<PackageDetail> =
         ResponseEntity.status(HttpStatus.CREATED).body(
             catalog.upload(authentication.requirePrincipal(), file.bytes, declarationText, declarationVersion,
-                declarationAccepted, request.clientIp(), null, restPose)
+                declarationAccepted, request.clientIp(), null, restPose, notifyFollowers)
         )
 
     @PostMapping("/packages/{slug}/versions", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])

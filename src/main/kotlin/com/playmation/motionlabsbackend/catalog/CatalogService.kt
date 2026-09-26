@@ -85,7 +85,12 @@ data class PackageSummary(
      * der ist nicht eindeutig.
      */
     val isOwner: Boolean = false,
+    /** Der Pack, in dem der Clip liegt - die Karte fuehrt dorthin. */
+    val pack: PackRef? = null,
 )
+
+/** Titel und Adresse eines Packs, wie sie an einem seiner Clips stehen. */
+data class PackRef(val slug: String, val title: String)
 
 data class PackageDetail(
     val slug: String,
@@ -117,6 +122,8 @@ data class PackageDetail(
     val authorAvatar: String? = null,
     /** Nur bei Starter-Clips: woher der Clip stammt ([StarterClips]). */
     val source: ClipSource? = null,
+    /** Der Pack, in dem der Clip liegt ("Part of ..." auf der Clip-Seite). */
+    val pack: PackRef? = null,
 )
 
 /** Die Herkunft eines Starter-Clips, wie die Clip-Seite sie nennt. */
@@ -149,6 +156,8 @@ class CatalogService(
     private val audit: AuditService,
     /** Zaehlt Clips und Schlagworte - und muss es neu tun, wenn sich der Katalog aendert. */
     private val overview: CatalogOverviewService,
+    /** Nur fuer die Zeile "in diesem Pack" an Karte und Clip-Seite. */
+    private val clipPacks: ClipPackRepository,
     private val properties: PortalProperties,
     private val clock: Clock,
 ) {
@@ -163,6 +172,8 @@ class CatalogService(
      * @param targetSlug null = neues Paket, sonst neue Version eines eigenen.
      * @param restPose die T-Pose der Quellfigur, falls der Client sie schickt -
      *   siehe [RestPose]. Sie landet in der Vorschau, nicht in der Datei.
+     * @param notifyFollowers false, wenn der Clip Teil eines Packs wird: dann
+     *   kommt EINE Nachricht fuer den Pack ([PackService.create]) statt einer je Clip.
      */
     @Transactional
     fun upload(
@@ -174,6 +185,7 @@ class CatalogService(
         ip: String,
         targetSlug: String?,
         restPose: String? = null,
+        notifyFollowers: Boolean = true,
     ): PackageDetail {
         if (!settings.uploadsEnabled()) throw PortalException.unavailable("Uploads are paused right now.")
 
@@ -295,7 +307,7 @@ class CatalogService(
         //  Wer jemandem folgt, folgt ihm wegen genau dieses Augenblicks. Nur
         //  beim neuen Clip: eine zweite Fassung ist keine Nachricht wert, und
         //  ein privater Clip schon gar nicht.
-        if (existing == null && manifest.license == AwclipSchema.LICENSE_PUBLIC) {
+        if (existing == null && notifyFollowers && manifest.license == AwclipSchema.LICENSE_PUBLIC) {
             profiles.notifyFollowers(
                 account.id, "${account.displayName} shared a new clip: '${pkg.title}'.")
         }
@@ -737,13 +749,29 @@ class CatalogService(
         val pageSize = size.coerceIn(1, 50)
         val pageIndex = page.coerceAtLeast(0)
 
-        //  "Alles von dieser Person". Ueber den Anzeigenamen statt ueber eine
-        //  Konto-UUID - siehe [AccountRepository.findByDisplayName]. Gibt es den
-        //  Namen nicht, ist das Ergebnis leer statt unbegrenzt: ein Tippfehler
-        //  darf nicht stillschweigend den ganzen Katalog zurueckgeben.
-        val authorIds = author?.trim()?.takeIf { it.isNotEmpty() }?.take(60)
+        val result = findClips(q, tag, sort, pageIndex, pageSize, authorIds(author), ownerId, unpackedOnly = false)
+
+        return PageResult(cardsFor(result.content, principal), pageIndex, pageSize, result.totalElements)
+    }
+
+    /**
+     * "Alles von dieser Person". Ueber den Anzeigenamen statt ueber eine
+     * Konto-UUID - siehe [AccountRepository.findByDisplayName]. Gibt es den
+     * Namen nicht, ist das Ergebnis leer statt unbegrenzt: ein Tippfehler darf
+     * nicht stillschweigend den ganzen Katalog zurueckgeben.
+     */
+    internal fun authorIds(author: String?): List<UUID>? =
+        author?.trim()?.takeIf { it.isNotEmpty() }?.take(60)
             ?.let { name -> accountRepository.findByDisplayName(name).map { it.id }.ifEmpty { listOf(NO_ACCOUNT) } }
 
+    /**
+     * Die Suche selbst, fuer [search] und fuer die Katalogwand ([CatalogWall]).
+     *
+     * @param unpackedOnly nur Clips, die in keinem Pack liegen - die Wand
+     *   zeigt die anderen als eine Karte je Pack.
+     */
+    internal fun findClips(q: String?, tag: String?, sort: String?, page: Int, size: Int,
+                           authorIds: List<UUID>?, ownerId: UUID?, unpackedOnly: Boolean): org.springframework.data.domain.Page<AnimationPackage> {
         val spec = Specification<AnimationPackage> { root, query, cb ->
             val predicates = mutableListOf(
                 cb.equal(root.get<PackageStatus>("status"), PackageStatus.PUBLISHED),
@@ -796,6 +824,7 @@ class CatalogService(
 
             authorIds?.let { predicates += root.get<UUID>("ownerId").`in`(it) }
             ownerId?.let { predicates += cb.equal(root.get<UUID>("ownerId"), it) }
+            if (unpackedOnly) predicates += cb.isNull(root.get<UUID>("packId"))
 
             cb.and(*predicates.toTypedArray())
         }
@@ -809,18 +838,31 @@ class CatalogService(
             else -> Sort.by(Sort.Order.desc("createdAt"))
         }
 
-        val result = packages.findAll(spec, PageRequest.of(pageIndex, pageSize, order))
+        return packages.findAll(spec, PageRequest.of(page, size, order))
+    }
 
-        return PageResult(cardsFor(result.content, principal), pageIndex, pageSize, result.totalElements)
+    /**
+     * Welche dieser Clips das Portal zeigt: veroeffentlicht, oeffentlich, und
+     * mit einem Rig, das es annimmt - dieselbe Regel wie [search], fuer eine
+     * Liste, die nicht aus der Suche kommt (die Clips eines Packs). Mit der
+     * Fassung dazu, weil jeder Aufrufer sie ohnehin braucht.
+     */
+    internal fun shown(found: List<AnimationPackage>): List<Pair<AnimationPackage, PackageVersion>> {
+        val listed = found.filter { it.status == PackageStatus.PUBLISHED && it.license == AwclipSchema.LICENSE_PUBLIC }
+        val current = versions.findAllById(listed.mapNotNull { it.currentVersionId }).associateBy { it.id }
+        return listed.mapNotNull { pkg ->
+            current[pkg.currentVersionId]?.takeIf { AwclipSchema.isAcceptedRig(it.rig) }?.let { pkg to it }
+        }
     }
 
     /**
      * Karten zu einer Liste von Paketen - EINE Abfrage je Seite statt einer je
      * Karte, fuer Autoren, Fassungen, Herzen, Sterne und Quittungen.
      */
-    private fun cardsFor(found: List<AnimationPackage>, principal: PortalPrincipal?): List<PackageSummary> {
+    internal fun cardsFor(found: List<AnimationPackage>, principal: PortalPrincipal?): List<PackageSummary> {
         val authors = authors(found.map { it.ownerId })
         val currentVersions = versions.findAllById(found.mapNotNull { it.currentVersionId }).associateBy { it.id }
+        val packRefs = packRefs(found)
 
         val likedByMe = principal?.let { me -> likes.likedAmong(me.accountId, found.map { it.id }).toSet() } ?: emptySet()
         val unlockedByMe = principal?.let { me -> unlocks.unlockedAmong(me.accountId, found.map { it.id }) } ?: emptySet()
@@ -845,8 +887,16 @@ class CatalogService(
                 version.durationSeconds, version.frameRate, version.rig, pkg.takeCount, pkg.likeCount,
                 pkg.saveCount, pkg.commentCount, pkg.id in likedByMe, pkg.id in savedByMe,
                 pkg.id in unlockedByMe, version.previewBlobKey != null, pkg.createdAt,
-                isOwner = principal?.accountId == pkg.ownerId)
+                isOwner = principal?.accountId == pkg.ownerId,
+                pack = pkg.packId?.let(packRefs::get))
         }
+    }
+
+    /** Titel und Adresse der Packs, in denen diese Clips liegen - eine Abfrage. */
+    private fun packRefs(found: List<AnimationPackage>): Map<UUID, PackRef> {
+        val ids = found.mapNotNull { it.packId }.toSet()
+        if (ids.isEmpty()) return emptyMap()
+        return clipPacks.findAllById(ids).associate { it.id to PackRef(it.slug, it.title) }
     }
 
     /**
@@ -1059,6 +1109,7 @@ class CatalogService(
             isOwner,
             authorAvatar = author?.avatar,
             source = pkg.sourceCredit?.let { ClipSource(it, pkg.sourceUrl) },
+            pack = pkg.packId?.let { id -> clipPacks.findById(id).orElse(null)?.let { PackRef(it.slug, it.title) } },
         )
     }
 

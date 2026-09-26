@@ -81,6 +81,13 @@ class AnimationPackage(
     var sourceUrl: String? = null,
     var createdAt: Instant,
     var updatedAt: Instant,
+
+    /**
+     * Der Pack, zu dem der Clip gehoert - hoechstens einer (V13, `pack`).
+     * [packPosition] ist sein Platz darin.
+     */
+    var packId: UUID? = null,
+    var packPosition: Int? = null,
 ) {
     fun tagList(): List<String> = tags.split(',').filter { it.isNotEmpty() }
 
@@ -144,6 +151,12 @@ class UploadDeclaration(
 interface AnimationPackageRepository : JpaRepository<AnimationPackage, UUID>, JpaSpecificationExecutor<AnimationPackage> {
     fun findBySlug(slug: String): AnimationPackage?
     fun findByOwnerIdOrderByCreatedAtDesc(ownerId: UUID): List<AnimationPackage>
+
+    /** Die Clips eines Packs, in seiner Reihenfolge - auch die, die gerade niemand sieht. */
+    fun findByPackIdOrderByPackPositionAsc(packId: UUID): List<AnimationPackage>
+
+    /** Die Clips mehrerer Packs auf einmal - fuer die Karten der Katalogwand. */
+    fun findByPackIdIn(packIds: Collection<UUID>): List<AnimationPackage>
 
     /** Alles, was oeffentlich im Katalog steht - fuer [CatalogOverviewService]. */
     fun findAllByStatusAndLicense(status: PackageStatus, license: String): List<AnimationPackage>

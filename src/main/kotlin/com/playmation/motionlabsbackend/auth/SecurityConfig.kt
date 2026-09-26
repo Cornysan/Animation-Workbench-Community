@@ -116,6 +116,12 @@ class SecurityConfig {
                 authorize(HttpMethod.GET, "/api/v1/collections", permitAll)
                 authorize(HttpMethod.GET, "/api/v1/collections/*", permitAll)
 
+                //  Dasselbe fuer Packs und die Katalogwand, die sie faltet.
+                //  `/api/v1/me/packs` faengt mit `me` an und bleibt zu.
+                authorize(HttpMethod.GET, "/api/v1/catalog", permitAll)
+                authorize(HttpMethod.GET, "/api/v1/packs", permitAll)
+                authorize(HttpMethod.GET, "/api/v1/packs/*", permitAll)
+
                 //  Freischalten und Herunterladen brauchen seit der
                 //  Muenzwirtschaft ein Konto: ohne Konto gibt es keine
                 //  Quittung, und ohne Quittung keine Abrechnung. Der alte
