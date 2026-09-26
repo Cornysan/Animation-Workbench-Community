@@ -476,8 +476,19 @@ class PageController(
     @GetMapping("/admin.html")
     fun admin(model: Model) = view(model, "admin", active = "admin")
 
+    /**
+     * Der Entwickler-Login - nur, wo es ihn gibt. Ohne `portal.dev-login`
+     * antwortet die Schnittstelle dahinter ohnehin mit 404; die Seite soll
+     * dann nicht trotzdem ein Formular zeigen, das nichts tut.
+     */
     @GetMapping("/dev.html")
-    fun dev(model: Model) = view(model, "dev")
+    fun dev(model: Model, response: HttpServletResponse): String {
+        if (!portal.devLogin) {
+            response.status = HttpServletResponse.SC_NOT_FOUND
+            return view(model, "notfound")
+        }
+        return view(model, "dev")
+    }
 
     @GetMapping("/link.html")
     fun link(model: Model) = view(model, "link")

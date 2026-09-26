@@ -7,6 +7,7 @@ import com.playmation.motionlabsbackend.account.avatarPath
 import com.playmation.motionlabsbackend.auth.PortalPrincipal
 import com.playmation.motionlabsbackend.common.PortalException
 import com.playmation.motionlabsbackend.common.RateLimiter
+import com.playmation.motionlabsbackend.common.withoutInvisible
 import com.playmation.motionlabsbackend.config.PortalProperties
 import com.playmation.motionlabsbackend.notification.NotificationKind
 import com.playmation.motionlabsbackend.notification.NotificationLinks
@@ -172,7 +173,7 @@ class CommentService(
         //  Zeilenumbrüche bleiben, alle anderen Steuerzeichen nicht: die
         //  Workbench misst die Höhe mit GUIStyle.CalcHeight, und ein Tabulator
         //  misst sich dort anders, als er zeichnet.
-        val text = body
+        val text = body.withoutInvisible()
             .replace("\r\n", "\n")
             .replace('\r', '\n')
             .filter { it == '\n' || !it.isISOControl() }

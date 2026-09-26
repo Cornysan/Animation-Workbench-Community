@@ -81,3 +81,20 @@ object Crypto {
  * (server/docker-compose.yml).
  */
 fun HttpServletRequest.clientIp(): String = remoteAddr ?: "unknown"
+
+/**
+ * Zeichen, die man nicht sieht, die aber veraendern, was man sieht.
+ *
+ * Die Steuerzeichen-Pruefungen hier (`isISOControl`, `hasControl`) kennen nur
+ * C0/C1 und DEL. Durch ging bis 2026-09-27 alles aus der Unicode-Kategorie
+ * "Format": U+202E dreht den Rest eines Titels um ("Walk" + U+202E + "gpj.exe"
+ * liest sich als "Walkexe.jpg"), U+200B macht zwei gleich aussehende Namen
+ * verschieden. Weg damit, still - niemand tippt so etwas absichtlich.
+ *
+ * NICHT entfernt: U+200C/U+200D (Zero-Width Non-Joiner/Joiner). Ohne sie
+ * zerfallen zusammengesetzte Emojis in Einzelteile, und mehrere Schriften
+ * brauchen sie fuer ihre Buchstabenformen.
+ */
+private val INVISIBLE = Regex("[\\u061C\\u200B\\u200E\\u200F\\u2028\\u2029\\u202A-\\u202E\\u2060-\\u2064\\u2066-\\u2069\\uFEFF]")
+
+fun String.withoutInvisible(): String = INVISIBLE.replace(this, "")

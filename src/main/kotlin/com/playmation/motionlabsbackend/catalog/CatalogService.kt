@@ -9,6 +9,7 @@ import com.playmation.motionlabsbackend.collection.CollectionItemRepository
 import com.playmation.motionlabsbackend.common.Crypto
 import com.playmation.motionlabsbackend.common.PortalException
 import com.playmation.motionlabsbackend.common.RateLimiter
+import com.playmation.motionlabsbackend.common.withoutInvisible
 import com.playmation.motionlabsbackend.config.PortalProperties
 import com.playmation.motionlabsbackend.format.AwclipHash
 import com.playmation.motionlabsbackend.format.AwclipReadResult
@@ -262,16 +263,16 @@ class CatalogService(
         val pkg = existing ?: AnimationPackage(
             slug = newSlug(),
             ownerId = account.id,
-            title = manifest.title,
-            description = manifest.description,
+            title = manifest.title.withoutInvisible(),
+            description = manifest.description.withoutInvisible(),
             tags = AnimationPackage.joinTags(manifest.tags),
             license = manifest.license,
             createdAt = now,
             updatedAt = now,
         )
 
-        pkg.title = manifest.title
-        pkg.description = manifest.description
+        pkg.title = manifest.title.withoutInvisible()
+        pkg.description = manifest.description.withoutInvisible()
         pkg.tags = AnimationPackage.joinTags(manifest.tags)
         pkg.license = manifest.license
         pkg.status = PackageStatus.PUBLISHED
@@ -392,7 +393,7 @@ class CatalogService(
         val sameMotion = checkNotAlreadyThere(hash, StarterClips.ACCOUNT_ID)
 
         val manifest = doc.manifest
-        val title = (if (input.tidyTitle) tidy(manifest.title) else manifest.title.trim())
+        val title = (if (input.tidyTitle) tidy(manifest.title) else manifest.title.trim()).withoutInvisible()
             .take(AwclipSchema.MAX_TITLE_LENGTH).ifEmpty { "Clip" }
         val tags = (manifest.tags + input.tags.map { it.trim().lowercase() })
             .filter { it.isNotEmpty() }.distinct()
@@ -408,7 +409,7 @@ class CatalogService(
             slug = newSlug(),
             ownerId = StarterClips.ACCOUNT_ID,
             title = title,
-            description = manifest.description,
+            description = manifest.description.withoutInvisible(),
             tags = AnimationPackage.joinTags(tags),
             license = AwclipSchema.LICENSE_PUBLIC,
             sourceCredit = credit,
@@ -604,11 +605,11 @@ class CatalogService(
 
         //  Dieselben Regeln wie der Leser fuer das Manifest (AwclipReader) -
         //  was hier durchgeht, muss auch als Datei wieder durchgehen.
-        val title = input.title.trim()
+        val title = input.title.withoutInvisible().trim()
         if (title.isEmpty() || title.length > AwclipSchema.MAX_TITLE_LENGTH || hasControl(title, allowNewline = false))
             throw PortalException.badRequest("invalid-title", "The title must be 1-80 characters on one line.")
 
-        val description = input.description.replace("\r", "").trimEnd()
+        val description = input.description.withoutInvisible().replace("\r", "").trimEnd()
         if (description.length > AwclipSchema.MAX_DESCRIPTION_LENGTH || hasControl(description, allowNewline = true))
             throw PortalException.badRequest("invalid-description",
                 "The description can be up to ${AwclipSchema.MAX_DESCRIPTION_LENGTH} characters.")

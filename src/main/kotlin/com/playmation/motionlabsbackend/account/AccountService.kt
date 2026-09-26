@@ -1,6 +1,7 @@
 package com.playmation.motionlabsbackend.account
 
 import com.playmation.motionlabsbackend.common.PortalException
+import com.playmation.motionlabsbackend.common.withoutInvisible
 import com.playmation.motionlabsbackend.config.PortalProperties
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -222,7 +223,8 @@ class AccountService(
         return if (isAdmin) Role.ADMIN else Role.USER
     }
 
-    private fun nameOf(signIn: SignIn) = signIn.displayName.trim().take(80).ifBlank { "user" }
+    private fun nameOf(signIn: SignIn) =
+        signIn.displayName.withoutInvisible().filterNot { it.isISOControl() }.trim().take(80).ifBlank { "user" }
 
     fun get(id: UUID): Account = accounts.findById(id).orElseThrow { PortalException.notFound("Account not found") }
 

@@ -18,7 +18,8 @@ import kotlin.test.assertTrue
  * `robots.txt` gibt frei und nennt die Sitemap, die Sitemap antwortet, und
  * jede Seite traegt ihre kanonische Adresse statt `noindex`.
  */
-@SpringBootTest(properties = ["portal.search-indexing=true", "portal.public-base-url=https://portal.test"])
+@SpringBootTest(properties = ["portal.search-indexing=true", "portal.public-base-url=https://portal.test",
+    "portal.dev-login=false"])
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class SearchIndexingTest {
@@ -32,6 +33,13 @@ class SearchIndexingTest {
         assertTrue("Disallow: /avatar/" in robots, "profile pictures stay out of image search")
         assertFalse("Disallow: /\n" in robots, "the whole site is not blocked")
         assertFalse("Disallow: /api/" in robots, "pages load their content from /api/ - blocked, a crawler sees them empty")
+    }
+
+    /** Wie in Produktion: ohne Entwickler-Login gibt es weder die Schnittstelle noch die Seite dazu. */
+    @Test
+    fun `without developer sign-in its page is gone too`() {
+        mvc.get("/dev.html").andExpect { status { isNotFound() } }
+        mvc.get("/api/v1/dev/login").andExpect { status { isNotFound() } }
     }
 
     @Test

@@ -8,6 +8,7 @@ import com.playmation.motionlabsbackend.auth.PortalPrincipal
 import com.playmation.motionlabsbackend.common.Crypto
 import com.playmation.motionlabsbackend.common.PortalException
 import com.playmation.motionlabsbackend.common.RateLimiter
+import com.playmation.motionlabsbackend.common.withoutInvisible
 import com.playmation.motionlabsbackend.format.AwclipSchema
 import com.playmation.motionlabsbackend.notification.NotificationKind
 import com.playmation.motionlabsbackend.notification.NotificationLinks
@@ -482,7 +483,7 @@ class PackService(
 
     /** Dieselben Regeln wie der Titel eines Clips, nur mit Mindestlaenge. */
     private fun title(value: String): String {
-        val trimmed = value.trim().replace(Regex("\\s+"), " ")
+        val trimmed = value.withoutInvisible().trim().replace(Regex("\\s+"), " ")
         if (trimmed.length < MIN_TITLE || trimmed.length > AwclipSchema.MAX_TITLE_LENGTH)
             throw PortalException.badRequest("invalid-title",
                 "A pack name is $MIN_TITLE to ${AwclipSchema.MAX_TITLE_LENGTH} characters long.")
@@ -492,7 +493,7 @@ class PackService(
     }
 
     private fun description(value: String): String {
-        val trimmed = value.replace("\r", "").trim()
+        val trimmed = value.withoutInvisible().replace("\r", "").trim()
         if (trimmed.length > AwclipSchema.MAX_DESCRIPTION_LENGTH)
             throw PortalException.badRequest("invalid-description",
                 "A description is at most ${AwclipSchema.MAX_DESCRIPTION_LENGTH} characters long.")

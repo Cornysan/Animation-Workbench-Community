@@ -15,6 +15,7 @@ import com.playmation.motionlabsbackend.catalog.PackageLikeRepository
 import com.playmation.motionlabsbackend.catalog.PackageStatus
 import com.playmation.motionlabsbackend.common.PortalException
 import com.playmation.motionlabsbackend.common.RateLimiter
+import com.playmation.motionlabsbackend.common.withoutInvisible
 import com.playmation.motionlabsbackend.config.PortalProperties
 import com.playmation.motionlabsbackend.format.AwclipSchema
 import com.playmation.motionlabsbackend.notification.NotificationKind
@@ -251,7 +252,7 @@ class ProfileService(
      * Leerzeichen, alle anderen Steuerzeichen fallen weg.
      */
     private fun cleanBio(raw: String): String? =
-        raw.map { if (it.isWhitespace()) ' ' else it }
+        raw.withoutInvisible().map { if (it.isWhitespace()) ' ' else it }
             .filterNot { it.isISOControl() }
             .joinToString("")
             .trim()

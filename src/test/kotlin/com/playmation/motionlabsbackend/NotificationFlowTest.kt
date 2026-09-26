@@ -13,6 +13,7 @@ import org.springframework.test.web.servlet.ResultActionsDsl
 import org.springframework.test.web.servlet.delete
 import org.springframework.test.web.servlet.get
 import org.springframework.test.web.servlet.multipart
+import org.springframework.test.web.servlet.patch
 import org.springframework.test.web.servlet.post
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
@@ -236,6 +237,33 @@ class NotificationFlowTest {
 
         mvc.delete("/api/v1/me") { header("Authorization", "Bearer $leavingToken") }.andExpect { status { isOk() } }
         assertEquals(0, inbox(creatorToken).count { it["kind"].asString() == "follow" })
+    }
+
+    // ── Unsichtbare Zeichen ─────────────────────────────────────────────
+
+    /**
+     * U+202E dreht den Rest einer Zeile um, U+200B trennt, ohne dass man es
+     * sieht - beides kommt nicht bis in die Datenbank. Der Zero-Width-Joiner
+     * bleibt: ohne ihn zerfaellt eine Emoji-Familie in drei Koepfe.
+     */
+    @Test
+    fun `invisible characters do not make it into comments and bios`() {
+        val name = "writer" + unique()
+        val token = login(name)
+        val slug = upload(login("maker" + unique()), "Invisible")
+        val family = "👨‍👩‍👧"
+
+        comment(token, slug, "Nice‮ txet ​walk $family")
+        val stored = mvc.get("/api/v1/packages/$slug/comments").andExpect { status { isOk() } }
+            .body()["comments"].first()["body"].asString()
+        assertEquals("Nice txet walk $family", stored)
+
+        mvc.patch("/api/v1/me/profile") {
+            contentType = MediaType.APPLICATION_JSON
+            content = "{\"bio\":\"Hi⁦there⁩\"}"
+            header("Authorization", "Bearer $token")
+        }.andExpect { status { isOk() } }
+        assertEquals("Hithere", mvc.get("/api/v1/users/$name").body()["bio"].asString())
     }
 
     // ── Datenexport ─────────────────────────────────────────────────────

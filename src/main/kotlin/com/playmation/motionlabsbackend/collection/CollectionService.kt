@@ -10,6 +10,7 @@ import com.playmation.motionlabsbackend.catalog.PackageSummary
 import com.playmation.motionlabsbackend.common.Crypto
 import com.playmation.motionlabsbackend.common.PortalException
 import com.playmation.motionlabsbackend.common.RateLimiter
+import com.playmation.motionlabsbackend.common.withoutInvisible
 import com.playmation.motionlabsbackend.format.AwclipSchema
 import com.playmation.motionlabsbackend.notification.NotificationKind
 import com.playmation.motionlabsbackend.notification.NotificationLinks
@@ -448,7 +449,7 @@ class CollectionService(
     }
 
     private fun title(value: String): String {
-        val trimmed = value.trim().replace(Regex("\\s+"), " ")
+        val trimmed = value.withoutInvisible().trim().replace(Regex("\\s+"), " ")
         if (trimmed.length < MIN_TITLE || trimmed.length > MAX_TITLE)
             throw PortalException.badRequest(
                 "invalid-title", "A name is $MIN_TITLE to $MAX_TITLE characters long.")
@@ -458,7 +459,7 @@ class CollectionService(
     }
 
     private fun description(value: String): String {
-        val trimmed = value.trim()
+        val trimmed = value.withoutInvisible().trim()
         if (trimmed.length > MAX_DESCRIPTION)
             throw PortalException.badRequest(
                 "invalid-description", "A description is at most $MAX_DESCRIPTION characters long.")
