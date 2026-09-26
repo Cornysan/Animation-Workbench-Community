@@ -578,16 +578,26 @@ class PortalFlowTest {
     @Test
     fun `the overview counts what is listed, and forgets what was withdrawn`() {
         val owner = login("overview-${unique()}")
+
+        //  In die Leiste kommt ein Schlagwort erst ab drei Clips, und nicht,
+        //  wenn es an fast allem haengt (CatalogOverviewService.barTags) -
+        //  deshalb drei mit ihm und ein vierter ohne.
         val listed = uploadOk(owner, awclip(0.97, "Overview walk", tags = "\"overviewwalk\",\"shared\""))
+        uploadOk(owner, awclip(0.97011, "Overview walk two", tags = "\"overviewwalk\""))
+        uploadOk(owner, awclip(0.97012, "Overview walk three", tags = "\"overviewwalk\""))
+        uploadOk(owner, awclip(0.97013, "Overview other", tags = "\"overviewother\""))
+
+        //  Privat zaehlt nicht mit - sonst stuende hier eine vier.
         uploadOk(owner, awclip(0.98, "Overview secret",
-            license = AwclipSchema.LICENSE_PRIVATE, tags = "\"overviewsecret\""))
+            license = AwclipSchema.LICENSE_PRIVATE, tags = "\"overviewwalk\",\"overviewsecret\""))
 
         fun overview() = mvc.get("/api/v1/overview").andExpect { status { isOk() } }.body()
         fun tagsOf(node: JsonNode) = node["tags"].associate { it["tag"].asString() to it["count"].asInt() }
 
         val before = overview()
-        assertEquals(1, tagsOf(before)["overviewwalk"], "the listed clip carries its tag into the bar")
+        assertEquals(3, tagsOf(before)["overviewwalk"], "three listed clips carry their tag into the bar")
         assertNull(tagsOf(before)["overviewsecret"], "a private clip must not put its tag in the bar")
+        assertNull(tagsOf(before)["overviewother"], "one clip is a search result, not a category")
 
         val clipsBefore = before["clips"].asInt()
 
@@ -596,7 +606,7 @@ class PortalFlowTest {
 
         val after = overview()
         assertEquals(clipsBefore - 1, after["clips"].asInt(), "withdrawing lowers the count right away")
-        assertNull(tagsOf(after)["overviewwalk"], "and takes the tag out of the bar with it")
+        assertNull(tagsOf(after)["overviewwalk"], "and two left are too few for the bar")
     }
 
     /**

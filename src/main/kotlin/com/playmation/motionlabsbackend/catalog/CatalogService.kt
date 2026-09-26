@@ -245,6 +245,11 @@ class CatalogService(
             pkg
         }
 
+        //  Die Datei darf zehn tragen, geteilt werden hoechstens fuenf
+        //  ([AwclipSchema.MAX_SHARED_TAGS]). Eine neue Fassung eines Clips, der
+        //  schon mehr hatte, darf sie behalten, aber keine dazunehmen.
+        checkSharedTags(doc.manifest.tags, existing?.tagList()?.size ?: 0)
+
         val blobKey = blobs.put(bytes)
         val previewKey = preview?.let { blobs.put(StrictJson.write(it).toByteArray(Charsets.UTF_8)) }
         val manifest = doc.manifest
@@ -386,8 +391,7 @@ class CatalogService(
             .take(AwclipSchema.MAX_TITLE_LENGTH).ifEmpty { "Clip" }
         val tags = (manifest.tags + input.tags.map { it.trim().lowercase() })
             .filter { it.isNotEmpty() }.distinct()
-        if (tags.size > AwclipSchema.MAX_TAGS)
-            throw PortalException.badRequest("invalid-tags", "Up to ${AwclipSchema.MAX_TAGS} tags.")
+        checkSharedTags(tags, 0)
         tags.firstOrNull { !AwclipSchema.isTag(it) }?.let {
             throw PortalException.badRequest("invalid-tags", "'$it' is not a valid tag - use lowercase letters, digits and '-'.")
         }
@@ -605,8 +609,9 @@ class CatalogService(
                 "The description can be up to ${AwclipSchema.MAX_DESCRIPTION_LENGTH} characters.")
 
         val tags = input.tags.map { it.trim().lowercase() }.filter { it.isNotEmpty() }.distinct()
-        if (tags.size > AwclipSchema.MAX_TAGS)
-            throw PortalException.badRequest("invalid-tags", "Up to ${AwclipSchema.MAX_TAGS} tags.")
+        //  Ein Clip von vor der Fuenfer-Grenze behaelt seine Schlagworte -
+        //  wer nur den Titel korrigiert, soll nicht erst welche loeschen muessen.
+        checkSharedTags(tags, pkg.tagList().size)
         tags.firstOrNull { !AwclipSchema.isTag(it) }?.let {
             throw PortalException.badRequest("invalid-tags", "'$it' is not a valid tag - use lowercase letters, digits and '-'.")
         }
@@ -725,6 +730,17 @@ class CatalogService(
         check(AwclipHash.compute(doc) == contentHash) { "Rewriting the manifest changed the motion ($contentHash)" }
         check(doc.manifest.title == title && doc.manifest.license == license) { "Rewritten manifest does not read back" }
         return bytes
+    }
+
+    /**
+     * Hoechstens [AwclipSchema.MAX_SHARED_TAGS] - oder so viele, wie der Clip
+     * schon hat ([kept]), wenn er aus der Zeit davor stammt.
+     */
+    private fun checkSharedTags(tags: List<String>, kept: Int) {
+        val limit = maxOf(AwclipSchema.MAX_SHARED_TAGS, kept)
+        if (tags.size > limit)
+            throw PortalException.badRequest("invalid-tags",
+                "Up to ${AwclipSchema.MAX_SHARED_TAGS} tags - remove ${tags.size - limit}.")
     }
 
     private fun hasControl(text: String, allowNewline: Boolean) =

@@ -1,5 +1,7 @@
 package com.playmation.motionlabsbackend
 
+import com.playmation.motionlabsbackend.catalog.AnimationPackage
+import com.playmation.motionlabsbackend.catalog.AnimationPackageRepository
 import com.playmation.motionlabsbackend.catalog.Declaration
 import com.playmation.motionlabsbackend.catalog.TagText
 import com.playmation.motionlabsbackend.format.AwclipSchema
@@ -14,6 +16,7 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.ResultActionsDsl
 import org.springframework.test.web.servlet.get
 import org.springframework.test.web.servlet.multipart
+import org.springframework.test.web.servlet.patch
 import org.springframework.test.web.servlet.post
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
@@ -36,6 +39,7 @@ import kotlin.test.assertTrue
 class TagFlowTest {
 
     @Autowired lateinit var mvc: MockMvc
+    @Autowired lateinit var packages: AnimationPackageRepository
 
     private val json = JsonMapper.builder().build()
 
@@ -196,5 +200,46 @@ class TagFlowTest {
         val still = suggest(owner) { param("slug", inPlace) }
         assertEquals("It stays in place", still.find("in-place")!!["reason"].asString())
         assertNull(still.find("loop"), "no loop flag, no loop tag")
+    }
+
+    /**
+     * Fuenf beim Teilen, zehn im Format (2026-09-26). Die Datei darf mehr
+     * tragen, damit Clips von vorher lesbar bleiben - und ein solcher Clip
+     * behaelt seine Schlagworte beim Bearbeiten, bekommt aber keine dazu.
+     */
+    @Test
+    fun `a shared clip carries at most five tags, and an older one keeps its own`() {
+        val owner = login("fivetags" + unique())
+        val six = listOf("one", "two", "three", "four", "five", "six")
+
+        val refused = mvc.multipart("/api/v1/packages") {
+            file("file", awclip(0.93311, six))
+            param("declarationText", Declaration.TEXT)
+            param("declarationVersion", Declaration.VERSION.toString())
+            param("declarationAccepted", "true")
+            header("Authorization", "Bearer $owner")
+        }.andExpect { status { isBadRequest() } }.body()
+        assertEquals("invalid-tags", refused["error"]["code"].asString())
+
+        val slug = uploadOk(owner, awclip(0.93312, six.take(5)))
+
+        fun edit(tags: List<String>) = mvc.patch("/api/v1/packages/$slug") {
+            contentType = MediaType.APPLICATION_JSON
+            content = json.writeValueAsString(mapOf(
+                "title" to "Tag test", "description" to "", "tags" to tags, "license" to AwclipSchema.LICENSE_PUBLIC))
+            header("Authorization", "Bearer $owner")
+        }
+
+        edit(six).andExpect { status { isBadRequest() } }
+
+        //  Ein Clip aus der Zeit vor der Grenze - mit sieben, von Hand gesetzt.
+        val seven = six + "seven"
+        packages.findBySlug(slug)!!.let {
+            it.tags = AnimationPackage.joinTags(seven)
+            packages.save(it)
+        }
+
+        edit(seven.map { if (it == "one") "uno" else it }).andExpect { status { isOk() } }
+        edit(seven + "eight").andExpect { status { isBadRequest() } }
     }
 }

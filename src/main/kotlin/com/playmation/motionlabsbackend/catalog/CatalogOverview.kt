@@ -118,12 +118,7 @@ class CatalogOverviewService(
             clips = listed.size,
             creators = listed.map { it.ownerId }.toSet().size,
             installs = listed.sumOf { it.takeCount },
-            //  Nach Haeufigkeit, bei Gleichstand alphabetisch - sonst tanzt die
-            //  Leiste bei jedem Neuladen, obwohl sich nichts geaendert hat.
-            tags = counts.entries
-                .sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key })
-                .take(MAX_TAGS)
-                .map { TagCount(it.key, it.value) },
+            tags = barTags(counts, listed.size),
         )
 
         val snapshot = Snapshot(fresh, TagStats(counts, pairs))
@@ -132,6 +127,29 @@ class CatalogOverviewService(
         return snapshot
     }
 
+    /**
+     * DIE LEISTE ZEIGT NUR, WAS EINGRENZT (Pablo, 2026-09-26: "gefuehlt zu
+     * viele Tags"). Bei 19 Clips standen 18 Schlagworte da, und die meisten
+     * waren keine Filter:
+     *
+     * - An FAST ALLEM ("gesture" an 18 von 19): wer darauf klickt, sieht
+     *   dieselbe Wand noch einmal. Mehr als [BAR_MAX_SHARE] des Katalogs
+     *   fliegt raus - waechst der Katalog, kommt das Wort von selbst zurueck.
+     * - An FAST NICHTS ("head-shake" an einem): das ist ein Suchergebnis,
+     *   keine Kategorie. Erst ab [BAR_MIN_CLIPS] Clips.
+     *
+     * Hoechstens [MAX_TAGS]. Nach Haeufigkeit, bei Gleichstand alphabetisch -
+     * sonst tanzt die Leiste bei jedem Neuladen. Die Schlagworte am Clip
+     * bleiben alle; die Suche und der Klick auf ein Schlagwort am Clip finden
+     * sie weiter.
+     */
+    internal fun barTags(counts: Map<String, Int>, clips: Int): List<TagCount> =
+        counts.entries
+            .filter { it.value >= BAR_MIN_CLIPS && it.value <= clips * BAR_MAX_SHARE }
+            .sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key })
+            .take(MAX_TAGS)
+            .map { TagCount(it.key, it.value) }
+
     /** Der Cache haelt eine Minute - ein frischer Upload darf nicht so lange warten. */
     fun invalidate() {
         cachedAt = Instant.EPOCH
@@ -139,7 +157,13 @@ class CatalogOverviewService(
 
     private companion object {
         /** Mehr Pillen als das liest niemand, und die Leiste bricht in die dritte Zeile. */
-        const val MAX_TAGS = 18
+        const val MAX_TAGS = 10
+
+        /** Ab so vielen Clips ist ein Schlagwort eine Kategorie. */
+        const val BAR_MIN_CLIPS = 3
+
+        /** Mehr als dieser Anteil des Katalogs - und es grenzt nichts mehr ein. */
+        const val BAR_MAX_SHARE = 0.8
     }
 }
 

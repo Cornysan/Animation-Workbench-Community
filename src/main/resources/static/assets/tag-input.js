@@ -22,7 +22,10 @@
 const AWTags = (() => {
   const { api, el, icon } = AW;
 
-  const MAX_TAGS = 10;
+  //  Fuenf beim Teilen (AwclipSchema.MAX_SHARED_TAGS, 2026-09-26) - die
+  //  Datei darf zehn, aber ab dem sechsten wird es Rauschen. Ein alter Clip
+  //  mit mehr behaelt sie; das Feld laesst dann nur keine neuen dazu.
+  const MAX_TAGS = 5;
   const MAX_LENGTH = 32;
   const SEPARATORS = /[,;\s]+/;
 

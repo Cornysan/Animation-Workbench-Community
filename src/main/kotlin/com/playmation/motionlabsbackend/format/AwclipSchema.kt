@@ -15,6 +15,18 @@ object AwclipSchema {
     const val MAX_TITLE_LENGTH = 80
     const val MAX_DESCRIPTION_LENGTH = 2000
     const val MAX_TAGS = 10
+
+    /**
+     * Wie viele Schlagworte ein Clip beim TEILEN tragen darf (2026-09-26).
+     *
+     * Weniger als das Format erlaubt ([MAX_TAGS]), und mit Absicht nicht
+     * dasselbe: die Datei bleibt bei zehn, damit jeder Clip, der schon mit
+     * mehr geteilt wurde, weiter gelesen, geladen und umgeschrieben werden
+     * kann. Diese Grenze gilt fuer das, was jemand NEU vergibt - fuenf
+     * Schlagworte beschreiben einen Clip; ab dem sechsten wird es Rauschen,
+     * das die Leiste des Katalogs fuellt.
+     */
+    const val MAX_SHARED_TAGS = 5
     const val MAX_TAG_LENGTH = 32
     const val MAX_TOOL_LENGTH = 80
     const val MIN_FRAME_RATE = 1.0
