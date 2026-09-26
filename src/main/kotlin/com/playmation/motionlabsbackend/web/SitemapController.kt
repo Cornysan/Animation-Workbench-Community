@@ -3,6 +3,7 @@ package com.playmation.motionlabsbackend.web
 import com.playmation.motionlabsbackend.account.AccountRepository
 import com.playmation.motionlabsbackend.account.AccountStatus
 import com.playmation.motionlabsbackend.catalog.AnimationPackageRepository
+import com.playmation.motionlabsbackend.catalog.CatalogOverviewService
 import com.playmation.motionlabsbackend.catalog.PackService
 import com.playmation.motionlabsbackend.catalog.PackageStatus
 import com.playmation.motionlabsbackend.catalog.PackageVersionRepository
@@ -26,10 +27,10 @@ import java.util.UUID
 /**
  * Die Sitemap - fuer Suchmaschinen die Liste dessen, was es hier gibt.
  *
- * NOETIG, WEIL DIE SEITEN IHREN INHALT PER JAVASCRIPT HOLEN. Der Katalog auf
- * "/" liefert ein leeres Gitter aus und fuellt es aus /api/v1/packages; ein
- * Crawler, der kein JavaScript ausfuehrt, faende von dort keinen einzigen
- * Clip. Hier stehen sie alle als Adresse, und `robots.txt` nennt die Datei.
+ * Seit 2026-09-26 stehen die erste Seite des Katalogs und die Clip-Seiten
+ * auch ohne JavaScript im HTML. Die Sitemap bleibt der vollstaendige Weg: auf
+ * "/" steht nur die erste Seite, hier steht alles, und `robots.txt` nennt die
+ * Datei.
  *
  * Drin steht nur, was jeder ohne Anmeldung sehen kann: veroeffentlichte,
  * oeffentlich geteilte Clips eines Rigs, das der Katalog zeigt; oeffentliche
@@ -48,8 +49,18 @@ class SitemapController(
     private val collections: ClipCollectionRepository,
     private val packs: PackService,
     private val accounts: AccountRepository,
+    /** Die Schlagworte mit ihrer Zahl - fuer die Schlagwortseiten. */
+    private val overview: CatalogOverviewService,
     private val portal: PortalProperties,
 ) {
+    companion object {
+        /**
+         * Ab so vielen Clips ist ein Schlagwort eine eigene Seite wert. Eine
+         * Seite mit einem einzigen Clip ist dieselbe Seite wie der Clip, nur
+         * duenner - die braucht keinen zweiten Eintrag.
+         */
+        const val TAG_PAGE_MIN_CLIPS = 2
+    }
     private val date = DateTimeFormatter.ISO_LOCAL_DATE.withZone(ZoneOffset.UTC)
 
     @GetMapping("/sitemap.xml")
@@ -76,6 +87,13 @@ class SitemapController(
         for (path in listOf("/", "/licenses.html", "/rules.html", "/terms.html",
                 "/privacy.html", "/impressum.html"))
             url(path)
+
+        //  Die Schlagwortseiten ("Free walk animations") - seit 2026-09-26
+        //  eigene Seiten mit eigener kanonischer Adresse (PageController).
+        for ((tag, count) in overview.tagStats().counts.entries.sortedBy { it.key }) {
+            if (count < TAG_PAGE_MIN_CLIPS) continue
+            url("/?tag=" + java.net.URLEncoder.encode(tag, Charsets.UTF_8))
+        }
 
         val owners = LinkedHashSet<UUID>()
 

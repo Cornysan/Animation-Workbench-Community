@@ -36,26 +36,39 @@
   <div th:replace="~{fragments/shell :: paused}"></div>
   <div id="state"></div>
 
-  <div id="clip" class="clip-layout hidden">
+  <!-- Sichtbar, sobald der Server den Clip kennt (`clipPage`); sonst wie bisher
+       erst, wenn clip.js ihn geholt hat. Die Schleifen darunter lesen
+       `clipPage?.…`: th:each laeuft VOR th:if, ein th:if daneben schuetzt nicht. -->
+  <div id="clip" class="clip-layout" th:classappend="${clipPage == null} ? 'hidden'">
     <section class="clip-main">
       <div class="viewer" id="viewer" th:attr="data-rig=${clipRig}"></div>
 
       <h1 id="title" th:text="${clipTitle}"></h1>
       <div class="clip-byline">
-        <span class="avatar" id="author-initial">?</span>
+        <img class="avatar" id="author-initial" alt="" width="28" height="28"
+             th:if="${clipPage != null and clipPage.authorAvatar != null}" th:src="${clipPage.authorAvatar}">
+        <span class="avatar" id="author-initial" th:unless="${clipPage != null and clipPage.authorAvatar != null}"
+              th:text="${clipPage != null} ? ${clipPage.authorInitial} : '?'">?</span>
         <div>
-          <div id="author" class="clip-author"></div>
-          <div class="faint small" id="clip-sub"></div>
+          <div id="author" class="clip-author"><a th:if="${clipPage != null}" th:href="${clipPage.authorHref}"
+               th:text="${clipPage.author}">Author</a></div>
+          <div class="faint small" id="clip-sub" th:text="${clipPage != null} ? ${clipPage.sub}"></div>
         </div>
         <div class="clip-actions" id="clip-actions"></div>
       </div>
       <!-- Der Pack, zu dem der Clip gehoert - der Weg zu seinen Geschwistern. -->
-      <p id="clip-pack" class="clip-pack" hidden></p>
+      <p id="clip-pack" class="clip-pack" th:attr="hidden=${clipPage == null or clipPage.packSlug == null} ? 'hidden'"><th:block
+         th:if="${clipPage != null and clipPage.packSlug != null}">Part of the pack <a
+         th:href="@{/pack.html(k=${clipPage.packSlug})}" th:text="${clipPage.packTitle}">Pack</a></th:block></p>
       <!-- Nur bei Starter-Clips: woher der Clip stammt (clip.js). -->
-      <p id="clip-source" class="clip-source" hidden></p>
+      <p id="clip-source" class="clip-source" th:attr="hidden=${clipPage == null or clipPage.sourceCredit == null} ? 'hidden'"><th:block
+         th:if="${clipPage != null and clipPage.sourceCredit != null}">Original: <a th:if="${clipPage.sourceUrl != null}"
+         th:href="${clipPage.sourceUrl}" rel="noopener" target="_blank" th:text="${clipPage.sourceCredit}">Source</a><span
+         th:unless="${clipPage.sourceUrl != null}" th:text="${clipPage.sourceCredit}">Source</span> · CC0 · added by the operator, not made by a community member</th:block></p>
       <div id="action-state"></div>
 
-      <div class="tags" id="tags"></div>
+      <div class="tags" id="tags"><a class="tag" th:each="t : ${clipPage?.tags}"
+           th:href="@{/(tag=${t})}" th:text="${t}">tag</a></div>
       <p id="description" class="clip-description" th:text="${clipDescription}"></p>
 
       <!-- E10: unter jeder Animation steht ein Gespraech. Flach, ohne Antworten
@@ -88,11 +101,14 @@
         <div id="downloads"></div>
       </div>
 
-      <dl class="facts" id="facts"></dl>
+      <dl class="facts" id="facts"><th:block th:each="f : ${clipPage?.facts}"><dt
+          th:text="${f.label}">Duration</dt><dd th:text="${f.value}">1.00 s</dd></th:block></dl>
 
-      <div class="related" id="related" hidden>
-        <h2 id="related-title">More like this</h2>
-        <div class="related-list" id="related-list"></div>
+      <div class="related" id="related" th:attr="hidden=${clipPage == null or clipPage.related.isEmpty()} ? 'hidden'">
+        <h2 id="related-title" th:text="${clipPage != null and clipPage.relatedTitle != null} ? ${clipPage.relatedTitle} : 'More like this'">More like this</h2>
+        <div class="related-list" id="related-list"><a class="related-item"
+             th:each="r : ${clipPage?.related}" th:href="${r.href}"><span class="related-title"
+             th:text="${r.title}">Title</span><span class="related-meta" th:text="${r.meta}">Author</span></a></div>
       </div>
     </aside>
   </div>

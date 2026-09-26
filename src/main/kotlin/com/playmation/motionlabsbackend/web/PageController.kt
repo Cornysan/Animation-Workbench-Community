@@ -3,8 +3,12 @@ package com.playmation.motionlabsbackend.web
 import com.playmation.motionlabsbackend.account.AccountService
 import com.playmation.motionlabsbackend.auth.SignInProviders
 import com.playmation.motionlabsbackend.auth.portalPrincipal
+import com.playmation.motionlabsbackend.catalog.CatalogEntry
+import com.playmation.motionlabsbackend.catalog.CatalogOverviewService
 import com.playmation.motionlabsbackend.catalog.CatalogService
+import com.playmation.motionlabsbackend.catalog.CatalogWall
 import com.playmation.motionlabsbackend.catalog.PackService
+import com.playmation.motionlabsbackend.catalog.PackageDetail
 import com.playmation.motionlabsbackend.collection.CollectionService
 import com.playmation.motionlabsbackend.collection.CollectionVisibility
 import com.playmation.motionlabsbackend.config.PortalProperties
@@ -20,6 +24,9 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.ModelAttribute
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseBody
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 /**
  * Die Seiten des Portals. Sie lagen als fertige .html-Dateien unter `static/`
@@ -48,7 +55,11 @@ class PageController(
     private val portal: PortalProperties,
     private val accounts: AccountService,
     private val providers: SignInProviders,
+    /** Die Karten der Startseite stehen im HTML - siehe [animations]. */
+    private val wall: CatalogWall,
+    private val overview: CatalogOverviewService,
 ) {
+    private val base get() = portal.publicBaseUrl.trimEnd('/')
 
     @ModelAttribute("user")
     fun shellUser(authentication: Authentication?) = shell.user(authentication)
@@ -77,13 +88,17 @@ class PageController(
     /**
      * Die eine Adresse, unter der eine Seite gefuehrt werden soll - fuer
      * `rel=canonical` und `og:url`. Pfad plus genau der Parameter, der die
-     * Seite ausmacht (`p`, `u`, `c`); Sortierung, Schlagwort und Suche sind
-     * Ansichten derselben Seite. `/index.html` ist "/".
+     * Seite ausmacht (`p`, `u`, `c`, `k`); Sortierung und Suche sind
+     * Ansichten derselben Seite. `/index.html` ist "/". Ein Schlagwort ist
+     * seit 2026-09-26 eine eigene Seite - das setzt [animations] selbst.
+     *
+     * `k` fehlte bis 2026-09-26: jede Pack-Seite nannte sich "/pack.html",
+     * und fuer eine Suchmaschine waren damit alle Packs dieselbe Seite.
      */
     @ModelAttribute("canonicalUrl")
     fun canonicalUrl(request: HttpServletRequest): String {
         val path = request.requestURI.takeUnless { it == "/index.html" } ?: "/"
-        val key = listOf("p", "u", "c").firstOrNull { !request.getParameter(it).isNullOrBlank() }
+        val key = listOf("p", "u", "c", "k").firstOrNull { !request.getParameter(it).isNullOrBlank() }
         val query = key?.let { "?" + it + "=" + java.net.URLEncoder.encode(request.getParameter(it).trim(), Charsets.UTF_8) } ?: ""
         return portal.publicBaseUrl.trimEnd('/') + path + query
     }
@@ -118,7 +133,96 @@ class PageController(
      * herkam, wollte trotzdem zuerst die Clips sehen.
      */
     @GetMapping("/", "/index.html")
-    fun animations(model: Model) = view(model, "browse", active = "animations")
+    fun animations(
+        @RequestParam(required = false) q: String?,
+        @RequestParam(required = false) tag: String?,
+        @RequestParam(required = false) author: String?,
+        @RequestParam(required = false) sort: String?,
+        @RequestParam(required = false) page: Int?,
+        model: Model,
+    ): String {
+        //  DIE KARTEN STEHEN IM HTML. Bis hierher kam "/" mit einem leeren
+        //  Gitter an, und browse.js fuellte es; im ausgelieferten Dokument
+        //  stand kein einziger Link auf einen Clip. Jetzt liefert der Server
+        //  dieselbe Seite der Wand als schlichte Karten (Titel, Person, Dauer),
+        //  und browse.js ersetzt sie durch die lebenden. Fuer den Besucher ist
+        //  das ein Ladezustand mit Inhalt statt grauer Balken.
+        val searching = !q.isNullOrBlank() || !author.isNullOrBlank()
+        val tagName = tag?.trim()?.takeIf { it.isNotEmpty() }
+        val found = runCatching { wall.page(q, tagName, sort, page ?: 0, 24, null, author) }.getOrNull()
+        model.addAttribute("wallItems", found?.items.orEmpty().map { card(it) })
+
+        val indexing = portal.searchIndexing
+        when {
+            //  Eine Suche ist keine Seite fuer den Index - ihre Clips schon.
+            searching -> model.addAttribute("meta", shell.defaultMeta().copy(noindex = true, follow = indexing))
+
+            //  EIN SCHLAGWORT IST EINE SEITE ("Free walk animations"). Genau
+            //  danach wird gesucht, und bis hierher zeigte ihre kanonische
+            //  Adresse auf "/" - fuer Google war jede Schlagwortseite die
+            //  Startseite noch einmal. Ohne Treffer bleibt sie draussen.
+            tagName != null -> {
+                val clips = found?.clips ?: 0
+                model.addAttribute("catalogHeading", Seo.tagLabel(tagName) + " animations")
+                if (clips > 0) {
+                    val url = "$base/?tag=" + java.net.URLEncoder.encode(tagName, Charsets.UTF_8)
+                    model.addAttribute("pageTitle", Seo.tagTitle(tagName))
+                    model.addAttribute("canonicalUrl", url)
+                    model.addAttribute("meta", ShellModel.PageMeta(
+                        title = "Free " + Seo.tagLabel(tagName).lowercase() + " animations",
+                        description = (if (clips == 1L) "One free " else "$clips free ") +
+                            Seo.tagLabel(tagName).lowercase() + " animation" + (if (clips == 1L) "" else "s") +
+                            " for Unity and any humanoid rig. Preview in the browser, download FBX or GLB - " +
+                            "CC0, no credit needed.",
+                        url = url,
+                        noindex = !indexing,
+                    ))
+                    model.addAttribute("jsonLd", Seo.jsonLd(
+                        Seo.obj("@type" to "CollectionPage", "name" to Seo.tagLabel(tagName) + " animations",
+                            "url" to url, "license" to Seo.CC0),
+                        Seo.breadcrumbs("Animations" to "$base/", Seo.tagLabel(tagName) to url),
+                    ))
+                } else {
+                    model.addAttribute("meta", shell.defaultMeta().copy(noindex = true, follow = indexing))
+                }
+            }
+
+            else -> {
+                model.addAttribute("pageTitle", Seo.homeTitle())
+                //  Aus WebSite nimmt Google den Namen ueber dem Treffer -
+                //  sonst raet es aus der Domain, und die heisst anders.
+                model.addAttribute("jsonLd", Seo.jsonLd(Seo.obj(
+                    "@type" to "WebSite",
+                    "name" to Seo.SITE,
+                    "alternateName" to listOf("Playmations", "AW Community"),
+                    "url" to "$base/",
+                )))
+            }
+        }
+
+        return view(model, "browse", active = "animations")
+    }
+
+    /** Eine Karte, wie sie ohne JavaScript im Gitter steht. */
+    data class WallCard(val href: String, val title: String, val author: String, val authorHref: String,
+                        val duration: String, val clips: Int?)
+
+    private fun card(entry: CatalogEntry): WallCard? {
+        entry.clip?.let { clip ->
+            return WallCard("/clip.html?p=" + clip.slug, clip.title, clip.author,
+                profileHref(clip.authorHandle, clip.author), Seo.duration(clip.durationSeconds), null)
+        }
+        entry.pack?.let { pack ->
+            return WallCard("/pack.html?k=" + pack.slug, pack.title, pack.author,
+                profileHref(pack.authorHandle, pack.author), Seo.duration(pack.durationSeconds), pack.clips)
+        }
+        return null
+    }
+
+    /** Wie `profileHref` in app.js: das Profil, sonst der alte Filter nach Namen. */
+    private fun profileHref(handle: String?, name: String) =
+        if (handle != null) "/u.html?u=" + java.net.URLEncoder.encode(handle, Charsets.UTF_8)
+        else "/?author=" + java.net.URLEncoder.encode(name, Charsets.UTF_8)
 
     /**
      * Die alte Adresse des Katalogs. Sie steht in Discord-Nachrichten und als
@@ -160,12 +264,18 @@ class PageController(
         //  nur wenn der Clip hier auch sichtbar ist, sonst holte sie eine 404.
         clip?.let { model.addAttribute("clipSlug", it.slug) }
 
-        //  Titel und Beschreibung stehen damit schon im ausgelieferten HTML -
-        //  fuer Suchmaschinen, die kein JavaScript ausfuehren. clip.js
-        //  schreibt dieselben Werte danach noch einmal hinein.
+        //  DIE SEITE STEHT IM HTML, nicht nur Titel und Beschreibung: Person,
+        //  Schlagworte, Zahlen, Nachbarschaft. Vorher stand das alles erst nach
+        //  clip.js da, und der ganze Block trug `hidden` - eine Suchmaschine
+        //  sah eine Ueberschrift in einem unsichtbaren Kasten. clip.js
+        //  schreibt dieselben Stellen danach noch einmal (replaceChildren),
+        //  mit dem Konto im Blick (Herz, Stern, Bearbeiten).
         if (clip != null && clip.license == AwclipSchema.LICENSE_PUBLIC) {
             model.addAttribute("clipTitle", clip.title)
             model.addAttribute("clipDescription", clip.description)
+            model.addAttribute("clipPage", clipPage(clip))
+            model.addAttribute("pageTitle", Seo.clipTitle(clip.title))
+            model.addAttribute("jsonLd", clipJsonLd(clip))
         }
 
         //  Ein privater Clip bekommt keine eigene Vorschau - ohne Anmeldung
@@ -176,8 +286,10 @@ class PageController(
             val url = portal.publicBaseUrl.trimEnd('/') + "/clip.html?p=" + clip.slug
             model.addAttribute("meta", ShellModel.PageMeta(
                 title = clip.title + " by " + clip.author,
-                description = clip.description.takeIf { it.isNotBlank() }
-                    ?: "A humanoid animation clip, free to use under CC0 - no credit needed.",
+                //  Der eigene Satz des Clips zuerst, dann was man hier bekommt -
+                //  die Beschreibung allein ist oft ein halber Satz ueber eine Hand.
+                description = listOfNotNull(clip.description.takeIf { it.isNotBlank() }, Seo.CLIP_PITCH)
+                    .joinToString(" "),
                 image = if (clip.hasPreview) portal.publicBaseUrl.trimEnd('/') + "/clip-card/" + clip.slug + ".png" else null,
                 url = url,
                 noindex = !portal.searchIndexing,
@@ -254,13 +366,31 @@ class PageController(
             val base = portal.publicBaseUrl.trimEnd('/')
             val cover = detail.items.firstOrNull { it.hasPreview }?.slug
 
+            val url = "$base/pack.html?k=${detail.slug}"
             model.addAttribute("meta", ShellModel.PageMeta(
                 title = detail.title + " by " + detail.author,
                 description = detail.description.takeIf { it.isNotBlank() }
                     ?: "A pack of ${detail.clips} humanoid animation clips, free to use under CC0 - no credit needed.",
                 image = cover?.let { "$base/clip-card/$it.png" },
-                url = "$base/pack.html?k=${detail.slug}",
+                url = url,
                 noindex = !portal.searchIndexing,
+            ))
+            model.addAttribute("pageTitle", Seo.packTitle(detail.title))
+            model.addAttribute("jsonLd", Seo.jsonLd(
+                Seo.obj(
+                    "@type" to "CreativeWork",
+                    "name" to detail.title,
+                    "description" to detail.description,
+                    "url" to url,
+                    "license" to Seo.CC0,
+                    "isAccessibleForFree" to true,
+                    "author" to Seo.person(detail.author, detail.authorHandle?.let { "$base/u.html?u=$it" }),
+                    "image" to cover?.let { "$base/clip-card/$it.png" },
+                    "hasPart" to detail.items.map { item ->
+                        Seo.obj("@type" to "CreativeWork", "name" to item.title, "url" to "$base/clip.html?p=${item.slug}")
+                    },
+                ),
+                Seo.breadcrumbs("Animations" to "$base/", detail.title to url),
             ))
         }
 
@@ -366,6 +496,123 @@ class PageController(
 
     @GetMapping("/takedown.html")
     fun takedown(model: Model) = view(model, "takedown")
+
+    // ── Clip-Seite im HTML ───────────────────────────────────────────────
+
+    data class Fact(val label: String, val value: String)
+    data class Related(val href: String, val title: String, val meta: String)
+    data class ClipPage(
+        val author: String,
+        val authorHref: String,
+        val authorAvatar: String?,
+        val authorInitial: String,
+        val sub: String,
+        val tags: List<String>,
+        val packSlug: String?,
+        val packTitle: String?,
+        val sourceCredit: String?,
+        val sourceUrl: String?,
+        val facts: List<Fact>,
+        val relatedTitle: String?,
+        val related: List<Related>,
+    )
+
+    private val shared = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.ENGLISH).withZone(ZoneOffset.UTC)
+
+    private fun clipPage(clip: PackageDetail): ClipPage {
+        //  Dieselbe Zeile wie clip.js: Nullen bleiben weg.
+        val sub = listOfNotNull(
+            "Shared " + shared.format(clip.createdAt),
+            when {
+                clip.downloads <= 0 -> null
+                clip.downloads == 1L -> "used once"
+                else -> "used ${clip.downloads}×"
+            },
+        ).joinToString("  ·  ")
+
+        //  Die Nachbarschaft wie clip.js: erst das erste Schlagwort, sonst das
+        //  Beliebte. Fuer einen Crawler sind das die Wege zum naechsten Clip.
+        val firstTag = clip.tags.firstOrNull()
+        fun some(tag: String?) = runCatching {
+            catalog.search(null, tag, "popular", 0, 7).items.filter { it.slug != clip.slug }.take(6)
+        }.getOrDefault(emptyList())
+
+        var others = firstTag?.let { some(it) }.orEmpty()
+        val byTag = others.isNotEmpty()
+        if (!byTag) others = some(null)
+
+        return ClipPage(
+            author = clip.author,
+            authorHref = profileHref(clip.authorHandle, clip.author),
+            authorAvatar = clip.authorAvatar,
+            authorInitial = (clip.author.firstOrNull() ?: '?').uppercase(),
+            sub = sub,
+            tags = clip.tags,
+            packSlug = clip.pack?.slug,
+            packTitle = clip.pack?.title,
+            sourceCredit = clip.source?.credit,
+            sourceUrl = clip.source?.url,
+            facts = listOf(
+                Fact("Duration", Seo.duration(clip.durationSeconds)),
+                Fact("Frame rate", Math.round(clip.frameRate).toString() + " fps"),
+                Fact("Curves", clip.curveCount.toString()),
+                Fact("Rig", if (clip.rig == AwclipSchema.RIG_HUMANOID) "Humanoid" else "Generic"),
+                Fact("Version", clip.version.toString()),
+            ),
+            relatedTitle = if (others.isEmpty()) null else if (byTag) "More “$firstTag”" else "Popular right now",
+            related = others.map {
+                Related("/clip.html?p=" + it.slug, it.title, it.author + " · " + Seo.duration(it.durationSeconds))
+            },
+        )
+    }
+
+    private fun clipJsonLd(clip: PackageDetail): String {
+        val url = "$base/clip.html?p=${clip.slug}"
+        val image = if (clip.hasPreview) "$base/clip-card/${clip.slug}.png" else null
+        //  Ein Starter-Clip ist nicht von der Person, deren Konto ihn traegt,
+        //  sondern aus einer Sammlung mit Namen - das sagt die Seite auch.
+        val creator = clip.source?.let { Seo.obj("@type" to "Organization", "name" to it.credit, "url" to it.url) }
+            ?: Seo.person(clip.author, clip.authorHandle?.let { "$base/u.html?u=$it" })
+        val firstTag = clip.tags.firstOrNull()
+
+        val work = Seo.obj(
+            "@type" to "CreativeWork",
+            "name" to clip.title,
+            "description" to clip.description,
+            "url" to url,
+            "keywords" to clip.tags.joinToString(", "),
+            "license" to Seo.CC0,
+            "isAccessibleForFree" to true,
+            "datePublished" to Seo.date(clip.createdAt),
+            "dateModified" to Seo.date(clip.updatedAt),
+            "creator" to creator,
+            "isPartOf" to clip.pack?.let { Seo.obj("@type" to "CreativeWork", "name" to it.title, "url" to "$base/pack.html?k=${it.slug}") },
+            //  Das Bild traegt dieselbe Lizenz - Google zeigt dann in der
+            //  Bildersuche, dass und wie man es verwenden darf.
+            "image" to image?.let {
+                Seo.obj("@type" to "ImageObject", "contentUrl" to it, "url" to it, "width" to 1200, "height" to 630,
+                    "license" to Seo.CC0, "acquireLicensePage" to url, "creditText" to (clip.source?.credit ?: clip.author),
+                    "creator" to creator)
+            },
+            "interactionStatistic" to listOfNotNull(
+                clip.likes.takeIf { it > 0 }?.let {
+                    Seo.obj("@type" to "InteractionCounter", "interactionType" to "https://schema.org/LikeAction",
+                        "userInteractionCount" to it)
+                },
+                clip.comments.takeIf { it > 0 }?.let {
+                    Seo.obj("@type" to "InteractionCounter", "interactionType" to "https://schema.org/CommentAction",
+                        "userInteractionCount" to it)
+                },
+            ),
+        )
+
+        val crumbs = listOfNotNull(
+            "Animations" to "$base/",
+            firstTag?.let { Seo.tagLabel(it) to "$base/?tag=" + java.net.URLEncoder.encode(it, Charsets.UTF_8) },
+            clip.title to url,
+        )
+        return Seo.jsonLd(work, Seo.breadcrumbs(*crumbs.toTypedArray()))
+    }
 
     private fun view(model: Model, template: String, active: String? = null): String {
         model.addAttribute("active", active)

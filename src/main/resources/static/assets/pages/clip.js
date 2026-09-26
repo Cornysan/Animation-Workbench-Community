@@ -58,7 +58,12 @@
   //  EINER Funktion: sie laeuft beim Laden und nach dem Speichern. Zwei
   //  Stellen, die dieselben Felder fuellen, liefen sonst auseinander.
   function showClip() {
-    document.title = clip.title + " - Animation Workbench Community";
+    //  Derselbe Titel, den der Server schreibt (web/Seo.kt, clipTitle) -
+    //  Suchmaschinen lesen ihn NACH diesem Skript, und ein anderer hier
+    //  machte die Zeile im Suchergebnis wieder zu "Name - Portal".
+    document.title = clip.title +
+      (/animation/i.test(clip.title) ? " – Free Download (FBX, GLB, Unity)" : " – Free Animation (FBX, GLB, Unity)") +
+      " | Animation Workbench Community";
     document.getElementById("title").textContent = clip.title;
     document.getElementById("description").textContent = clip.description || "No description.";
     //  Ein Starter-Clip hat keinen Ersteller in der Community - er kommt aus

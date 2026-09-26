@@ -74,8 +74,9 @@
   for (const key of ["q", "tag", "author", "sort", "page"]) if (params.get(key)) request.set(key, params.get(key));
   request.set("size", "24");
 
-  //  Die Form der Wand steht, bevor die Daten da sind.
-  AW.placeholderCards(results, 8);
+  //  Die Form der Wand steht, bevor die Daten da sind - es sei denn, der
+  //  Server hat die Karten schon ins HTML geschrieben (PageController).
+  if (!results.children.length) AW.placeholderCards(results, 8);
 
   //  Die WAND, nicht die flache Liste: ohne Suche steht ein Pack als eine
   //  Karte da (CatalogWall). `/api/v1/packages` bleibt fuer die Workbench.

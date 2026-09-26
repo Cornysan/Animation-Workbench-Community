@@ -122,6 +122,11 @@ class ShellModel(
          * Vorschau in einem Chat ist etwas anderes als ein Treffer bei Google.
          */
         val noindex: Boolean = true,
+        /**
+         * Mit [noindex]: den Links der Seite trotzdem folgen. Fuer Suchergebnisse -
+         * die Seite selbst gehoert in keinen Index, die Clips darauf schon.
+         */
+        val follow: Boolean = false,
     )
 
     /**

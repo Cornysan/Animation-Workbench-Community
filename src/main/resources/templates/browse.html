@@ -23,7 +23,7 @@
   <!-- Keine sichtbare Ueberschrift, keine Erklaerzeile (Pablo, 2026-09-24):
        der helle Reiter oben sagt, wo man ist, und darunter steht gleich die
        Ware - wie bei Mixamo. Die h1 bleibt fuer Screenreader im Dokument. -->
-  <h1 class="visually-hidden">Animations</h1>
+  <h1 class="visually-hidden" th:text="${catalogHeading} ?: 'Animations'">Animations</h1>
 
   <div class="filters">
     <div class="segmented" id="sort" role="group" aria-label="Sort"></div>
@@ -33,7 +33,26 @@
   <!-- Die Schlagworte, die es hier wirklich gibt - gefuellt aus /api/v1/overview. -->
   <div class="tag-bar" id="tag-bar" hidden></div>
 
-  <div id="results" class="grid"></div>
+  <!--
+    Die erste Seite der Wand steht schon im HTML (PageController.animations):
+    schlichte Karten mit Titel, Person und Dauer, damit Suchmaschinen die
+    Clips finden und der Besucher beim Laden Inhalt sieht statt grauer
+    Balken. browse.js ersetzt sie durch die lebenden Karten.
+  -->
+  <div id="results" class="grid">
+    <th:block th:each="c : ${wallItems}">
+      <article class="card static-card" th:if="${c != null}">
+        <div class="card-stage">
+          <span class="card-flag" th:if="${c.clips != null}" th:text="|${c.clips} clips|">Pack</span>
+          <span class="card-duration" th:text="${c.duration}">1.00 s</span>
+        </div>
+        <div class="card-body">
+          <a class="card-title" th:href="${c.href}" th:title="${c.title}" th:text="${c.title}">Title</a>
+          <div class="card-meta"><a class="card-author" th:href="${c.authorHref}" th:text="${c.author}">Author</a></div>
+        </div>
+      </article>
+    </th:block>
+  </div>
   <div id="empty"></div>
   <div class="pager" id="pager"></div>
 </main>

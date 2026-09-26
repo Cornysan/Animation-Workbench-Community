@@ -37,7 +37,9 @@
 <head th:fragment="head(title)">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title th:text="|${title} - Animation Workbench Community|">Animation Workbench Community</title>
+  <!-- `pageTitle` setzt der PageController dort, wo der Titel die Zeile im
+       Suchergebnis ist (Startseite, Schlagwort, Clip, Pack - web/Seo.kt). -->
+  <title th:text="${pageTitle != null} ? ${pageTitle} : |${title} - Animation Workbench Community|">Animation Workbench Community</title>
   <link rel="icon" href="/favicon.ico">
   <link rel="stylesheet" th:href="|${@buildStamp.assets}/app.css|">
 
@@ -74,7 +76,7 @@
   <meta name="aw-characters" th:attr="content=${charactersEnabled}">
 
   <meta name="description" th:attr="content=${meta.description}">
-  <meta name="robots" content="noindex, nofollow" th:if="${meta.noindex}">
+  <meta name="robots" th:if="${meta.noindex}" th:attr="content=${meta.follow} ? 'noindex, follow' : 'noindex, nofollow'">
 
   <!--
     WOHIN "Sign in" FUEHRT. Es stand an fuenf Stellen fest verdrahtet auf
@@ -107,6 +109,13 @@
   <meta name="twitter:title" th:attr="content=${meta.title}">
   <meta name="twitter:description" th:attr="content=${meta.description}">
   <meta name="twitter:image" th:attr="content=${meta.image}" th:if="${meta.image}">
+
+  <!--
+    Strukturierte Daten (web/Seo.kt). Kein Skript, das laeuft - ein
+    Datenblock, den die Content Security Policy nicht betrifft. Der Inhalt ist
+    so geschrieben, dass er das Element nicht beenden kann (Seo.jsonLd).
+  -->
+  <script type="application/ld+json" th:if="${jsonLd != null}" th:utext="${jsonLd}"></script>
 </head>
 
 <body>

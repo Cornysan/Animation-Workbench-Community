@@ -45,8 +45,8 @@ class SearchIndexingTest {
 
     @Test
     fun `a page names its canonical address and is not noindex`() {
-        val page = mvc.get("/?tag=walk&sort=popular").andReturn().response.contentAsString
-        assertTrue("""<link rel="canonical" href="https://portal.test/">""" in page, "filters are views of the same page")
+        val page = mvc.get("/?sort=popular").andReturn().response.contentAsString
+        assertTrue("""<link rel="canonical" href="https://portal.test/">""" in page, "a sort order is a view of the same page")
         assertFalse("noindex" in page, "indexing is on")
 
         val terms = mvc.get("/terms.html").andReturn().response.contentAsString
