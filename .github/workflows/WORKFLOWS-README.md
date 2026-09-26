@@ -1,6 +1,17 @@
 # GitHub Actions
 
-Ein Workflow: `ci-cd.yml`. Er laeuft bei jedem Push auf jeden Branch.
+Zwei Workflows:
+
+- `ci-cd.yml` baut und testet bei jedem Push auf jeden Branch (unten).
+- `uptime.yml` fragt alle zehn Minuten `www.playmations.com` und
+  `/actuator/health`. Schlaegt das dreimal hintereinander fehl, scheitert der
+  Lauf - und GitHub schickt dafuer von sich aus eine Mail an die Person, die
+  die cron-Zeile zuletzt geaendert hat. Mit dem Secret `UPTIME_DISCORD_WEBHOOK`
+  kommt zusaetzlich eine Discord-Nachricht.
+
+## ci-cd.yml
+
+Er laeuft bei jedem Push auf jeden Branch.
 
 | Schritt | Was |
 |---|---|

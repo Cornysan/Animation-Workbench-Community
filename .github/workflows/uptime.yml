@@ -1,0 +1,59 @@
+name: Uptime
+
+# -------------------------------------------------------------------
+# Antwortet www.playmations.com? Alle zehn Minuten von aussen gefragt.
+#
+# Warum hier und nicht auf dem Server: ein Server, der ausgefallen ist, kann
+# nicht mehr melden, dass er ausgefallen ist. Die Meldungen des Portals selbst
+# (AlertService) gehen nur bei Meldungen und Takedowns raus.
+#
+# WIE MAN DAVON ERFAEHRT: ein fehlgeschlagener Lauf eines zeitgesteuerten
+# Workflows schickt GitHub von sich aus per Mail an die Person, die die
+# cron-Zeile zuletzt geaendert hat - keine Einrichtung noetig. Wer zusaetzlich
+# eine Discord-Nachricht will, legt das Secret UPTIME_DISCORD_WEBHOOK an
+# (Settings > Secrets and variables > Actions); ohne Secret bleibt es bei der
+# Mail.
+#
+# GitHub startet zeitgesteuerte Laeufe nach Moeglichkeit puenktlich, unter Last
+# auch einige Minuten spaeter - fuer "ist die Seite seit einer Stunde weg" reicht
+# das. Und: ein oeffentliches Repo ohne Commits schaltet zeitgesteuerte
+# Workflows nach 60 Tagen ab; GitHub schreibt vorher eine Mail.
+# -------------------------------------------------------------------
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      SITE: https://www.playmations.com
+      WEBHOOK: ${{ secrets.UPTIME_DISCORD_WEBHOOK }}
+    steps:
+      - name: Seite und Health antworten
+        run: |
+          # Drei Versuche mit Pause: ein einzelnes Aussetzen (Neustart beim
+          # Ausrollen dauert rund 20 Sekunden) ist noch kein Ausfall.
+          for attempt in 1 2 3; do
+            health=$(curl -s -o health.json -w '%{http_code}' --max-time 15 "$SITE/actuator/health" || echo 000)
+            page=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$SITE/" || echo 000)
+            if [ "$health" = "200" ] && grep -q '"status":"UP"' health.json && [ "$page" = "200" ]; then
+              echo "Portal antwortet (Versuch $attempt)."
+              exit 0
+            fi
+            echo "Versuch $attempt: health=$health, Startseite=$page"
+            [ "$attempt" -lt 3 ] && sleep 45
+          done
+          echo "::error::$SITE antwortet nicht (health=$health, Startseite=$page)"
+          exit 1
+
+      - name: Discord benachrichtigen
+        if: failure() && env.WEBHOOK != ''
+        run: |
+          run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          payload=$(printf '{"content":"www.playmations.com antwortet nicht. %s","allowed_mentions":{"parse":[]}}' "$run_url")
+          curl -s -o /dev/null -H 'Content-Type: application/json' -d "$payload" "$WEBHOOK"
