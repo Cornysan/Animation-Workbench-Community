@@ -83,6 +83,48 @@ class AwclipReaderTest {
         assertEquals("not-utf8", assertIs<AwclipReadResult.Rejected>(result).error.code)
     }
 
+    /**
+     * Die Datei aus dem Sicherheitscheck vom 2026-09-27: 125 KB gzip, entpackt
+     * 63 MB - ein einziges Schluessel-Array aus Nullen. Vorher baute der Parser
+     * sie ganz als Baum auf und warf nach 0,12 s einen OutOfMemoryError; die
+     * Grenze fuer Array-Laengen haelt sie jetzt nach 100 000 Eintraegen an.
+     */
+    @Test
+    fun `a huge array is stopped while parsing, not after`() {
+        val head = """{"format":"awclip","version":1,"manifest":{"title":"x","tags":[],"license":"CC0-1.0",""" +
+            """"rig":"humanoid","frameRate":30,"duration":1},"origin":"own","curves":[{"attribute":"Head Nod Down-Up","keys":["""
+        val key = "[0,0,0,0],".toByteArray()
+        val out = ByteArrayOutputStream()
+        GZIPOutputStream(out).use { gzip ->
+            gzip.write(head.toByteArray())
+            var written = head.length.toLong()
+            while (written < 63L * 1024 * 1024) { gzip.write(key); written += key.size }
+            gzip.write("[0,0,0,0]]}]}".toByteArray())
+        }
+
+        val started = System.nanoTime()
+        val result = AwclipReader.readFile(out.toByteArray().inputStream())
+        assertEquals("json-too-large", assertIs<AwclipReadResult.Rejected>(result).error.code)
+        assert((System.nanoTime() - started) / 1_000_000 < 5_000) { "took too long" }
+    }
+
+    @Test
+    fun `parse limits count every value and every array item`() {
+        fun code(json: String, limits: StrictJson.Limits) = try {
+            StrictJson.parse(json, limits); null
+        } catch (ex: StrictJson.JsonException) {
+            ex.code
+        }
+
+        assertEquals(null, code("[1,2,3]", StrictJson.Limits(maxValues = 4, maxArrayLength = 3)))
+        assertEquals("json-too-large", code("[1,2,3]", StrictJson.Limits(maxValues = 3)))
+        assertEquals("json-too-large", code("[[1],[2],[3,4]]", StrictJson.Limits(maxArrayLength = 1)))
+        //  Die Grenzen der .awclip lassen jede gueltige Datei durch - das
+        //  groesste gueltige Array sind die Schluessel einer Kurve.
+        assert(AwclipSchema.MAX_JSON_ARRAY_LENGTH >= AwclipSchema.MAX_KEYS_PER_CURVE)
+        assert(AwclipSchema.MAX_JSON_VALUES >= AwclipSchema.MAX_KEYS_TOTAL * 8L)
+    }
+
     @Test
     fun `strict json edge cases`() {
         fun code(json: String) = try {

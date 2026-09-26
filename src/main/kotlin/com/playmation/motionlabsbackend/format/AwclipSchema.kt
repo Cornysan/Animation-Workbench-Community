@@ -54,6 +54,22 @@ object AwclipSchema {
     const val KEY_TIME_TOLERANCE = 1e-3
 
     const val MAX_PREVIEW_FRAMES = 3600
+
+    /**
+     * Grenzen fuer den JSON-Leser, die schon beim Lesen greifen
+     * ([StrictJson.Limits]). Abgeleitet, nicht geschaetzt - keine gueltige
+     * Datei kommt darueber:
+     *   laengstes Array: die Schluessel einer Kurve ([MAX_KEYS_PER_CURVE]);
+     *     Kurven (2 000), Vorschau-Bilder (3 600) und Knochen (128) sind kuerzer.
+     *   Werte: je Schluessel das Array und bis zu sieben Zahlen, dazu die
+     *     Vorschau (je Bild ein Array und vier Zahlen je Knochen, die Huefte)
+     *     und etwas Luft fuer Kopf, Kurven und Namen.
+     */
+    const val MAX_JSON_ARRAY_LENGTH = MAX_KEYS_PER_CURVE
+    val MAX_JSON_VALUES: Long =
+        MAX_KEYS_TOTAL.toLong() * 8 +
+            MAX_PREVIEW_FRAMES.toLong() * (MAX_PREVIEW_BONES * 4 + 1 + 4) +
+            100_000
     const val MAX_PREVIEW_FRAME_RATE = 60.0
 
     /**

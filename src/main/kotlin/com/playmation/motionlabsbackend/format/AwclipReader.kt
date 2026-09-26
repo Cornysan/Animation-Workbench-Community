@@ -4,7 +4,7 @@ import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.InputStream
 import java.nio.ByteBuffer
-import java.nio.charset.CharacterCodingException
+import java.nio.CharBuffer
 import java.nio.charset.CodingErrorAction
 import java.util.zip.GZIPInputStream
 import java.util.zip.ZipException
@@ -75,15 +75,31 @@ object AwclipReader {
         val error = AwclipError(code, path, message)
     }
 
-    fun readFile(input: InputStream): AwclipReadResult = try {
-        readJson(decompress(input))
-    } catch (reject: Reject) {
-        AwclipReadResult.Rejected(reject.error)
+    /**
+     * EINE DATEI NACH DER ANDEREN. Eine gueltige Datei an den Schema-Grenzen
+     * belegt beim Lesen einige hundert Megabyte (Text plus Baum); zwei davon
+     * gleichzeitig passen nicht in den Speicher des Servers. Hochgeladen wird
+     * selten - wer wartet, wartet Sekunden, und niemand kann mit parallelen
+     * Uploads den Speicher fuellen.
+     */
+    private val oneAtATime = java.util.concurrent.Semaphore(1, true)
+
+    private val jsonLimits = StrictJson.Limits(AwclipSchema.MAX_JSON_VALUES, AwclipSchema.MAX_JSON_ARRAY_LENGTH)
+
+    fun readFile(input: InputStream): AwclipReadResult {
+        oneAtATime.acquire()
+        return try {
+            readJson(decompress(input))
+        } catch (reject: Reject) {
+            AwclipReadResult.Rejected(reject.error)
+        } finally {
+            oneAtATime.release()
+        }
     }
 
     fun readJson(json: String): AwclipReadResult = try {
         val root = try {
-            StrictJson.parse(json)
+            StrictJson.parse(json, jsonLimits)
         } catch (ex: StrictJson.JsonException) {
             throw Reject(ex.code, "", ex.message ?: "")
         }
@@ -100,7 +116,7 @@ object AwclipReader {
         if (bounded.readNBytes(magic, 0, 2) != 2 || magic[0] != 0x1f.toByte() || magic[1] != 0x8b.toByte())
             throw Reject("not-gzip", "", "Not a gzip stream")
 
-        val raw = ByteArrayOutputStream()
+        val raw = Collector()
         try {
             GZIPInputStream(java.io.SequenceInputStream(magic.inputStream(), bounded)).use { gzip ->
                 val buffer = ByteArray(1 shl 16)
@@ -121,15 +137,31 @@ object AwclipReader {
             throw Reject("not-gzip", "", ex.message ?: "Unreadable gzip stream")
         }
 
-        return try {
-            Charsets.UTF_8.newDecoder()
-                .onMalformedInput(CodingErrorAction.REPORT)
-                .onUnmappableCharacter(CodingErrorAction.REPORT)
-                .decode(ByteBuffer.wrap(raw.toByteArray()))
-                .toString()
-        } catch (ex: CharacterCodingException) {
-            throw Reject("not-utf8", "", "Content is not valid UTF-8")
+        //  UTF-8 PRUEFEN, OHNE DEN TEXT DOPPELT ANZULEGEN. Vorher: der Puffer
+        //  kopiert (`toByteArray`), dann als UTF-16 dekodiert (doppelte Groesse),
+        //  dann noch einmal als String - fuer 63 MB rund 380 MB auf einmal,
+        //  und das VOR dem Parser (gemessen 2026-09-27). Jetzt laeuft der
+        //  Decoder stueckweise durch einen kleinen, wiederverwendeten Puffer
+        //  und meldet nur, ob alles gueltig ist; den String baut danach Java
+        //  selbst - bei ASCII-Inhalt kompakt, ein Byte je Zeichen.
+        val decoder = Charsets.UTF_8.newDecoder()
+            .onMalformedInput(CodingErrorAction.REPORT)
+            .onUnmappableCharacter(CodingErrorAction.REPORT)
+        val bytes = ByteBuffer.wrap(raw.buffer(), 0, raw.size())
+        val chunk = CharBuffer.allocate(1 shl 16)
+        while (true) {
+            val step = decoder.decode(bytes, chunk, true)
+            if (step.isError) throw Reject("not-utf8", "", "Content is not valid UTF-8")
+            if (step.isUnderflow) break
+            chunk.clear()
         }
+
+        return String(raw.buffer(), 0, raw.size(), Charsets.UTF_8)
+    }
+
+    /** Ein Puffer, der seinen Inhalt herausgibt, statt ihn zu kopieren. */
+    private class Collector : ByteArrayOutputStream(1 shl 16) {
+        fun buffer(): ByteArray = buf
     }
 
     private class BoundedInputStream(private val inner: InputStream, private val limit: Long) : InputStream() {

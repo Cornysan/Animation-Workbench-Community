@@ -54,5 +54,13 @@ USER spring:spring
 EXPOSE 8080
 
 
+# Bei Speichermangel beenden statt halb weiterzulaufen: ein OutOfMemoryError
+# kann jeden Faden treffen, auch einen, der danach fehlt, und der Prozess
+# bedient dann still weiter - nur schlechter. Beendet startet Docker ihn neu
+# (restart: unless-stopped). JDK_JAVA_OPTIONS statt JAVA_TOOL_OPTIONS, weil die
+# Compose-Datei auf dem Server JAVA_TOOL_OPTIONS schon setzt; der java-Starter
+# liest beide.
+ENV JDK_JAVA_OPTIONS="-XX:+ExitOnOutOfMemoryError"
+
 # Run the application
 ENTRYPOINT ["java", "-jar", "app.jar"]

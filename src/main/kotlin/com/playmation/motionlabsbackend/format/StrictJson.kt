@@ -27,11 +27,42 @@ object StrictJson {
         }
     }
 
+    /**
+     * Ein Array aus lauter Zahlen, als EIN double[] statt als Objekt je Zahl.
+     *
+     * Eine .awclip besteht fast nur daraus: jeder Schluessel ist ein Array aus
+     * vier oder sieben Zahlen, jedes Vorschau-Bild eines aus vier Zahlen je
+     * Knochen. Als Objekte kostet eine Zahl rund 28 Byte, hier acht - bei zwei
+     * Millionen Schluesseln der Unterschied zwischen einigen hundert Megabyte
+     * und gut hundertfuenfzig. Nach aussen bleibt es eine List<Value>; wer liest,
+     * merkt nichts.
+     */
+    private class NumberList(private val values: DoubleArray) : AbstractList<Value>(), RandomAccess {
+        override val size: Int get() = values.size
+        override fun get(index: Int): Value = Value.Number(values[index])
+    }
+
     class JsonException(val code: String, message: String, val position: Int) :
         RuntimeException("$message (at $position)")
 
-    fun parse(text: String): Value {
-        val parser = Parser(text)
+    /**
+     * Obergrenzen, die schon WAEHREND des Lesens greifen.
+     *
+     * Ohne sie baut der Parser jedes Dokument ganz als Baum auf, und erst der
+     * Leser dahinter (AwclipReader) zaehlt Kurven und Schluessel. Gemessen am
+     * 2026-09-27: eine praeparierte .awclip von 125 KB (entpackt 63 MB, ein
+     * einziges Array aus Nullen) warf nach 0,12 s einen OutOfMemoryError - der
+     * Baum war laengst zu gross, bevor irgendeine Grenze gefragt wurde.
+     *
+     * Gueltige Dateien erreichen diese Grenzen nie (siehe AwclipSchema); sie
+     * lehnen nur ab, was die Schema-Grenzen ohnehin verletzt - nur frueher und
+     * mit dem Code `json-too-large`. Die Workbench (AWStrictJson.cs) kennt sie
+     * nicht, und das ist in Ordnung: sie schreibt solche Dateien nicht.
+     */
+    class Limits(val maxValues: Long = Long.MAX_VALUE, val maxArrayLength: Int = Int.MAX_VALUE)
+
+    fun parse(text: String, limits: Limits = Limits()): Value {
+        val parser = Parser(text, limits)
         parser.skipWhitespace()
         val value = parser.parseValue(0)
         parser.skipWhitespace()
@@ -39,8 +70,9 @@ object StrictJson {
         return value
     }
 
-    private class Parser(private val text: String) {
+    private class Parser(private val text: String, private val limits: Limits) {
         private var pos = 0
+        private var values = 0L
         private val sb = StringBuilder()
 
         val atEnd get() = pos >= text.length
@@ -58,6 +90,7 @@ object StrictJson {
         fun parseValue(depth: Int): Value {
             if (depth > MAX_DEPTH) throw error("json-depth", "Nesting deeper than $MAX_DEPTH")
             if (atEnd) throw error("json-syntax", "Unexpected end of document")
+            if (++values > limits.maxValues) throw error("json-too-large", "More than ${limits.maxValues} values")
 
             return when (val c = text[pos]) {
                 '{' -> parseObject(depth)
@@ -121,6 +154,8 @@ object StrictJson {
             while (true) {
                 skipWhitespace()
                 items.add(parseValue(depth + 1))
+                if (items.size > limits.maxArrayLength)
+                    throw error("json-too-large", "An array with more than ${limits.maxArrayLength} items")
 
                 skipWhitespace()
                 if (atEnd) throw error("json-syntax", "Unterminated array")
@@ -129,6 +164,11 @@ object StrictJson {
                 if (c == ']') break
                 if (c != ',') throw error("json-syntax", "Expected ',' or ']'")
             }
+
+            //  Lauter Zahlen: kompakt ablegen (NumberList). Die Objekte oben sind
+            //  kurzlebig und verschwinden mit der naechsten kleinen Sammlung.
+            if (items.all { it is Value.Number })
+                return Value.Arr(NumberList(DoubleArray(items.size) { (items[it] as Value.Number).value }))
 
             return Value.Arr(items)
         }
