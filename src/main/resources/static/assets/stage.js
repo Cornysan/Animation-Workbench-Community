@@ -760,7 +760,11 @@ export class MannequinStage {
     //  Die Karten im Katalog zeigen kein Raster, nur Boden und Horizont
     //  (card-stage.js) - auf 206 Pixeln ist ein Raster Unruhe, keine Auskunft.
     this.hasGrid = options.grid !== false;
-    this.cameraFollow = true;
+
+    //  Die Kamera steht fest, bis man "Follow" einschaltet (viewer-ui.js, C).
+    //  Mitgefuehrt wackelte das ganze Bild bei jeder Geste mit, weil die
+    //  Huefte auch im Stand pendelt. Wo sie hinschaut: [placeCamera].
+    this.cameraFollow = options.follow === true;
 
     this.yaw = options.yaw ?? Math.PI - 0.55;
     this.pitch = options.pitch ?? 0.2;
@@ -1302,6 +1306,26 @@ export class MannequinStage {
     if (this.figureHeight) this.height = Math.max(this.height, this.figureHeight);
 
     this.target = new Vector3(0, this.height * 0.5, 0);
+
+    //  DER WEG DER HUEFTE, fuer die feste Kamera: die Mitte seiner Box und wie
+    //  weit sich die Huefte am weitesten davon entfernt. Die Mitte in den
+    //  Einheiten der Quelle wie `hips` in [placeCamera], der Radius in Metern
+    //  der Buehne.
+    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    for (const frame of this.solved.positions) {
+      const p = frame[0];
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+      if (p.z < minZ) minZ = p.z;
+      if (p.z > maxZ) maxZ = p.z;
+    }
+    this.travelCenter = new Vector3((minX + maxX) * 0.5, 0, (minZ + maxZ) * 0.5);
+    this.travelRadius = 0;
+    for (const frame of this.solved.positions) {
+      const p = frame[0];
+      this.travelRadius = Math.max(this.travelRadius,
+        Math.hypot(p.x - this.travelCenter.x, p.z - this.travelCenter.z) * this.scale);
+    }
 
     this.offsetY = 0;
     this.offsetY = -this.measureFloor();
@@ -1971,7 +1995,10 @@ export class MannequinStage {
   }
 
   placeCamera(hips) {
-    const follow = this.cameraFollow ? hips : new Vector3(0, 0, 0);
+    //  Fest heisst: auf die Mitte des Weges, den die Huefte im Clip geht -
+    //  nicht auf den Ursprung. Ein Clip, der neben dem Ursprung steht, stand
+    //  sonst am Rand.
+    const follow = this.cameraFollow ? hips : this.travelCenter;
     this.target.set(follow.x * this.scale, this.height * 0.52, follow.z * this.scale).add(this.pan);
 
     // Schein und Schatten wandern mit, damit der Lichtkegel unter der Figur
@@ -1985,10 +2012,20 @@ export class MannequinStage {
     // Abstand aus beiden Massen: die Figur soll stehen, ohne oben anzustossen,
     // und in einer schmalen Buehne auch nicht seitlich.
     const half = Math.tan((this.camera.fov * Math.PI) / 360);
-    const distance = Math.max(
+    const aspect = Math.max(0.35, this.camera.aspect);
+    let distance = Math.max(
       (this.height * 0.70) / half,
-      (this.height * 0.46) / half / Math.max(0.35, this.camera.aspect),
-    ) / this.zoom;
+      (this.height * 0.46) / half / aspect,
+    );
+    //  STEHT DIE KAMERA FEST, MUSS DER GANZE WEG INS BILD, sonst laeuft ein
+    //  Clip mit Root Motion aus der Karte, die keinen Follow-Knopf hat. Dazu
+    //  eine gute Drittel Figur Rand fuer die Arme am Ende des Weges. Eine
+    //  Geste auf der Stelle bleibt, wie sie war: ihr Weg ist ein paar
+    //  Zentimeter lang.
+    if (!this.cameraFollow) {
+      distance = Math.max(distance, (this.travelRadius + this.height * 0.35) / half / aspect);
+    }
+    distance /= this.zoom;
     //  Gemerkt fuer [panBy]: wie viele Meter ein Pixel misst, haengt daran.
     this.distance = distance;
     const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);

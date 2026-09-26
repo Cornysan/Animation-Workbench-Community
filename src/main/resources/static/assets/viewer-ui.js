@@ -256,7 +256,7 @@ export async function mountViewer(box, preview, options = {}) {
     try {
       stage = await createMannequinStage(canvas, preview, {
         onFrame, autoplay: options.autoplay, proportions: rememberedProportions(),
-        figure: own,
+        figure: own, follow: options.follow,
       });
     } catch (error) {
       failure = error;
@@ -271,6 +271,7 @@ export async function mountViewer(box, preview, options = {}) {
       try {
         stage = await createMannequinStage(canvas, preview, {
           onFrame, autoplay: options.autoplay, proportions: rememberedProportions(),
+          follow: options.follow,
         });
       } catch (error) {
         // Kein WebGL, kein Modell, kein Drama: das Strichmaennchen kann das auch.
@@ -377,8 +378,10 @@ export async function mountViewer(box, preview, options = {}) {
   const remount = async (nextId) => {
     rememberFigure(nextId);
     const playing = stage.playing;
+    //  Follow bleibt, wie man es gestellt hat - die neue Figur zeigt denselben Clip.
+    const follow = stage.cameraFollow;
     destroy();
-    await mountViewer(box, preview, { ...options, figureId: nextId, autoplay: playing });
+    await mountViewer(box, preview, { ...options, figureId: nextId, autoplay: playing, follow });
   };
 
   if (mode === 'mannequin') {
@@ -387,7 +390,7 @@ export async function mountViewer(box, preview, options = {}) {
 
     const meshToggle = hudButton('mesh', 'Skeleton (T)', true);
     const gridToggle = hudButton('grid', 'Grid (G)', true);
-    const followToggle = hudButton('follow', 'Camera follow (C)', true);
+    const followToggle = hudButton('follow', 'Camera follow (C)', stage.cameraFollow);
     const resetButton = hudButton('reset', 'Reset camera (R)');
 
     const setMesh = (on) => {

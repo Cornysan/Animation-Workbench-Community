@@ -161,6 +161,23 @@ class SkeletonViewer {
     this.height = Math.max(0.5, maxY - minY);
     this.extent = maxExtent;
 
+    //  Der Weg der Huefte, fuer die feste Kamera in [draw]: die Mitte seiner
+    //  Box und wie weit sich die Huefte davon entfernt. Wie auf der Buehne
+    //  (stage.js, travelCenter).
+    let hx0 = Infinity, hx1 = -Infinity, hz0 = Infinity, hz1 = -Infinity;
+    for (const frame of this.worldFrames) {
+      const p = frame[0];
+      if (p[0] < hx0) hx0 = p[0];
+      if (p[0] > hx1) hx1 = p[0];
+      if (p[2] < hz0) hz0 = p[2];
+      if (p[2] > hz1) hz1 = p[2];
+    }
+    this.travel = { cx: (hx0 + hx1) / 2, cz: (hz0 + hz1) / 2, radius: 0 };
+    for (const frame of this.worldFrames) {
+      const p = frame[0];
+      this.travel.radius = Math.max(this.travel.radius, Math.hypot(p[0] - this.travel.cx, p[2] - this.travel.cz));
+    }
+
     //  Die ganze Box ueber alle Bilder - fuer alles, was keine aufrechte Figur
     //  ist. Eine Tuer haengt an ihrer Angel und steht damit NEBEN dem
     //  Ursprung, ein Kranarm liegt quer: auf die Wurzel zentriert und nach der
@@ -283,21 +300,21 @@ class SkeletonViewer {
 
     const frame = Math.min(this.frameCount - 1, Math.round(this.time * this.fps));
     const points = this.worldFrames[frame];
-    const hips = points[0];
-
-    //  Aufrecht: die Kamera folgt der Hüfte waagerecht, damit Laufzyklen im
-    //  Bild bleiben, und die Figur füllt rund 84 % der Höhe - in schmalen
-    //  Karten aber nicht seitlich oder unten anstoßend.
+    //  Aufrecht: die Kamera steht fest über der Mitte des Weges, den die
+    //  Hüfte im Clip geht, und die Figur füllt rund 84 % der Höhe - in
+    //  schmalen Karten aber nicht seitlich oder unten anstoßend. Mitgeführt
+    //  wackelte das Bild bei jeder Geste mit (wie auf der Bühne, stage.js).
+    //  Läuft der Clip weit, wird eingepasst, bis der ganze Weg im Bild ist.
     //
     //  Generisch: die Mitte der Box statt der Wurzel, und eingepasst in BEIDE
     //  Richtungen. Sonst entscheidet der Zufall, wo der Ursprung des Rigs
     //  liegt, über die Bildmitte.
     const target = this.humanoid
-      ? [hips[0], this.floorY + this.height * 0.5, hips[2]]
+      ? [this.travel.cx, this.floorY + this.height * 0.5, this.travel.cz]
       : [this.box.cx, this.box.cy, this.box.cz];
 
     const scale = (this.humanoid
-      ? Math.min(h * 0.84, w * 0.62) / this.height
+      ? Math.min(h * 0.84, w * 0.62, w * 0.46 * this.height / (this.travel.radius + this.height * 0.35)) / this.height
       : Math.min(h * 0.84 / this.box.height, w * 0.78 / this.box.girth)) * this.zoom;
 
     const cy = Math.cos(this.yaw), sy = Math.sin(this.yaw);
