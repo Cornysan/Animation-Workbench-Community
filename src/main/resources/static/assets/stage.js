@@ -94,9 +94,9 @@
 
 import {
   ACESFilmicToneMapping, Box3, BufferAttribute, BufferGeometry, CanvasTexture, Color,
-  DirectionalLight, GLTFLoader, Group, cloneSkinned, HemisphereLight, LineBasicMaterial, LineSegments,
+  DirectionalLight, GLTFLoader, Group, cloneSkinned, HemisphereLight,
   Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, PerspectiveCamera,
-  PlaneGeometry, Points, PointsMaterial, Quaternion, SRGBColorSpace, Scene, ShadowMaterial,
+  PlaneGeometry, Quaternion, SRGBColorSpace, Scene, ShadowMaterial,
   Vector3, WebGLRenderer,
 } from './vendor/three.module.js';
 import { measuredRestPose } from './rest-pose.js';
@@ -314,6 +314,48 @@ const SWING_TO_TPOSE = /^(Left|Right)(UpperArm|LowerArm|UpperLeg|LowerLeg)$/;
 
 /** Feine Knochen - dieselbe Unterscheidung wie im Strichmaennchen. */
 const DETAIL = /^(Left|Right)(Thumb|Index|Middle|Ring|Little)/;
+
+/** Was das Skelett nicht zeigt: Augen und Kiefer sind Gesicht, nicht Bewegung. */
+const HIDDEN_BONE = /^(LeftEye|RightEye|Jaw)$/;
+
+//  Die Oktaeder des Skeletts (MannequinStage.buildSkeleton). Ring und Breite
+//  wie in Blender: der Ring sitzt bei 10 % der Laenge, sein Radius ist 10 %
+//  der Laenge. Laengen in Koerperhoehen, damit eine grosse Figur keine
+//  duennen Knochen bekommt.
+const OCTA_RING = 0.1;
+const OCTA_WIDTH = 0.1;
+/** Untergrenze des Radius - Fingerglieder wuerden sonst zu Nadeln. */
+const OCTA_MIN = 0.004;
+/** Obergrenze - ein Oberschenkel soll kein Kreisel werden. */
+const OCTA_MAX = 0.028;
+/** Der Kopfknochen hat kein Kind; so lang zeigt er ueber den Hals hinaus. */
+const HEAD_LENGTH = 0.11;
+/** Radius der Gelenkkugeln. */
+const JOINT_SIZE = 0.0085;
+/** Wie hell die Seitenfarben auf dem Skelett stehen (1 = wie im Katalog). */
+const SKELETON_TINT = 1.0;
+/** Acht Dreiecke je Oktaeder. */
+const OCTA_VERTS = 24;
+
+//  Die Gelenkkugel: ein Ikosaeder - zwanzig Flaechen, facettiert wie die
+//  Knochen daneben, und rund genug, dass man es als Kugel liest.
+const GOLDEN = (1 + Math.sqrt(5)) / 2;
+const GEM_POINTS = (() => {
+  const raw = [
+    -1, GOLDEN, 0, 1, GOLDEN, 0, -1, -GOLDEN, 0, 1, -GOLDEN, 0,
+    0, -1, GOLDEN, 0, 1, GOLDEN, 0, -1, -GOLDEN, 0, 1, -GOLDEN,
+    GOLDEN, 0, -1, GOLDEN, 0, 1, -GOLDEN, 0, -1, -GOLDEN, 0, 1,
+  ];
+  const length = Math.hypot(1, GOLDEN);
+  return raw.map((v) => v / length);
+})();
+const GEM_FACES = [
+  0, 11, 5, 0, 5, 1, 0, 1, 7, 0, 7, 10, 0, 10, 11,
+  1, 5, 9, 5, 11, 4, 11, 10, 2, 10, 7, 6, 7, 1, 8,
+  3, 9, 4, 3, 4, 2, 3, 2, 6, 3, 6, 8, 3, 8, 9,
+  4, 9, 5, 2, 4, 11, 6, 2, 10, 8, 6, 7, 9, 8, 1,
+];
+const GEM_VERTS = GEM_FACES.length;
 
 /**
  * Knochen, die in ihrer Bindepose bleiben, statt der Vorschau zu folgen -
@@ -706,23 +748,6 @@ function gridTexture(size = 64) {
   return (groundTextures.grid = texture);
 }
 
-let dotTextureCache = null;
-
-/** PointsMaterial zeichnet Quadrate; ein Gelenk ist rund. */
-function dotTexture() {
-  if (!dotTextureCache) {
-    const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = 64;
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.arc(32, 32, 30, 0, Math.PI * 2);
-    ctx.fill();
-    dotTextureCache = new CanvasTexture(canvas);
-  }
-  return dotTextureCache;
-}
-
 let modelPromise = null;
 
 /** Das Modell wird einmal geladen und danach geklont - zwei Buehnen auf einer
@@ -816,7 +841,7 @@ export class MannequinStage {
 
     this.buildScene(gltf);
     this.applyProportions();
-    this.buildSkeletonLines();
+    this.buildSkeleton();
     this.bindRetarget();
     this.applyLook();
     liveStages.add(this);
@@ -1744,76 +1769,189 @@ export class MannequinStage {
     return union.min.y;
   }
 
-  /** Das Strichmaennchen, in der Buehne: dieselben Seitenfarben wie im
-   *  Katalog, nur als Linien im Raum statt auf einer 2D-Leinwand. */
-  buildSkeletonLines() {
-    const pairs = [];
-    this.preview.parents.forEach((p, i) => { if (p >= 0) pairs.push([p, i]); });
-    this.linePairs = pairs;
+  /**
+   * DAS SKELETT ALS OKTAEDER, wie Blenders "Octahedral" und der Pose Edit der
+   * Workbench (AWBoneOctahedron.cs): je Knochen eine Doppelpyramide vom
+   * Eltern- zum Kindgelenk, breit am Anfang, spitz am Ende - man sieht, wohin
+   * ein Knochen zeigt, und die Flaechen fangen das Licht der Buehne. Dazu eine
+   * kleine Kugel an jedem Gelenk. Vorher waren es Striche und runde Punkte,
+   * und der Kopf ein grosser Punkt.
+   *
+   * EIN NETZ FUER ALLES. Das gebuendelte three.js hat kein InstancedMesh; ein
+   * Netz, dessen Ecken je Bild neu stehen, ist bei rund sechzig Knochen ohnehin
+   * das Billigste: gut dreitausend Ecken, eine Zeichnung.
+   *
+   * Die Augen und der Kiefer bleiben weg: zwei Stifte, die aus dem Kopf
+   * ragen, sagen ueber eine Koerperbewegung nichts (Pablo, 2026-09-26).
+   */
+  buildSkeleton() {
+    const bones = this.preview.bones;
+    const parents = this.preview.parents;
+    const hidden = (i) => HIDDEN_BONE.test(bones[i]);
 
+    //  Ein Knochen je Verbindung Eltern -> Kind. Er gehoert dem Eltern-
+    //  gelenk (von dort aus zeigt er, dessen Drehung gibt die Rolle), die
+    //  Farbe kommt vom Kind - dieselbe Seitenzuordnung wie bisher bei den
+    //  Strichen: die Beckenknochen zur Huefte gehoeren zu ihrer Seite.
+    const segments = [];
+    parents.forEach((p, i) => {
+      if (p < 0 || hidden(i) || hidden(p)) return;
+      segments.push({ from: p, to: i, roll: p, name: bones[i] });
+    });
+
+    //  Der Kopf hat kein Kind, das ihn zeigt - er bekommt einen eigenen
+    //  Knochen bis zum Scheitel, in der Richtung vom Hals her.
+    const head = bones.indexOf('Head');
+    if (head >= 0 && parents[head] >= 0) {
+      segments.push({ from: head, to: -1, roll: head, name: 'Head', along: parents[head] });
+    }
+    this.boneSegments = segments;
+
+    //  Gelenkkugeln nur an den grossen Gelenken: dreissig Kugeln um jede Hand
+    //  waeren Rauschen (dieselbe Entscheidung wie vorher bei den Punkten).
+    this.jointIndex = bones.map((_, i) => i).filter((i) => !hidden(i) && !DETAIL.test(bones[i]));
+
+    const vertices = segments.length * OCTA_VERTS + this.jointIndex.length * GEM_VERTS;
     const geometry = new BufferGeometry();
-    geometry.setAttribute('position', new BufferAttribute(new Float32Array(pairs.length * 6), 3));
-    //  Die Farben setzt [colorLines], sobald das Thema feststeht.
-    geometry.setAttribute('color', new BufferAttribute(new Float32Array(pairs.length * 6), 3));
+    geometry.setAttribute('position', new BufferAttribute(new Float32Array(vertices * 3), 3));
+    geometry.setAttribute('normal', new BufferAttribute(new Float32Array(vertices * 3), 3));
+    //  Die Farben setzt [colorSkeleton], sobald das Thema feststeht.
+    geometry.setAttribute('color', new BufferAttribute(new Float32Array(vertices * 3), 3));
 
-    // Ohne `toneMapped: false` laufen die Seitenfarben durch ACES und kommen
-    // als zwei Grautoene heraus - die Unterscheidung links/rechts waere weg.
-    this.lines = new LineSegments(
-      geometry,
-      new LineBasicMaterial({ vertexColors: true, toneMapped: false }),
-    );
-    this.lines.frustumCulled = false;
-    this.lines.visible = false;
-    this.scene.add(this.lines);
-
-    // Gelenke als Punkte, der Kopf groesser - ein Strichmaennchen ohne Kopf
-    // liest sich nicht. Die feinen Fingerknochen bleiben aus: 30 Punkte um
-    // jede Hand sind nur Rauschen (dieselbe Entscheidung wie im Katalog).
-    const shown = this.preview.bones
-      .map((name, i) => ({ name, i }))
-      .filter(({ name }) => !DETAIL.test(name));
-    this.dotIndex = shown.map(({ i }) => i);
-
-    const points = (count, size) => {
-      const geometry = new BufferGeometry();
-      geometry.setAttribute('position', new BufferAttribute(new Float32Array(count * 3), 3));
-      const mesh = new Points(geometry, new PointsMaterial({
-        color: 0xeeecf3,
-        size,
-        sizeAttenuation: true,
-        map: dotTexture(),
-        alphaTest: 0.5,
-        transparent: true,
-        toneMapped: false,
-      }));
-      mesh.frustumCulled = false;
-      mesh.visible = false;
-      this.scene.add(mesh);
-      return mesh;
-    };
-
-    // Der Kopf braucht eine eigene Groesse; PointsMaterial kennt nur eine je
-    // Wolke, also sind es zwei.
-    this.dots = points(shown.length, 0.055);
-    this.headDot = points(1, 0.19);
-    this.headIndex = this.preview.bones.indexOf('Head');
+    this.skeleton = new Mesh(geometry, new MeshStandardMaterial({
+      vertexColors: true,
+      roughness: 0.42,
+      metalness: 0.0,
+      //  Ohne das laufen die Seitenfarben durch ACES und kommen blass heraus -
+      //  links und rechts waeren schwer zu trennen. Die Helligkeit regelt
+      //  statt dessen die Beleuchtung der Buehne.
+      toneMapped: false,
+    }));
+    this.skeleton.frustumCulled = false;
+    this.skeleton.visible = false;
+    this.scene.add(this.skeleton);
   }
 
-  /** Seitenfarben der Strichfigur: links Violett, rechts der Warmton, die Mitte
-   *  im Ton des Themas - auf hellem Grund waere das helle Grau unsichtbar. */
-  colorLines(look) {
-    const attribute = this.lines.geometry.getAttribute('color');
+  /** Seitenfarben: links Violett, rechts der Warmton, die Mitte im Ton des
+   *  Themas - auf hellem Grund waere das helle Grau unsichtbar. Die
+   *  Gelenkkugeln etwas heller als ihr Knochen, damit man die Glieder zaehlt. */
+  colorSkeleton(look) {
+    const attribute = this.skeleton.geometry.getAttribute('color');
+    const array = attribute.array;
     const left = new Color(ACCENT), right = new Color(WARM), mid = new Color(look.bone);
-    this.linePairs.forEach(([, i], n) => {
-      const name = this.preview.bones[i];
-      const base = name.startsWith('Left') ? left : name.startsWith('Right') ? right : mid;
-      const fine = DETAIL.test(name);
-      const c = base.clone().multiplyScalar(fine ? 0.45 : 1);
-      for (let v = 0; v < 2; v++) c.toArray(attribute.array, n * 6 + v * 3);
-    });
+    const white = new Color(0xffffff);
+    const sideOf = (name) => (name.startsWith('Left') ? left : name.startsWith('Right') ? right : mid);
+
+    let at = 0;
+    const fill = (color, count) => {
+      for (let v = 0; v < count; v++) { color.toArray(array, at); at += 3; }
+    };
+
+    for (const segment of this.boneSegments) {
+      fill(sideOf(segment.name).clone().multiplyScalar(SKELETON_TINT), OCTA_VERTS);
+    }
+    for (const i of this.jointIndex) {
+      fill(sideOf(this.preview.bones[i]).clone().lerp(white, 0.45).multiplyScalar(SKELETON_TINT), GEM_VERTS);
+    }
     attribute.needsUpdate = true;
-    this.dots.material.color.setHex(look.dot);
-    this.headDot.material.color.setHex(look.dot);
+  }
+
+  /** Die Oktaeder und Kugeln an die Gelenke dieses Bildes stellen. */
+  placeSkeleton(pos, rot) {
+    const geometry = this.skeleton.geometry;
+    const positions = geometry.getAttribute('position').array;
+    const normals = geometry.getAttribute('normal').array;
+    const t = this._skeletonTemp || (this._skeletonTemp = {
+      head: new Vector3(), tail: new Vector3(), axis: new Vector3(), side: new Vector3(),
+      up: new Vector3(), ref: new Vector3(), center: new Vector3(),
+      ring: [new Vector3(), new Vector3(), new Vector3(), new Vector3()],
+      a: new Vector3(), b: new Vector3(), c: new Vector3(), n: new Vector3(), e1: new Vector3(), e2: new Vector3(),
+    });
+    const scale = this.scale;
+    const lift = this.offsetY;
+    const place = (out, i) => out.set(pos[i].x * scale, pos[i].y * scale + lift, pos[i].z * scale);
+
+    let at = 0;
+    //  Ein Dreieck mit seiner Flaechennormalen - nach aussen gedreht, vom
+    //  Mittelpunkt `inside` weg. So stimmt die Wickelung, egal in welcher
+    //  Reihenfolge die Ecken kommen.
+    const triangle = (a, b, c, inside) => {
+      t.e1.subVectors(b, a);
+      t.e2.subVectors(c, a);
+      t.n.crossVectors(t.e1, t.e2);
+      const outward = t.n.x * (a.x - inside.x) + t.n.y * (a.y - inside.y) + t.n.z * (a.z - inside.z);
+      if (outward < 0) { const swap = b; b = c; c = swap; t.n.negate(); }
+      t.n.normalize();
+      put(a); put(b); put(c);
+    };
+    const put = (p) => {
+      positions[at] = p.x; positions[at + 1] = p.y; positions[at + 2] = p.z;
+      normals[at] = t.n.x; normals[at + 1] = t.n.y; normals[at + 2] = t.n.z;
+      at += 3;
+    };
+
+    for (const segment of this.boneSegments) {
+      place(t.head, segment.from);
+      if (segment.to >= 0) {
+        place(t.tail, segment.to);
+      } else {
+        //  Der Kopf: vom Hals her weiter, so lang wie ein Kopf hoch ist.
+        place(t.a, segment.along);
+        t.axis.subVectors(t.head, t.a).normalize();
+        t.tail.copy(t.head).addScaledVector(t.axis, this.height * HEAD_LENGTH);
+      }
+
+      t.axis.subVectors(t.tail, t.head);
+      const length = t.axis.length();
+      if (length < 1e-6) {
+        //  Zwei Gelenke an derselben Stelle: ein Oktaeder ohne Laenge. Die
+        //  Ecken bleiben stehen, damit die Zaehlung stimmt - zusammengefaltet.
+        for (let v = 0; v < OCTA_VERTS; v++) {
+          positions[at] = t.head.x; positions[at + 1] = t.head.y; positions[at + 2] = t.head.z;
+          at += 3;
+        }
+        continue;
+      }
+      t.axis.divideScalar(length);
+
+      //  Die Rolle aus der Drehung des Knochens: der Ring dreht mit, statt zur
+      //  Kamera zu zeigen - wie Blenders Bone-Roll.
+      t.ref.set(0, 0, 1).applyQuaternion(rot[segment.roll]);
+      t.side.crossVectors(t.axis, t.ref);
+      if (t.side.lengthSq() < 1e-6) {
+        t.ref.set(1, 0, 0).applyQuaternion(rot[segment.roll]);
+        t.side.crossVectors(t.axis, t.ref);
+      }
+      t.side.normalize();
+      t.up.crossVectors(t.side, t.axis);
+
+      const radius = Math.min(Math.max(length * OCTA_WIDTH, this.height * OCTA_MIN), this.height * OCTA_MAX);
+      t.center.copy(t.head).addScaledVector(t.axis, length * OCTA_RING);
+      t.ring[0].copy(t.center).addScaledVector(t.side, radius);
+      t.ring[1].copy(t.center).addScaledVector(t.up, radius);
+      t.ring[2].copy(t.center).addScaledVector(t.side, -radius);
+      t.ring[3].copy(t.center).addScaledVector(t.up, -radius);
+
+      for (let k = 0; k < 4; k++) {
+        const r0 = t.ring[k], r1 = t.ring[(k + 1) % 4];
+        triangle(t.head, r0, r1, t.center);
+        triangle(t.tail, r1, r0, t.center);
+      }
+    }
+
+    const jointRadius = this.height * JOINT_SIZE;
+    for (const i of this.jointIndex) {
+      place(t.center, i);
+      for (let f = 0; f < GEM_FACES.length; f += 3) {
+        t.a.fromArray(GEM_POINTS, GEM_FACES[f] * 3).multiplyScalar(jointRadius).add(t.center);
+        t.b.fromArray(GEM_POINTS, GEM_FACES[f + 1] * 3).multiplyScalar(jointRadius).add(t.center);
+        t.c.fromArray(GEM_POINTS, GEM_FACES[f + 2] * 3).multiplyScalar(jointRadius).add(t.center);
+        triangle(t.a, t.b, t.c, t.center);
+      }
+    }
+
+    geometry.getAttribute('position').needsUpdate = true;
+    geometry.getAttribute('normal').needsUpdate = true;
   }
 
   /**
@@ -1841,7 +1979,7 @@ export class MannequinStage {
     if (this.grid) this.grid.material.color.setHex(look.grid);
     this.contact.material.opacity = look.contact;
 
-    this.colorLines(look);
+    this.colorSkeleton(look);
 
     //  Eine stehende Buehne zeichnet nur, wenn sich etwas geaendert hat - das
     //  hier ist so eine Aenderung.
@@ -1854,9 +1992,7 @@ export class MannequinStage {
   set showMesh(on) {
     this._showMesh = on;
     this.figure.visible = on;
-    this.lines.visible = !on;
-    this.dots.visible = !on;
-    this.headDot.visible = !on && this.headIndex >= 0;
+    this.skeleton.visible = !on;
   }
 
   get showGrid() { return this._showGrid; }
@@ -1956,40 +2092,7 @@ export class MannequinStage {
     hips.y += this.offsetY;
     this.hipsBone.position.copy(hips.applyMatrix4(this.hipsParentInverse));
 
-    if (this.dots.visible) {
-      const attr = this.dots.geometry.getAttribute('position');
-      const array = attr.array;
-      this.dotIndex.forEach((i, n) => {
-        array[n * 3] = pos[i].x * this.scale;
-        array[n * 3 + 1] = pos[i].y * this.scale + this.offsetY;
-        array[n * 3 + 2] = pos[i].z * this.scale;
-      });
-      attr.needsUpdate = true;
-
-      if (this.headIndex >= 0) {
-        const head = this.headDot.geometry.getAttribute('position');
-        const p = pos[this.headIndex];
-        head.array[0] = p.x * this.scale;
-        head.array[1] = p.y * this.scale + this.offsetY;
-        head.array[2] = p.z * this.scale;
-        head.needsUpdate = true;
-      }
-    }
-
-    if (this.lines.visible) {
-      const attr = this.lines.geometry.getAttribute('position');
-      const array = attr.array;
-      this.linePairs.forEach(([a, b], n) => {
-        const pa = pos[a], pb = pos[b];
-        array[n * 6] = pa.x * this.scale;
-        array[n * 6 + 1] = pa.y * this.scale + this.offsetY;
-        array[n * 6 + 2] = pa.z * this.scale;
-        array[n * 6 + 3] = pb.x * this.scale;
-        array[n * 6 + 4] = pb.y * this.scale + this.offsetY;
-        array[n * 6 + 5] = pb.z * this.scale;
-      });
-      attr.needsUpdate = true;
-    }
+    if (this.skeleton.visible) this.placeSkeleton(pos, rot);
 
     return pos[0];
   }
