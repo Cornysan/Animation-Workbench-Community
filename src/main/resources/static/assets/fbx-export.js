@@ -23,9 +23,16 @@
  *   Drehung Euler-Winkel in GRAD, nicht Quaternionen. Die Reihenfolge
  *           eEulerXYZ von FBX entspricht 'ZYX' in three.js - deshalb wird
  *           hier mit 'ZYX' aus dem Quaternion gerechnet.
- *   Einheit Zentimeter, `UnitScaleFactor` 100. Das ist die Form, in der Maya,
+ *   Einheit Zentimeter, `UnitScaleFactor` 1. Das ist die Form, in der Maya,
  *           3ds Max und Mixamo ausgeben, und die Unity und Blender beide
  *           richtig umrechnen. Unsere Zahlen stehen in Metern, also mal 100.
+ *
+ *           BIS 2026-09-26 STAND HIER `UnitScaleFactor` 100 - und das heisst
+ *           "eine Einheit der Datei ist ein METER". Mit den Zahlen in
+ *           Zentimetern kam jede Datei hundertfach zu gross an: in Blender
+ *           gemessen die Huefte auf 91,6 m, die Figur 164 m hoch. In Unity
+ *           fiel es nicht auf, solange der Clip als Humanoid importiert
+ *           wurde - Muskelwerte kennen keine Groesse.
  *
  * UND DIE EINE, DIE BIS ZUM 2026-09-24 FEHLTE: die Haendigkeit. Die Vorschau
  * steht in Unitys Raum, und der ist linkshaendig; FBX ist rechtshaendig.
@@ -39,20 +46,27 @@
  * Avatar einer importierten Datei aus ihr. Woher sie kommt, steht in
  * `rest-pose.js`.
  *
+ * Seit 2026-09-26 gibt es auch die Figur als `.fbx` (`characterFbx`, unten) -
+ * das Mannequin mit Netz und Haut, wie "With Skin" bei Mixamo.
+ *
  * Was `.glb` hier besser kann: nichts. Was `.fbx` besser kann: ein Skelett
  * OHNE Netz. glTF kennt Knochen nur ueber eine Haut, und eine Haut braucht
  * ein Netz - ein Skelett allein kommt dort als Haufen leerer Knoten an. FBX
  * hat mit `LimbNode` einen echten Begriff dafuer.
  */
 
-import { Euler, Quaternion } from './vendor/three.module.js';
+import { Euler, Matrix4, Quaternion, Vector3 } from './vendor/three.module.js';
 import { restPose } from './rest-pose.js';
+import { openGlb } from './glb-export.js';
 
 /** FBX-Zeiteinheiten je Sekunde. */
 const TIME_UNIT = 46186158000;
 
 /** Unsere Zahlen sind Meter, die Datei rechnet in Zentimetern. */
 const TO_CM = 100;
+
+/** Und sagt das auch: 1 = eine Einheit der Datei ist ein Zentimeter. */
+const UNIT_SCALE = 1;
 
 /** "Kubisch mit automatischer Tangente" - derselbe Wert wie in der Fremddatei. */
 const KEY_FLAGS = 8456;
@@ -107,6 +121,7 @@ const P = {
   raw: (v) => ({ t: 'R', v }),
   bool: (v) => ({ t: 'C', v: v ? 1 : 0 }),
   floats: (v) => ({ t: 'f', v }),
+  doubles: (v) => ({ t: 'd', v }),
   ints: (v) => ({ t: 'i', v }),
   longs: (v) => ({ t: 'l', v }),
 };
@@ -121,7 +136,7 @@ function propSize(p) {
     case 'S': return 5 + utf8.encode(p.v).byteLength;
     case 'R': return 5 + p.v.byteLength;
     case 'f': case 'i': return 13 + p.v.length * 4;
-    case 'l': return 13 + p.v.length * 8;
+    case 'l': case 'd': return 13 + p.v.length * 8;
     default: throw new Error('unknown property ' + p.t);
   }
 }
@@ -186,12 +201,13 @@ class Writer {
       return;
     }
     //  Felder: Laenge, Kodierung (0 = unverpackt), Bytes, dann die Zahlen.
-    const each = p.t === 'l' ? 8 : 4;
+    const each = p.t === 'l' || p.t === 'd' ? 8 : 4;
     this.u4(p.v.length);
     this.u4(0);
     this.u4(p.v.length * each);
     for (const x of p.v) {
       if (p.t === 'f') this.f4(x);
+      else if (p.t === 'd') this.f8(x);
       else if (p.t === 'i') this.i4(x);
       else this.i8(BigInt(x));
     }
@@ -298,81 +314,49 @@ const prop70 = (name, type, sub, flag, values) =>
 const timeMode = (fps) =>
   ({ 120: 1, 100: 2, 60: 3, 50: 4, 48: 5, 30: 6, 24: 11, 1000: 12 }[fps] || 14);
 
+/** Ein Model-Knoten mit seiner Ruhelage - fuer Knochen, Leerknoten und das Netz dieselbe Form. */
+function model(modelId, name, kind, translation, rotationDeg, scale) {
+  return node('Model', [P.long(modelId), P.str(objectName(name, 'Model')), P.str(kind)], [
+    node('Version', [P.int(232)]),
+    node('Properties70', [], [
+      node('P', [P.str('InheritType'), P.str('enum'), P.str(''), P.str(''), P.int(1)]),
+      node('P', [P.str('DefaultAttributeIndex'), P.str('int'), P.str('Integer'), P.str(''), P.int(0)]),
+      prop70('Lcl Translation', 'Lcl Translation', '', 'A+', translation),
+      prop70('Lcl Rotation', 'Lcl Rotation', '', 'A+', rotationDeg),
+      prop70('Lcl Scaling', 'Lcl Scaling', '', 'A+', scale || [1, 1, 1]),
+    ]),
+    //  Die vier stehen an JEDEM Model einer echten Datei. Sie sagen nichts
+    //  ueber unser Skelett aus - aber eine Form, die ueberall gleich ist,
+    //  gibt einem fremden Leser keinen Anlass, es anders zu machen.
+    node('MultiLayer', [P.int(0)]),
+    node('MultiTake', [P.int(0)]),
+    node('Shading', [P.bool(true)]),
+    node('Culling', [P.str('CullingOff')]),
+  ]);
+}
+
+/** Der Knochen-Anhang an einem `LimbNode`. */
+function limbAttribute(attrId, name) {
+  return node('NodeAttribute', [P.long(attrId), P.str(objectName(name, 'NodeAttribute')), P.str('LimbNode')], [
+    node('TypeFlags', [P.str('Skeleton')]),
+    node('Properties70', [], [
+      node('P', [P.str('Size'), P.str('double'), P.str('Number'), P.str(''), P.double(1)]),
+    ]),
+  ]);
+}
+
 /**
- * Der Clip als Skelett, ohne Netz.
+ * Stapel, Ebene und der Weg, eine Spur daran zu haengen.
  *
- * Genau das, was glTF nicht kann: `LimbNode` ist ein echter Knochen, und ein
- * Importeur baut daraus ein Skelett statt einer Kette leerer Objekte.
+ * Eine Spur ist ein `AnimationCurveNode` mit drei `AnimationCurve` daran.
+ * `KeyAttrFlags`, `KeyAttrDataFloat` und `KeyAttrRefCount` stehen je LAUF,
+ * nicht je Schluessel - ein Lauf ueber alle Schluessel genuegt, und die
+ * Datei wird dadurch erheblich kleiner. Die Fremddatei schrieb einen Lauf
+ * je Schluessel; das ist dieselbe Aussage, nur umstaendlicher.
  */
-export function skeletonFbx(preview, options) {
-  const clipName = (options && options.name) || 'Clip';
-  const bones = preview.bones;
-  const parents = preview.parents;
-  const frames = preview.hips.length;
-  const fps = preview.frameRate || 30;
-
-  let nextId = 1000000;
-  const id = () => nextId++;
-
-  const modelId = bones.map(() => id());
-  const attrId = bones.map(() => id());
+function animation(objects, conn, id, clipName, frames, fps) {
   const stackId = id();
   const layerId = id();
-  const docId = id();
-
-  const objects = [];
-  const connections = [];
-  const conn = (...parts) => connections.push(node('C', parts.map((v) =>
-    typeof v === 'string' ? P.str(v) : P.long(v))));
-
-  const euler = new Euler();
-  const eulerOf = (q) => euler.setFromQuaternion(turn(q), 'ZYX');
-  const eulerAt = (i, f) => eulerOf(preview.rotations[f].slice(i * 4, i * 4 + 4));
-
-  const rest = restPose(preview).rotations;
-
-  // ---- Die Knochen ------------------------------------------------------
-  bones.forEach((bone, i) => {
-    //  Die Ruhelage steht in den Eigenschaften des Knotens, die Kurven
-    //  schreiben sie beim Abspielen ueber. Unity baut den Avatar aus IHR -
-    //  deshalb die T-Pose und nicht Bild 0 (siehe rest-pose.js).
-    const offset = point(preview.rest[i]);
-    const e = eulerOf(rest[i]);
-
-    objects.push(node('Model', [
-      P.long(modelId[i]), P.str(objectName(bone, 'Model')), P.str('LimbNode'),
-    ], [
-      node('Version', [P.int(232)]),
-      node('Properties70', [], [
-        node('P', [P.str('InheritType'), P.str('enum'), P.str(''), P.str(''), P.int(1)]),
-        node('P', [P.str('DefaultAttributeIndex'), P.str('int'), P.str('Integer'), P.str(''), P.int(0)]),
-        prop70('Lcl Translation', 'Lcl Translation', '', 'A+', offset),
-        prop70('Lcl Rotation', 'Lcl Rotation', '', 'A+', [e.x * DEG, e.y * DEG, e.z * DEG]),
-        prop70('Lcl Scaling', 'Lcl Scaling', '', 'A+', [1, 1, 1]),
-      ]),
-      //  Die drei stehen an JEDEM Model einer echten Datei. Sie sagen nichts
-      //  ueber unser Skelett aus - aber eine Form, die ueberall gleich ist,
-      //  gibt einem fremden Leser keinen Anlass, es anders zu machen.
-      node('MultiLayer', [P.int(0)]),
-      node('MultiTake', [P.int(0)]),
-      node('Shading', [P.bool(true)]),
-      node('Culling', [P.str('CullingOff')]),
-    ]));
-
-    objects.push(node('NodeAttribute', [
-      P.long(attrId[i]), P.str(objectName(bone, 'NodeAttribute')), P.str('LimbNode'),
-    ], [
-      node('TypeFlags', [P.str('Skeleton')]),
-      node('Properties70', [], [
-        node('P', [P.str('Size'), P.str('double'), P.str('Number'), P.str(''), P.double(1)]),
-      ]),
-    ]));
-
-    conn('OO', attrId[i], modelId[i]);
-    conn('OO', modelId[i], parents[i] < 0 ? 0 : modelId[parents[i]]);
-  });
-
-  // ---- Die Bewegung -----------------------------------------------------
   const stop = Math.round(((frames - 1) / fps) * TIME_UNIT);
   const times = [];
   for (let f = 0; f < frames; f++) times.push(Math.round((f / fps) * TIME_UNIT));
@@ -392,14 +376,6 @@ export function skeletonFbx(preview, options) {
   ]));
   conn('OO', layerId, stackId);
 
-  /**
-   * Eine Spur: ein `AnimationCurveNode` mit drei `AnimationCurve` daran.
-   *
-   * `KeyAttrFlags`, `KeyAttrDataFloat` und `KeyAttrRefCount` stehen je LAUF,
-   * nicht je Schluessel - ein Lauf ueber alle Schluessel genuegt, und die
-   * Datei wird dadurch erheblich kleiner. Die Fremddatei schrieb einen Lauf
-   * je Schluessel; das ist dieselbe Aussage, nur umstaendlicher.
-   */
   const track = (target, property, channels) => {
     const label = property === 'Lcl Translation' ? 'T' : 'R';
     const cnId = id();
@@ -430,31 +406,30 @@ export function skeletonFbx(preview, options) {
     });
   };
 
-  bones.forEach((bone, i) => {
-    const x = new Float32Array(frames);
-    const y = new Float32Array(frames);
-    const z = new Float32Array(frames);
-    let previous = null;
-    for (let f = 0; f < frames; f++) {
-      const e = eulerAt(i, f);
-      const v = previous ? nearestEuler(previous, e) : [e.x, e.y, e.z];
-      x[f] = v[0] * DEG; y[f] = v[1] * DEG; z[f] = v[2] * DEG;
-      previous = v;
-    }
-    track(modelId[i], 'Lcl Rotation', [x, y, z]);
-  });
+  return { track, stop };
+}
 
-  //  Und die Wurzel wandert. Ohne diese Spur laeuft jeder Schritt auf der
-  //  Stelle - die Beine gehen, die Figur kommt nicht vom Fleck.
-  const rx = new Float32Array(frames);
-  const ry = new Float32Array(frames);
-  const rz = new Float32Array(frames);
+/**
+ * Drehungen je Bild als drei Euler-Kurven in Grad. `quaternionAt(f)` liefert
+ * die Drehung schon im Raum der Datei.
+ */
+function rotationChannels(frames, quaternionAt) {
+  const euler = new Euler();
+  const x = new Float32Array(frames);
+  const y = new Float32Array(frames);
+  const z = new Float32Array(frames);
+  let previous = null;
   for (let f = 0; f < frames; f++) {
-    [rx[f], ry[f], rz[f]] = point(preview.hips[f]);
+    const e = euler.setFromQuaternion(quaternionAt(f), 'ZYX');
+    const v = previous ? nearestEuler(previous, e) : [e.x, e.y, e.z];
+    x[f] = v[0] * DEG; y[f] = v[1] * DEG; z[f] = v[2] * DEG;
+    previous = v;
   }
-  track(modelId[0], 'Lcl Translation', [rx, ry, rz]);
+  return [x, y, z];
+}
 
-  // ---- Die Datei --------------------------------------------------------
+/** Kopf, Einstellungen, Dokument, Definitionen, Objekte, Verbindungen - fuer jede Datei dieselbe Huelle. */
+function fbxFile(objects, connections, clipName, fps, stop, docId) {
   const now = new Date();
   const counts = {};
   for (const o of objects) counts[o.name] = (counts[o.name] || 0) + 1;
@@ -491,8 +466,10 @@ export function skeletonFbx(preview, options) {
         node('P', [P.str('CoordAxisSign'), P.str('int'), P.str('Integer'), P.str(''), P.int(1)]),
         node('P', [P.str('OriginalUpAxis'), P.str('int'), P.str('Integer'), P.str(''), P.int(1)]),
         node('P', [P.str('OriginalUpAxisSign'), P.str('int'), P.str('Integer'), P.str(''), P.int(1)]),
-        node('P', [P.str('UnitScaleFactor'), P.str('double'), P.str('Number'), P.str(''), P.double(TO_CM)]),
-        node('P', [P.str('OriginalUnitScaleFactor'), P.str('double'), P.str('Number'), P.str(''), P.double(TO_CM)]),
+        //  1 = Zentimeter. Die Zahlen stehen in Zentimetern (TO_CM), also sagt
+        //  die Datei das auch - siehe den Kopf dieser Datei zur 100.
+        node('P', [P.str('UnitScaleFactor'), P.str('double'), P.str('Number'), P.str(''), P.double(UNIT_SCALE)]),
+        node('P', [P.str('OriginalUnitScaleFactor'), P.str('double'), P.str('Number'), P.str(''), P.double(UNIT_SCALE)]),
         node('P', [P.str('TimeMode'), P.str('enum'), P.str(''), P.str(''), P.int(timeMode(fps))]),
         node('P', [P.str('CustomFrameRate'), P.str('double'), P.str('Number'), P.str(''), P.double(fps)]),
         node('P', [P.str('TimeSpanStart'), P.str('KTime'), P.str('Time'), P.str(''), P.long(0)]),
@@ -523,4 +500,473 @@ export function skeletonFbx(preview, options) {
     node('Connections', [], connections),
     node('Takes', [], [node('Current', [P.str(clipName)])]),
   ]);
+}
+
+/** Zaehler fuer Kennungen und die Liste der Verbindungen - der Rahmen jeder Datei. */
+function sceneParts() {
+  let nextId = 1000000;
+  const objects = [];
+  const connections = [];
+  return {
+    objects,
+    connections,
+    id: () => nextId++,
+    conn: (...parts) => connections.push(node('C', parts.map((v) =>
+      typeof v === 'string' ? P.str(v) : P.long(v)))),
+  };
+}
+
+/**
+ * Der Clip als Skelett, ohne Netz.
+ *
+ * Genau das, was glTF nicht kann: `LimbNode` ist ein echter Knochen, und ein
+ * Importeur baut daraus ein Skelett statt einer Kette leerer Objekte.
+ */
+export function skeletonFbx(preview, options) {
+  const clipName = (options && options.name) || 'Clip';
+  const bones = preview.bones;
+  const parents = preview.parents;
+  const frames = preview.hips.length;
+  const fps = preview.frameRate || 30;
+
+  const { objects, connections, id, conn } = sceneParts();
+  const modelId = bones.map(() => id());
+  const attrId = bones.map(() => id());
+  const docId = id();
+
+  const euler = new Euler();
+  const eulerOf = (q) => euler.setFromQuaternion(turn(q), 'ZYX');
+  const rest = restPose(preview).rotations;
+
+  // ---- Die Knochen ------------------------------------------------------
+  bones.forEach((bone, i) => {
+    //  Die Ruhelage steht in den Eigenschaften des Knotens, die Kurven
+    //  schreiben sie beim Abspielen ueber. Unity baut den Avatar aus IHR -
+    //  deshalb die T-Pose und nicht Bild 0 (siehe rest-pose.js).
+    const e = eulerOf(rest[i]);
+    objects.push(model(modelId[i], bone, 'LimbNode', point(preview.rest[i]), [e.x * DEG, e.y * DEG, e.z * DEG]));
+    objects.push(limbAttribute(attrId[i], bone));
+    conn('OO', attrId[i], modelId[i]);
+    conn('OO', modelId[i], parents[i] < 0 ? 0 : modelId[parents[i]]);
+  });
+
+  // ---- Die Bewegung -----------------------------------------------------
+  const { track, stop } = animation(objects, conn, id, clipName, frames, fps);
+
+  bones.forEach((bone, i) => {
+    track(modelId[i], 'Lcl Rotation',
+      rotationChannels(frames, (f) => turn(preview.rotations[f].slice(i * 4, i * 4 + 4))));
+  });
+
+  //  Und die Wurzel wandert. Ohne diese Spur laeuft jeder Schritt auf der
+  //  Stelle - die Beine gehen, die Figur kommt nicht vom Fleck.
+  const rx = new Float32Array(frames);
+  const ry = new Float32Array(frames);
+  const rz = new Float32Array(frames);
+  for (let f = 0; f < frames; f++) {
+    [rx[f], ry[f], rz[f]] = point(preview.hips[f]);
+  }
+  track(modelId[0], 'Lcl Translation', [rx, ry, rz]);
+
+  return fbxFile(objects, connections, clipName, fps, stop, docId);
+}
+
+// ---- Mit Figur ------------------------------------------------------------
+
+/*
+ * DIE BEWEGUNG AUF DEM MANNEQUIN, NETZ UND HAUT EINGESCHLOSSEN - wie "With
+ * Skin" bei Mixamo. Bis 2026-09-26 gab es die Figur nur als .glb, und die
+ * liest Unity ohne Zusatzpaket nicht.
+ *
+ * DIE QUELLE IST DIESELBE DATEI, DIE DIE BUEHNE ZEIGT (`aw-mannequin.glb`),
+ * und die Bewegung dieselbe, die `bakeFromStage` fuer die .glb abschreibt.
+ * Nichts wird neu gerechnet oder geschaetzt; es wird nur umgeschrieben.
+ *
+ * DREI POSEN, DIE MAN AUSEINANDERHALTEN MUSS:
+ *   Ruhelage der Knoten  die Avatar-T-Pose (`extras.pose = "tpose"`). Sie wird
+ *                        die Ruhelage der Knochen in der Datei - Unity baut
+ *                        den Humanoid-Avatar aus ihr.
+ *   Bindepose            aus den inversen Bindematrizen der Haut. Sie wird die
+ *                        Bindepose der Datei (`TransformLink`, `BindPose`).
+ *                        Damit verformt die Haut EXAKT wie auf der Buehne -
+ *                        eine Neubindung in der T-Pose waere an Schulter und
+ *                        Daumen sichtbar anders (dort liegen 20-27 Grad
+ *                        zwischen beiden).
+ *   Netzraum             Die .glb speichert das Netz quantisiert (16 Bit, um
+ *                        90 Grad gekippt, der Massstab steckt in den
+ *                        Bindematrizen). So abgeschrieben laege es in der FBX
+ *                        auf dem Ruecken und in falscher Groesse - Umrisse und
+ *                        Sichtbarkeitspruefung eines Importeurs gingen davon
+ *                        aus. Deshalb wird es mit G = (Huefte in Ruhe) x
+ *                        (ihre inverse Bindematrix) aufgerichtet, und jede
+ *                        Bindematrix bekommt G^-1 dazu: J * IBM * G^-1 * G * v
+ *                        ist dieselbe Verformung.
+ *
+ * DER RAUM. Das Mannequin kam aus Unity per Spiegelung an z in die .glb (es
+ * schaut dort nach -z); Unitys FBX-Importeur spiegelt an x. Beides zusammen
+ * ist eine Drehung um 180 Grad um y - und genau die bekommt hier alles
+ * (Punkte (-x, y, -z), Drehungen (-x, y, -z, w), Matrizen R*M*R). Keine
+ * Spiegelung, also bleibt die Wickelrichtung der Dreiecke, und die Figur
+ * steht in Unity wieder so da, wie sie im Paket liegt.
+ */
+
+const GL_BYTE = 5120;
+const GL_UNSIGNED_BYTE = 5121;
+const GL_SHORT = 5122;
+const GL_UNSIGNED_SHORT = 5123;
+const GL_UNSIGNED_INT = 5125;
+const GL_FLOAT = 5126;
+const COMPONENTS = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4, MAT4: 16 };
+
+/** Ein Zahlenfeld der .glb als gewoehnliche Zahlen - mit der Normalisierung, die KHR_mesh_quantization verlangt. */
+function readAccessor(json, binary, index) {
+  const accessor = json.accessors[index];
+  const view = json.bufferViews[accessor.bufferView];
+  const width = COMPONENTS[accessor.type];
+  const type = accessor.componentType;
+  const size = { [GL_BYTE]: 1, [GL_UNSIGNED_BYTE]: 1, [GL_SHORT]: 2, [GL_UNSIGNED_SHORT]: 2,
+    [GL_UNSIGNED_INT]: 4, [GL_FLOAT]: 4 }[type];
+  const stride = view.byteStride || width * size;
+  const start = (view.byteOffset || 0) + (accessor.byteOffset || 0);
+  const data = new DataView(binary.buffer, binary.byteOffset, binary.byteLength);
+
+  const read = {
+    [GL_BYTE]: (at) => data.getInt8(at),
+    [GL_UNSIGNED_BYTE]: (at) => data.getUint8(at),
+    [GL_SHORT]: (at) => data.getInt16(at, true),
+    [GL_UNSIGNED_SHORT]: (at) => data.getUint16(at, true),
+    [GL_UNSIGNED_INT]: (at) => data.getUint32(at, true),
+    [GL_FLOAT]: (at) => data.getFloat32(at, true),
+  }[type];
+  const scale = !accessor.normalized ? null : {
+    [GL_BYTE]: (v) => Math.max(v / 127, -1),
+    [GL_UNSIGNED_BYTE]: (v) => v / 255,
+    [GL_SHORT]: (v) => Math.max(v / 32767, -1),
+    [GL_UNSIGNED_SHORT]: (v) => v / 65535,
+  }[type];
+
+  const out = new Float64Array(accessor.count * width);
+  for (let i = 0; i < accessor.count; i++) {
+    for (let k = 0; k < width; k++) {
+      const v = read(start + i * stride + k * size);
+      out[i * width + k] = scale ? scale(v) : v;
+    }
+  }
+  return out;
+}
+
+/** Knotenname, wie ihn GLTFLoader hinterlaesst - die Buehne kennt nur diesen (siehe glb-export.js). */
+const boneKey = (name) => name.replace(/[[\]./:]/g, '').replace(/\s/g, '_');
+
+/** Die 180-Grad-Drehung um y, in Zentimetern: fuer Punkte, Drehungen, Matrizen. */
+const R_POINT = (x, y, z) => [-x * TO_CM, y * TO_CM, -z * TO_CM];
+const R_TURN = (q) => new Quaternion(-q[0], q[1], -q[2], q[3]).normalize();
+function R_MATRIX(m) {
+  //  R*M*R mit R = diag(-1, 1, -1, 1): Eintrag (i, j) mal s_i * s_j. Dazu die
+  //  Verschiebung in Zentimeter. `elements` ist spaltenweise, also Spalte j.
+  const s = [-1, 1, -1, 1];
+  const e = m.elements.slice();
+  for (let col = 0; col < 4; col++) {
+    for (let row = 0; row < 4; row++) e[col * 4 + row] *= s[row] * s[col];
+  }
+  e[12] *= TO_CM; e[13] *= TO_CM; e[14] *= TO_CM;
+  return e;
+}
+
+/** Linear (glTF) nach sRGB (FBX-Farben sind, was ein Farbwaehler zeigt). */
+const toSrgb = (c) => (c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055);
+
+/**
+ * Das Mannequin mit der Bewegung als `.fbx`.
+ *
+ * @param mannequin die Bytes von `aw-mannequin.glb`
+ * @param tracks    `bakeFromStage(...)` - je Knochen die lokalen Drehungen je
+ *                  Bild (glTF-Raum, wie die Buehne sie setzt), an der Huefte
+ *                  dazu die Verschiebung
+ * @returns `{ bytes, missing }` - wie `injectAnimation`: Spuren, deren Knochen
+ *          es in der Figur nicht gibt, stehen in `missing`.
+ */
+export function characterFbx(mannequin, tracks, options = {}) {
+  const clipName = options.name || 'Clip';
+  const fps = options.frameRate || 30;
+  const frames = options.frames;
+  const { json, binary } = openGlb(mannequin);
+
+  const nodes = json.nodes || [];
+  const skin = json.skins && json.skins[0];
+  const meshIndex = nodes.findIndex((n) => n.mesh !== undefined && n.skin !== undefined);
+  if (!skin || meshIndex < 0) throw new Error('The figure carries no skinned mesh.');
+  const meshNode = nodes[meshIndex];
+  const primitives = json.meshes[meshNode.mesh].primitives;
+
+  const parentOf = new Array(nodes.length).fill(-1);
+  nodes.forEach((n, i) => (n.children || []).forEach((c) => { parentOf[c] = i; }));
+  const jointSet = new Set(skin.joints);
+
+  // ---- Ruhelage der Knoten (glTF-Raum) ---------------------------------
+  const localOf = nodes.map((n) => {
+    const m = new Matrix4();
+    if (n.matrix) return m.fromArray(n.matrix);
+    return m.compose(
+      new Vector3().fromArray(n.translation || [0, 0, 0]),
+      new Quaternion().fromArray(n.rotation || [0, 0, 0, 1]),
+      new Vector3().fromArray(n.scale || [1, 1, 1]));
+  });
+  const worldOf = [];
+  const world = (i) => {
+    if (worldOf[i]) return worldOf[i];
+    const m = parentOf[i] < 0 ? localOf[i].clone() : world(parentOf[i]).clone().multiply(localOf[i]);
+    worldOf[i] = m;
+    return m;
+  };
+
+  // ---- Netzraum aufrichten: G = Huefte in Ruhe x ihre IBM ---------------
+  const ibmData = readAccessor(json, binary, skin.inverseBindMatrices);
+  const ibm = skin.joints.map((_, j) => new Matrix4().fromArray(ibmData, j * 16));
+  const hipsJoint = skin.joints.findIndex((n) => /hips|pelvis/i.test(nodes[n].name || ''));
+  const anchor = hipsJoint >= 0 ? hipsJoint : 0;
+  const G = world(skin.joints[anchor]).clone().multiply(ibm[anchor]);
+  const Ginv = G.clone().invert();
+  //  Normalen mit der Inversen-Transponierten (ohne Verschiebung, danach normiert).
+  const normalG = G.clone().invert().transpose();
+
+  // ---- Das Netz ---------------------------------------------------------
+  //  Alle Teile teilen sich dieselben Ecken (so liegt es in der Datei):
+  //  EINE Geometrie, und je Dreieck steht dabei, welches Material es traegt.
+  const attributes = primitives[0].attributes;
+  for (const p of primitives) {
+    if (p.attributes.POSITION !== attributes.POSITION)
+      throw new Error('The figure parts do not share their vertices.');
+  }
+
+  const positions = readAccessor(json, binary, attributes.POSITION);
+  const normals = attributes.NORMAL !== undefined ? readAccessor(json, binary, attributes.NORMAL) : null;
+  const uvs = attributes.TEXCOORD_0 !== undefined ? readAccessor(json, binary, attributes.TEXCOORD_0) : null;
+  const joints = readAccessor(json, binary, attributes.JOINTS_0);
+  const weights = readAccessor(json, binary, attributes.WEIGHTS_0);
+  const vertexCount = positions.length / 3;
+
+  const vertices = new Float64Array(vertexCount * 3);
+  const vertexNormals = normals ? new Float64Array(vertexCount * 3) : null;
+  const p = new Vector3();
+  for (let v = 0; v < vertexCount; v++) {
+    p.set(positions[v * 3], positions[v * 3 + 1], positions[v * 3 + 2]).applyMatrix4(G);
+    vertices.set(R_POINT(p.x, p.y, p.z), v * 3);
+    if (normals) {
+      p.set(normals[v * 3], normals[v * 3 + 1], normals[v * 3 + 2]).transformDirection(normalG);
+      vertexNormals.set([-p.x, p.y, -p.z], v * 3);
+    }
+  }
+
+  //  Dreiecke: der letzte Eckenindex eines Polygons steht bitweise negiert.
+  const polygonVertexIndex = [];
+  const polygonMaterial = [];
+  primitives.forEach((primitive, materialSlot) => {
+    const indices = readAccessor(json, binary, primitive.indices);
+    for (let t = 0; t < indices.length; t += 3) {
+      polygonVertexIndex.push(indices[t], indices[t + 1], ~indices[t + 2]);
+      polygonMaterial.push(materialSlot);
+    }
+  });
+
+  //  UV je Polygonecke ueber einen Index auf die Ecke: dieselben Werte wie
+  //  die Ecken, nur mit v gekippt (glTF zaehlt von oben, FBX von unten).
+  const uvValues = uvs ? new Float64Array(vertexCount * 2) : null;
+  if (uvs) for (let v = 0; v < vertexCount; v++) {
+    uvValues[v * 2] = uvs[v * 2];
+    uvValues[v * 2 + 1] = 1 - uvs[v * 2 + 1];
+  }
+  const uvIndex = polygonVertexIndex.map((i) => (i < 0 ? ~i : i));
+
+  const { objects, connections, id, conn } = sceneParts();
+  const docId = id();
+
+  // ---- Knoten: Leerknoten und Knochen -----------------------------------
+  const modelIds = nodes.map(() => null);
+  const euler = new Euler();
+  nodes.forEach((n, i) => {
+    if (i === meshIndex) return;
+    modelIds[i] = id();
+  });
+  nodes.forEach((n, i) => {
+    if (i === meshIndex) return;
+    const t = new Vector3();
+    const q = new Quaternion();
+    const s = new Vector3();
+    localOf[i].decompose(t, q, s);
+    const e = euler.setFromQuaternion(R_TURN([q.x, q.y, q.z, q.w]), 'ZYX');
+    const name = n.name || 'Node' + i;
+    const isJoint = jointSet.has(i);
+    objects.push(model(modelIds[i], name, isJoint ? 'LimbNode' : 'Null',
+      R_POINT(t.x, t.y, t.z), [e.x * DEG, e.y * DEG, e.z * DEG], [s.x, s.y, s.z]));
+    if (isJoint) {
+      const attrId = id();
+      objects.push(limbAttribute(attrId, name));
+      conn('OO', attrId, modelIds[i]);
+    }
+    conn('OO', modelIds[i], parentOf[i] < 0 ? 0 : modelIds[parentOf[i]]);
+  });
+
+  // ---- Das Netz als Objekt ----------------------------------------------
+  const meshName = meshNode.name || 'Mesh';
+  const meshModelId = id();
+  const geometryId = id();
+  objects.push(model(meshModelId, meshName, 'Mesh', [0, 0, 0], [0, 0, 0], [1, 1, 1]));
+  //  Das Netz haengt, wo es in der .glb haengt - an einem Knoten ohne
+  //  Drehung. Der glTF-Standard ueberspringt die Lage eines gehaeuteten
+  //  Netzes ohnehin; seine Ecken stehen schon im Raum der Szene.
+  conn('OO', meshModelId, parentOf[meshIndex] < 0 ? 0 : modelIds[parentOf[meshIndex]]);
+
+  const layerElements = [];
+  const geometryKids = [
+    node('Properties70', []),
+    node('GeometryVersion', [P.int(124)]),
+    node('Vertices', [P.doubles(vertices)]),
+    node('PolygonVertexIndex', [P.ints(polygonVertexIndex)]),
+  ];
+  if (vertexNormals) {
+    geometryKids.push(node('LayerElementNormal', [P.int(0)], [
+      node('Version', [P.int(101)]),
+      node('Name', [P.str('')]),
+      node('MappingInformationType', [P.str('ByVertice')]),
+      node('ReferenceInformationType', [P.str('Direct')]),
+      node('Normals', [P.doubles(vertexNormals)]),
+    ]));
+    layerElements.push('LayerElementNormal');
+  }
+  if (uvValues) {
+    geometryKids.push(node('LayerElementUV', [P.int(0)], [
+      node('Version', [P.int(101)]),
+      node('Name', [P.str('UVMap')]),
+      node('MappingInformationType', [P.str('ByPolygonVertex')]),
+      node('ReferenceInformationType', [P.str('IndexToDirect')]),
+      node('UV', [P.doubles(uvValues)]),
+      node('UVIndex', [P.ints(uvIndex)]),
+    ]));
+    layerElements.push('LayerElementUV');
+  }
+  geometryKids.push(node('LayerElementMaterial', [P.int(0)], [
+    node('Version', [P.int(101)]),
+    node('Name', [P.str('')]),
+    node('MappingInformationType', [P.str('ByPolygon')]),
+    node('ReferenceInformationType', [P.str('IndexToDirect')]),
+    node('Materials', [P.ints(polygonMaterial)]),
+  ]));
+  layerElements.push('LayerElementMaterial');
+  geometryKids.push(node('Layer', [P.int(0)], [node('Version', [P.int(100)])].concat(
+    layerElements.map((type) => node('LayerElement', [], [
+      node('Type', [P.str(type)]),
+      node('TypedIndex', [P.int(0)]),
+    ])))));
+
+  objects.push(node('Geometry', [P.long(geometryId), P.str(objectName(meshName, 'Geometry')), P.str('Mesh')],
+    geometryKids));
+  conn('OO', geometryId, meshModelId);
+
+  // ---- Materialien: nur die Farbe - das Mannequin hat keine Texturen ----
+  primitives.forEach((primitive, slot) => {
+    const source = (json.materials || [])[primitive.material] || {};
+    const color = ((source.pbrMetallicRoughness || {}).baseColorFactor || [0.8, 0.8, 0.8, 1]).slice(0, 3).map(toSrgb);
+    const materialId = id();
+    objects.push(node('Material', [P.long(materialId), P.str(objectName(source.name || 'Material' + slot, 'Material')), P.str('')], [
+      node('Version', [P.int(102)]),
+      node('ShadingModel', [P.str('Phong')]),
+      node('MultiLayer', [P.int(0)]),
+      node('Properties70', [], [
+        prop70('DiffuseColor', 'Color', '', 'A', color),
+        prop70('DiffuseFactor', 'Number', '', 'A', [1]),
+        prop70('SpecularColor', 'Color', '', 'A', [0.2, 0.2, 0.2]),
+        prop70('SpecularFactor', 'Number', '', 'A', [0.2]),
+        prop70('ShininessExponent', 'Number', '', 'A', [20]),
+        prop70('Opacity', 'double', 'Number', '', [1]),
+      ]),
+    ]));
+    //  Die Reihenfolge der Verbindungen ist die Nummer des Materials.
+    conn('OO', materialId, meshModelId);
+  });
+
+  // ---- Die Haut ---------------------------------------------------------
+  const skinId = id();
+  objects.push(node('Deformer', [P.long(skinId), P.str(objectName(meshName, 'Deformer')), P.str('Skin')], [
+    node('Version', [P.int(101)]),
+    node('Link_DeformAcuracy', [P.double(50)]),
+  ]));
+  conn('OO', skinId, geometryId);
+
+  //  Gewichte je Gelenk einsammeln: die .glb sagt je Ecke "diese vier",
+  //  FBX je Knochen "diese Ecken".
+  const perJoint = skin.joints.map(() => ({ indexes: [], weights: [] }));
+  for (let v = 0; v < vertexCount; v++) {
+    for (let k = 0; k < 4; k++) {
+      const w = weights[v * 4 + k];
+      if (w <= 0) continue;
+      const slot = perJoint[joints[v * 4 + k]];
+      slot.indexes.push(v);
+      slot.weights.push(w);
+    }
+  }
+
+  const identity = new Matrix4();
+  const bindOf = skin.joints.map((_, j) => G.clone().multiply(ibm[j].clone().invert()));
+  skin.joints.forEach((nodeIndex, j) => {
+    const slot = perJoint[j];
+    if (slot.indexes.length === 0) return;
+    const clusterId = id();
+    objects.push(node('Deformer', [P.long(clusterId), P.str(objectName(nodes[nodeIndex].name || 'Joint' + j, 'SubDeformer')), P.str('Cluster')], [
+      node('Version', [P.int(100)]),
+      node('UserData', [P.str(''), P.str('')]),
+      node('Indexes', [P.ints(slot.indexes)]),
+      node('Weights', [P.doubles(slot.weights)]),
+      //  Wo das Netz beim Binden stand (Ursprung) und wo der Knochen.
+      node('Transform', [P.doubles(R_MATRIX(bindOf[j].clone().invert()))]),
+      node('TransformLink', [P.doubles(R_MATRIX(bindOf[j]))]),
+    ]));
+    conn('OO', clusterId, skinId);
+    conn('OO', modelIds[nodeIndex], clusterId);
+  });
+
+  //  Dieselbe Bindepose noch einmal als `Pose`: Blender baut seine
+  //  Ruheknochen daraus, auch fuer Knochen ohne eigene Ecken.
+  const poseId = id();
+  const poseNodes = [node('PoseNode', [], [
+    node('Node', [P.long(meshModelId)]),
+    node('Matrix', [P.doubles(R_MATRIX(identity))]),
+  ])].concat(skin.joints.map((nodeIndex, j) => node('PoseNode', [], [
+    node('Node', [P.long(modelIds[nodeIndex])]),
+    node('Matrix', [P.doubles(R_MATRIX(bindOf[j]))]),
+  ])));
+  objects.push(node('Pose', [P.long(poseId), P.str(objectName('BindPose', 'Pose')), P.str('BindPose')], [
+    node('Type', [P.str('BindPose')]),
+    node('Version', [P.int(100)]),
+    node('NbPoseNodes', [P.int(poseNodes.length)]),
+  ].concat(poseNodes)));
+
+  // ---- Die Bewegung -----------------------------------------------------
+  const { track, stop } = animation(objects, conn, id, clipName, frames, fps);
+  const byKey = new Map();
+  nodes.forEach((n, i) => { if (n.name && i !== meshIndex) byKey.set(boneKey(n.name), i); });
+
+  const missing = [];
+  for (const t of tracks) {
+    const nodeIndex = byKey.get(boneKey(t.bone));
+    if (nodeIndex === undefined) { missing.push(t.bone); continue; }
+    const target = modelIds[nodeIndex];
+    if (t.rotations) {
+      const r = t.rotations;
+      track(target, 'Lcl Rotation',
+        rotationChannels(frames, (f) => R_TURN([r[f * 4], r[f * 4 + 1], r[f * 4 + 2], r[f * 4 + 3]])));
+    }
+    if (t.translations) {
+      const x = new Float32Array(frames);
+      const y = new Float32Array(frames);
+      const z = new Float32Array(frames);
+      for (let f = 0; f < frames; f++) {
+        [x[f], y[f], z[f]] = R_POINT(t.translations[f * 3], t.translations[f * 3 + 1], t.translations[f * 3 + 2]);
+      }
+      track(target, 'Lcl Translation', [x, y, z]);
+    }
+  }
+  if (missing.length === tracks.length) throw new Error('None of the clip bones exist in this figure.');
+
+  return { bytes: fbxFile(objects, connections, clipName, fps, stop, docId), missing };
 }

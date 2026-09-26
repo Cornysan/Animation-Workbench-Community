@@ -93,10 +93,40 @@ const FORMATS = [
     blocked: () => (signedIn() ? null : signInUrl ? 'Sign in' : 'Unavailable'),
     run: downloadAwclip,
   },
+  //  MIT FIGUR ZUERST - wie "With Skin" bei Mixamo: wer hier ist, will
+  //  meistens erst einmal sehen, wie die Bewegung auf einem Koerper aussieht.
+  //  Bis 2026-09-26 hiessen die Skelette "Animation (.fbx)" - und wer die
+  //  Figur darin erwartete, fand nur Knochen.
+  {
+    id: 'character-fbx',
+    name: 'With character (.fbx)',
+    about: 'The motion on the mannequin, mesh included - for Unity, Blender or Maya.',
+    blocked: characterBlocked,
+    run: () => downloadWithCharacter('fbx'),
+  },
+  {
+    id: 'character',
+    name: 'With character (.glb)',
+    about: 'The motion on the mannequin, mesh included - for Blender or the web.',
+    blocked: characterBlocked,
+    run: () => downloadWithCharacter('glb'),
+  },
+  {
+    id: 'fbx',
+    name: 'Skeleton only (.fbx)',
+    about: 'Bones and motion, no mesh - to put onto your own character.',
+    blocked: previewBlocked,
+    run: async () => {
+      const { preview } = staged;
+      const { skeletonFbx } = await fbxExport();
+      save(skeletonFbx(preview, { name: title() }), safeName(title()) + '.fbx', 'application/octet-stream');
+      toast(preview.hips.length + ' frames, ' + preview.bones.length + ' bones, no mesh.', { kind: 'ok' });
+    },
+  },
   {
     id: 'glb',
-    name: 'Animation (.glb)',
-    about: 'The skeleton and its motion, for your own character.',
+    name: 'Skeleton only (.glb)',
+    about: 'Bones and motion, no mesh - for glTF tools.',
     blocked: previewBlocked,
     run: async () => {
       const { preview } = staged;
@@ -105,35 +135,19 @@ const FORMATS = [
       toast(preview.hips.length + ' frames, ' + preview.bones.length + ' bones, no mesh.', { kind: 'ok' });
     },
   },
-  {
-    id: 'fbx',
-    name: 'Animation (.fbx)',
-    about: 'The same motion as a real skeleton, for Blender, Maya or Unity.',
-    blocked: previewBlocked,
-    run: async () => {
-      const { preview } = staged;
-      const { skeletonFbx } = await fbxExport();
-      save(skeletonFbx(preview, { name: title() }), safeName(title()) + '.fbx', 'application/octet-stream');
-      toast(preview.hips.length + ' frames, ' + preview.bones.length + ' bones, in centimetres as FBX expects.',
-        { kind: 'ok' });
-    },
-  },
-  {
-    id: 'character',
-    name: 'With character (.glb)',
-    about: 'The motion on the mannequin, mesh included.',
-    //  Faellt die Buehne auf das Strichmaennchen zurueck (kein WebGL, ein
-    //  generischer Clip, eine Vorschau, die sich nicht umrechnen laesst),
-    //  gibt es keine Figur herauszuschreiben.
-    blocked: () => previewBlocked() || (staged.viewer && staged.viewer.mode === 'mannequin' ? null : 'No character'),
-    run: downloadWithCharacter,
-  },
 ];
 
 function previewBlocked() {
   if (previewMissing) return 'No preview';
   if (!staged) return 'Loading';
   return null;
+}
+
+//  Faellt die Buehne auf das Strichmaennchen zurueck (kein WebGL, ein
+//  generischer Clip, eine Vorschau, die sich nicht umrechnen laesst), gibt es
+//  keine Figur herauszuschreiben.
+function characterBlocked() {
+  return previewBlocked() || (staged.viewer && staged.viewer.mode === 'mannequin' ? null : 'No character');
 }
 
 async function downloadAwclip() {
@@ -151,7 +165,12 @@ async function downloadAwclip() {
     { kind: 'ok', duration: 9000 });
 }
 
-async function downloadWithCharacter() {
+/**
+ * Die Bewegung auf dem Mannequin - als .glb (die Datei der Buehne mit der
+ * Bewegung darin) oder als .fbx (dieselbe Figur, dieselbe Bewegung, neu
+ * geschrieben: `characterFbx`). Beide lesen die Bewegung von der Buehne ab.
+ */
+async function downloadWithCharacter(format) {
   const { viewer, preview } = staged;
   const stage = viewer.stage;
   const frames = preview.hips.length;
@@ -166,16 +185,23 @@ async function downloadWithCharacter() {
     const { bakeFromStage, injectAnimation } = await glbExport();
     const playing = stage.playing;
     const tracks = bakeFromStage(stage, frames);
-    const { bytes, missing } = injectAnimation(mannequin, tracks, {
-      name: title(), frameRate: preview.frameRate || 30, frames,
-    });
     stage.playing = playing;
     if (stage.invalidate) stage.invalidate();
 
-    save(bytes, safeName(title()) + '_character.glb');
+    const options = { name: title(), frameRate: preview.frameRate || 30, frames };
+    let result;
+    if (format === 'fbx') {
+      const { characterFbx } = await fbxExport();
+      result = characterFbx(mannequin, tracks, options);
+      save(result.bytes, safeName(title()) + '_character.fbx', 'application/octet-stream');
+    } else {
+      result = injectAnimation(mannequin, tracks, options);
+      save(result.bytes, safeName(title()) + '_character.glb');
+    }
+
     dismiss();
     toast(frames + ' frames on the mannequin'
-      + (missing.length ? ', ' + missing.length + ' bones skipped' : '') + '.', { kind: 'ok' });
+      + (result.missing.length ? ', ' + result.missing.length + ' bones skipped' : '') + '.', { kind: 'ok' });
   } catch (error) {
     dismiss();
     throw error;

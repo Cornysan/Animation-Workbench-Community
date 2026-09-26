@@ -204,8 +204,8 @@ export function skeletonGlb(preview, options = {}) {
  */
 const boneKey = (name) => name.replace(/[[\]./:]/g, '').replace(/\s/g, '_');
 
-/** Den Container aufmachen: JSON-Block und Binaerblock einer .glb. */
-function openGlb(bytes) {
+/** Den Container aufmachen: JSON-Block und Binaerblock einer .glb. Auch fuer `characterFbx`. */
+export function openGlb(bytes) {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   if (view.getUint32(0, true) !== MAGIC) throw new Error('That is not a .glb.');
 
