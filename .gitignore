@@ -49,3 +49,9 @@ out/
 ### Probe-Modelle: fremde .fbx/.glb zum Testen des Figuren-Imports.
 ### Gehoeren niemandem von uns und duerfen nirgends ausgeliefert werden.
 .probe/
+
+### Sicherung auf dem PC (backup/README.md): Programm, Zugang, Daten und Logs
+### bleiben lokal - die Sicherungen enthalten personenbezogene Daten.
+/backup/rclone/
+/backup/data/
+/backup/logs/
