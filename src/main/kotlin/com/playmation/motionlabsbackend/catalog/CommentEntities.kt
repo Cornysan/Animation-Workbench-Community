@@ -57,4 +57,7 @@ interface PackageCommentRepository : JpaRepository<PackageComment, UUID> {
     /** Wer unter diesem Clip schon geschrieben hat - fuer "also commented". */
     @Query("select distinct c.accountId from PackageComment c where c.packageId = :packageId and c.status = :status")
     fun participantsOf(packageId: UUID, status: CommentStatus): List<UUID>
+
+    /** Alles, was ein Konto geschrieben hat - fuer den Datenexport. */
+    fun findByAccountIdOrderByCreatedAtAsc(accountId: UUID): List<PackageComment>
 }

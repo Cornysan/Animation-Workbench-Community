@@ -124,7 +124,7 @@ class Notifier(
      * neuen hervorheben kann.
      */
     @Transactional
-    fun inbox(accountId: UUID, limit: Int = 100): List<NotificationView> {
+    fun inbox(accountId: UUID, limit: Int = 100, markRead: Boolean = true): List<NotificationView> {
         val list = notifications.findByAccountIdOrderByCreatedAtDesc(accountId).take(limit)
         val actors = accounts.findAllById(list.mapNotNull { it.actorId }.toSet()).associateBy { it.id }
 
@@ -142,8 +142,10 @@ class Notifier(
             )
         }
 
-        val now = clock.instant()
-        list.filter { it.readAt == null }.forEach { it.readAt = now }
+        if (markRead) {
+            val now = clock.instant()
+            list.filter { it.readAt == null }.forEach { it.readAt = now }
+        }
         return result
     }
 

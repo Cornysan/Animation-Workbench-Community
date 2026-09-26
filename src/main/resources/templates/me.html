@@ -30,6 +30,7 @@
     <a href="#notifications">Notifications</a>
     <a href="#clips-title">Your clips</a>
     <a href="#sign-ins" th:if="${signIns != null}">Ways to sign in</a>
+    <a href="#your-data">Your data</a>
     <a href="#close-account">Closing your account</a>
   </nav>
 
@@ -76,6 +77,17 @@
   <h2>Workbench sign-ins</h2>
   <p class="muted small">Signed in on a computer you no longer use? End every Workbench sign-in of this account.</p>
   <button id="revoke" class="danger">Sign out all Workbench installations</button>
+
+  <!--
+    Art. 15 und 20 DSGVO als Knopf statt als Mail. Ein gewoehnlicher Link: die
+    Antwort ist eine Datei, der Browser speichert sie, und die Seite bleibt
+    stehen.
+  -->
+  <h2 id="your-data">Your data</h2>
+  <p class="muted small">One ZIP file with everything the portal keeps about your account: your profile
+    and sign-ins, your clips as the <code>.awclip</code> files you uploaded, your packs, collections,
+    comments, likes and follows, and your notifications - in JSON, readable by people and programs.</p>
+  <a class="button" id="export" href="/api/v1/me/export" download>Download your data</a>
 
   <h2 id="close-account">Closing your account</h2>
   <p class="muted small">Closing it takes your name, your profile, your collections and your likes

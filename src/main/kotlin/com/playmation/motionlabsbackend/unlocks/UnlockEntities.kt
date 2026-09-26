@@ -57,6 +57,9 @@ interface PackageUnlockRepository : JpaRepository<PackageUnlock, PackageUnlockId
      */
     fun countByAccountId(accountId: UUID): Long
 
+    /** Was ein Konto geholt hat - fuer den Datenexport. */
+    fun findByAccountIdOrderByCreatedAtAsc(accountId: UUID): List<PackageUnlock>
+
     @Query("select u.packageId from PackageUnlock u where u.accountId = :accountId and u.packageId in :packageIds")
     fun unlockedAmong(
         @Param("accountId") accountId: UUID,

@@ -273,5 +273,8 @@ interface PackageVersionRepository : JpaRepository<PackageVersion, UUID> {
 }
 
 interface UploadDeclarationRepository : JpaRepository<UploadDeclaration, UUID> {
+    /** Fuer den Datenexport. */
+    fun findByAccountIdOrderByCreatedAtAsc(accountId: UUID): List<UploadDeclaration>
+
     fun findByIpPseudonymizedFalseAndCreatedAtBefore(before: Instant): List<UploadDeclaration>
 }

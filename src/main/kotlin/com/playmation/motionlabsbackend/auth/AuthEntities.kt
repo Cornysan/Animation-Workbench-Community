@@ -28,6 +28,9 @@ class ApiToken(
 interface ApiTokenRepository : JpaRepository<ApiToken, UUID> {
     fun findByTokenHash(tokenHash: String): ApiToken?
     fun findByAccountIdAndRevokedAtIsNull(accountId: UUID): List<ApiToken>
+
+    /** Auch die beendeten - fuer den Datenexport. */
+    fun findByAccountIdOrderByCreatedAtAsc(accountId: UUID): List<ApiToken>
 }
 
 /**

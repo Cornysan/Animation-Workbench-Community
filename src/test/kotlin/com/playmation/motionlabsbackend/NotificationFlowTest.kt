@@ -19,12 +19,14 @@ import tools.jackson.databind.json.JsonMapper
 import java.io.ByteArrayOutputStream
 import java.util.UUID
 import java.util.zip.GZIPOutputStream
+import java.util.zip.ZipInputStream
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- * Nachrichten mit Absender und Ziel, und die Follower-Liste.
+ * Nachrichten mit Absender und Ziel, die Follower-Liste und der Datenexport.
  *
  * Die Regeln, die hier stehen, kippen sonst still: eine Nachricht nennt den
  * Namen als Link und nicht als Text, Herz an-aus-an ist EINE Nachricht, eine
@@ -234,5 +236,58 @@ class NotificationFlowTest {
 
         mvc.delete("/api/v1/me") { header("Authorization", "Bearer $leavingToken") }.andExpect { status { isOk() } }
         assertEquals(0, inbox(creatorToken).count { it["kind"].asString() == "follow" })
+    }
+
+    // ── Datenexport ─────────────────────────────────────────────────────
+
+    @Test
+    fun `the export is one zip with the data and the uploaded files`() {
+        val name = "exporter" + unique()
+        val token = login(name)
+        val otherToken = login("other" + unique())
+        val mine = upload(token, "Mine")
+        val theirs = upload(otherToken, "Theirs")
+        like(token, theirs, true)
+        comment(token, theirs, "Lovely.")
+        like(otherToken, mine, true)
+
+        val result = mvc.get("/api/v1/me/export") { header("Authorization", "Bearer $token") }
+            .andExpect {
+                status { isOk() }
+                header { string("Content-Type", "application/zip") }
+            }.andReturn().response
+
+        assertTrue(result.getHeader("Content-Disposition")!!.contains("playmations-$name-"))
+
+        val entries = mutableMapOf<String, ByteArray>()
+        ZipInputStream(result.contentAsByteArray.inputStream()).use { zip ->
+            generateSequence { zip.nextEntry }.forEach { entries[it.name] = zip.readBytes() }
+        }
+
+        assertNotNull(entries["README.txt"])
+        val data = json.readTree(entries.getValue("data.json"))
+        assertEquals(name, data["account"]["handle"].asString())
+        assertEquals("dev", data["signIns"][0]["provider"].asString())
+
+        val clip = data["clips"].single()
+        assertEquals(mine, clip["slug"].asString())
+        val file = clip["versions"][0]["file"].asString()
+        assertEquals("clips/$mine-v1.awclip", file)
+        //  Die Datei, wie sie hochgeladen wurde - gzip.
+        val bytes = entries.getValue(file)
+        assertEquals(0x1f, bytes[0].toInt() and 0xff)
+        assertEquals(0x8b, bytes[1].toInt() and 0xff)
+
+        assertEquals(theirs, data["likes"][0]["clip"]["slug"].asString())
+        assertEquals("Lovely.", data["comments"][0]["text"].asString())
+        assertEquals(1, data["uploadDeclarations"].size())
+
+        //  Ohne Anmeldung nichts.
+        mvc.get("/api/v1/me/export").andExpect { status { isUnauthorized() } }
+
+        //  Die Nachricht ueber das Herz steht drin - und der Export liest nur:
+        //  im Postfach ist sie danach noch ungelesen.
+        assertTrue(data["notifications"][0]["message"].asString().endsWith("liked 'Mine'."))
+        assertFalse(inbox(token).first { it["kind"].asString() == "like" }["read"].asBoolean())
     }
 }

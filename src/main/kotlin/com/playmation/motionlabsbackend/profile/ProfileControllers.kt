@@ -4,7 +4,12 @@ import com.playmation.motionlabsbackend.auth.portalPrincipal
 import com.playmation.motionlabsbackend.auth.requirePrincipal
 import com.playmation.motionlabsbackend.catalog.CatalogService
 import com.playmation.motionlabsbackend.common.clientIp
+import com.playmation.motionlabsbackend.config.PortalProperties
 import jakarta.servlet.http.HttpServletRequest
+import org.springframework.http.ContentDisposition
+import org.springframework.http.HttpHeaders
+import org.springframework.http.MediaType
+import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
@@ -70,7 +75,24 @@ class ProfileController(
 class MyProfileController(
     private val profiles: ProfileService,
     private val deletion: AccountDeletionService,
+    private val export: DataExportService,
+    private val properties: PortalProperties,
 ) {
+
+    /**
+     * Die eigenen Daten als ZIP (Art. 15 und 20 DSGVO) - was drin ist, steht
+     * bei [DataExportService]. Ein GET, damit ein gewoehnlicher Link mit
+     * `download` genuegt; lesen aendert nichts, also braucht es kein CSRF.
+     */
+    @GetMapping("/export")
+    fun export(authentication: Authentication?, request: HttpServletRequest): ResponseEntity<ByteArray> {
+        val file = export.export(authentication.requirePrincipal(), properties.publicBaseUrl.trimEnd('/'), request.clientIp())
+        return ResponseEntity.ok()
+            .contentType(MediaType.parseMediaType("application/zip"))
+            .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename(file.fileName).build().toString())
+            .header(HttpHeaders.CACHE_CONTROL, "no-store")
+            .body(file.bytes)
+    }
 
     @PatchMapping("/profile")
     fun edit(

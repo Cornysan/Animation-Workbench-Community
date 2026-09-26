@@ -65,6 +65,9 @@ class BrowserLogin(
 
 interface BrowserLoginRepository : JpaRepository<BrowserLogin, UUID> {
     fun findByTokenHash(tokenHash: String): BrowserLogin?
+
+    /** Fuer den Datenexport. */
+    fun findByAccountIdOrderByCreatedAtAsc(accountId: UUID): List<BrowserLogin>
     fun deleteByAccountIdAndExpiresAtBefore(accountId: UUID, before: Instant)
 }
 

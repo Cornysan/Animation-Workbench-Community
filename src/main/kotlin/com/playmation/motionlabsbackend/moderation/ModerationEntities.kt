@@ -137,6 +137,9 @@ interface ReportRepository : JpaRepository<Report, UUID> {
 
     /** Meldungen gegen ein KONTO - sie haengen an keinem Paket. */
     fun existsByAccountIdAndReporterIdAndStatus(accountId: UUID, reporterId: UUID, status: CaseStatus): Boolean
+
+    /** Was ein Konto selbst gemeldet hat - fuer den Datenexport. */
+    fun findByReporterIdOrderByCreatedAtAsc(reporterId: UUID): List<Report>
 }
 
 interface TakedownRequestRepository : JpaRepository<TakedownRequest, UUID> {
