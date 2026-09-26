@@ -84,7 +84,7 @@ class SitemapController(
         //  seit dort nur noch die eigenen und die gefolgten Sammlungen stehen
         //  (2026-09-25), sieht ein Suchroboter nur den Weg zur Anmeldung. Die
         //  Sammlungen selbst stehen weiter unten einzeln.
-        for (path in listOf("/", "/licenses.html", "/rules.html", "/terms.html",
+        for (path in listOf("/", "/share.html", "/licenses.html", "/rules.html", "/terms.html",
                 "/privacy.html", "/impressum.html"))
             url(path)
 

@@ -82,6 +82,9 @@ class PageController(
     @ModelAttribute("charactersEnabled")
     fun charactersEnabled() = shell.charactersEnabled()
 
+    @ModelAttribute("store")
+    fun store() = shell.store
+
     @ModelAttribute("meta")
     fun defaultMeta() = shell.defaultMeta()
 
@@ -469,6 +472,22 @@ class PageController(
      */
     @GetMapping("/characters.html")
     fun characters(model: Model) = view(model, "characters", active = "characters")
+
+    /**
+     * Wie ein Clip hierher kommt: aus Unity, mit der Animation Workbench. Die
+     * Seite hinter dem Reiter "Share" - und das Ziel jeder leeren Stelle, an
+     * der sonst "noch nichts geteilt" ohne Weg weiter stuende.
+     */
+    @GetMapping("/share.html")
+    fun share(model: Model): String {
+        model.addAttribute("pageTitle", "Share Your Animations - Animation Workbench for Unity | ${Seo.SITE}")
+        model.addAttribute("meta", shell.defaultMeta().copy(
+            title = "Share your animations",
+            description = "Clips come into the Animation Workbench Community from Unity. The free Animation " +
+                "Workbench shares any humanoid clip in two clicks and imports the Community's clips the same way.",
+        ))
+        return view(model, "share", active = "share")
+    }
 
     @GetMapping("/licenses.html")
     fun licenses(model: Model) = view(model, "licenses", active = "licenses")

@@ -1,0 +1,76 @@
+<!doctype html>
+<!--
+  Wie ein Clip hierher kommt.
+
+  Teilen geht nur aus Unity, mit der Animation Workbench - das Portal nimmt
+  keine Dateien im Browser an, weil erst die Workbench aus einem Clip eine
+  .awclip mit Vorschau und Herkunft macht. Bis 2026-09-26 stand das nirgends:
+  wer hier stoeberte und selbst etwas beitragen wollte, fand keinen Weg.
+
+  Die Seite ist kurz: drei Schritte, die zwei Ausgaben, und was sich teilen
+  laesst. Die ausfuehrliche Fassung steht in der Doku der Workbench.
+-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/shell :: head('Share your animations')}"></head>
+<body th:attr="data-signed-in=${user != null}">
+<header th:replace="~{fragments/shell :: header}"></header>
+<main id="main">
+  <div th:replace="~{fragments/shell :: paused}"></div>
+  <div class="prose share-page">
+    <h1>Share your animations</h1>
+    <p class="lead">Clips come into the Community from Unity. The Animation Workbench shares any humanoid
+      clip in your project in two clicks - and brings the Community's clips into your project the same way.</p>
+
+    <ol class="share-steps">
+      <li>
+        <strong>Get the Animation Workbench</strong> from the Unity Asset Store. The free edition shares,
+        browses and imports without limits.
+      </li>
+      <li>
+        <strong>Open the Community</strong> in the Workbench window and sign in - with Discord, GitHub or
+        Google, the same account as here.
+      </li>
+      <li>
+        <strong>Right-click a clip</strong> in the Clips view and choose <em>Share with the Community&hellip;</em>
+        Public clips appear here under CC0: on the wall, on your profile, and for everyone who follows you.
+        Several clips at once become a pack.
+      </li>
+    </ol>
+
+    <div class="edition-cards">
+      <section class="panel edition-card">
+        <h2>Animation Workbench <span class="edition-tag">Free</span></h2>
+        <p>Not a demo: the full Animation Browser, Keyframe Editor, Pose Edit and the Community -
+          share, browse, preview and import.</p>
+        <a class="button primary" th:href="${store.free}" rel="noopener">Get it free</a>
+      </section>
+      <section class="panel edition-card">
+        <h2>Animation Workbench <span class="edition-tag">Pro</span></h2>
+        <p>Everything in Free, plus unlimited layers, versions and events, the Asset Inventory import,
+          more themes and styling, and the C# source code.</p>
+        <a class="button" th:href="${store.pro}" rel="noopener">Get Pro</a>
+      </section>
+    </div>
+
+    <h2>What you can share</h2>
+    <ul>
+      <li>Humanoid clips you made yourself - keyframed or captured.</li>
+      <li>Not clips from Asset Store packs, motion libraries, Mixamo, other games or other members -
+        editing one does not make it yours. The Workbench checks where a clip comes from before it goes up
+        and blocks the ones it recognises.</li>
+      <li><strong>Public</strong> clips are CC0 - anyone may use them, also commercially, without credit.
+        <strong>Private</strong> ones stay yours alone, on the portal and in the Workbench.</li>
+    </ul>
+    <p class="muted">The <a href="/rules.html">community rules</a> say what belongs here, the
+      <a href="https://docs.playmations.com/docs/tools/community" rel="noopener">Workbench documentation</a>
+      walks through the Community view step by step.</p>
+
+    <h2>Without Unity?</h2>
+    <p>Every clip here also downloads as <strong>FBX</strong> or <strong>GLB</strong> - on the mannequin or as a
+      bare skeleton - for Blender, Maya or any other tool. Sharing, though, goes through the Workbench.</p>
+  </div>
+</main>
+<footer th:replace="~{fragments/shell :: footer}"></footer>
+<script th:src="|${@buildStamp.assets}/app.js|"></script>
+</body>
+</html>

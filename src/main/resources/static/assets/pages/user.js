@@ -350,7 +350,8 @@
     if (!page.items.length) {
       return empty(profile.isMe
         ? "You have not shared a clip yet. In the Workbench: right-click a clip, Share with the Community."
-        : profile.displayName + " has not shared a clip yet.");
+        : profile.displayName + " has not shared a clip yet.",
+        profile.isMe ? el("a", { class: "button", href: "/share.html" }, "How to share") : null);
     }
 
     const make = profile.isMe && page.clips >= 2

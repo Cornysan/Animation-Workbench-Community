@@ -49,6 +49,7 @@ class SearchIndexingTest {
         assertTrue("<loc>https://portal.test/</loc>" in sitemap, sitemap)
         assertFalse("<loc>https://portal.test/collections.html</loc>" in sitemap, "without an account the page only asks to sign in")
         assertTrue("<loc>https://portal.test/impressum.html</loc>" in sitemap, sitemap)
+        assertTrue("<loc>https://portal.test/share.html</loc>" in sitemap, sitemap)
     }
 
     @Test

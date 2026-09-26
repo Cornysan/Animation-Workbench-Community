@@ -99,6 +99,9 @@
           sie gerade nicht gehen.
         -->
         <div id="downloads"></div>
+        <!-- Die .awclip ist das Format der Workbench - wer sie laedt, braucht sie. -->
+        <p class="get-hint faint small">In Unity? The free <a th:href="${store.free}" rel="noopener">Animation
+          Workbench</a> imports clips straight from the Community.</p>
       </div>
 
       <dl class="facts" id="facts"><th:block th:each="f : ${clipPage?.facts}"><dt

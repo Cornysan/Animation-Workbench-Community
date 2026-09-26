@@ -169,6 +169,19 @@
       </a>
 
       <!--
+        Clips kommen aus Unity. Der dritte Reiter sagt, wie - und wo es das
+        Werkzeug gibt. Bis 2026-09-26 stand das nirgends auf dem Portal.
+      -->
+      <a href="/share.html" title="Share your animations" class="nav-item"
+         th:classappend="${active == 'share'} ? ' active'">
+        <svg viewBox="0 0 24 24" class="nav-icon" aria-hidden="true" fill="none" stroke="currentColor"
+             stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M12 4v11"></path><path d="m8 8 4-4 4 4"></path><path d="M5 14v5.5h14V14"></path>
+        </svg>
+        <span>Share</span>
+      </a>
+
+      <!--
         Nur wenn der Schalter an ist (Admin-Ansicht). Aus heisst hier wirklich
         aus: kein Eintrag, kein grauer Platzhalter. Die Adresse selbst bleibt
         erreichbar und erklaert sich, weil die Workbench-Doku auf sie zeigt.
@@ -373,6 +386,7 @@
       Nutzungsbedingungen verlinken mit.
     -->
     <nav class="footer-links">
+      <a href="/share.html">Animation Workbench for Unity</a>
       <a href="/rules.html">Community rules</a>
       <a href="/licenses.html">Licenses</a>
       <a href="/takedown.html">Report a rights violation</a>

@@ -78,6 +78,18 @@ class ShellModel(
 
     val devLogin: Boolean get() = portal.devLogin
 
+    /**
+     * Wo es das Werkzeug gibt, mit dem Clips HIERHER kommen. Teilen geht nur
+     * aus Unity - bis 2026-09-26 stand der Weg dorthin nirgends auf dem Portal.
+     * An einer Stelle, weil Kopf, Fuss, Clip-Seite und /share.html sie nennen.
+     */
+    data class StoreLinks(val free: String, val pro: String)
+
+    val store = StoreLinks(
+        free = "https://assetstore.unity.com/packages/3d/gui/animation-workbench-free-edit-pose-preview-animations-383990",
+        pro = "https://assetstore.unity.com/packages/3d/gui/animation-workbench-pro-edit-pose-preview-animations-347928",
+    )
+
     /** Die Knoepfe der Anmeldeseite - nur Anbieter mit eingetragener Client-ID. */
     val signInProviders: List<SignInProvider> get() = providers.enabled
 
@@ -161,6 +173,7 @@ class ShellModel(
         model["buildLabel"] = buildLabel
         model["communityEnabled"] = communityEnabled()
         model["charactersEnabled"] = charactersEnabled()
+        model["store"] = store
         model["meta"] = defaultMeta()
     }
 }

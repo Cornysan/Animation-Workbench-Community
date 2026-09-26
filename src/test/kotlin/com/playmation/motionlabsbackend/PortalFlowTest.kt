@@ -287,7 +287,7 @@ class PortalFlowTest {
             //  Anmeldeseite (SignInFlowTest).
             "/", "/index.html", "/collections.html", "/clip.html", "/licenses.html", "/admin.html",
             "/dev.html", "/link.html", "/rules.html", "/terms.html", "/privacy.html",
-            "/impressum.html", "/takedown.html",
+            "/impressum.html", "/takedown.html", "/share.html",
         )
 
         for (page in pages) {
@@ -296,6 +296,24 @@ class PortalFlowTest {
                 content { contentTypeCompatibleWith(MediaType.TEXT_HTML) }
             }
         }
+    }
+
+    /**
+     * Teilen geht nur aus Unity - also muss das Portal sagen, wo es das
+     * Werkzeug gibt: im Kopf ("Share"), auf /share.html mit beiden Ausgaben,
+     * im Fuss und unter jedem Download-Knopf.
+     */
+    @Test
+    fun `the way to the unity tool is on the portal`() {
+        val share = mvc.get("/share.html").andReturn().response.contentAsString
+        assertTrue("animation-workbench-free-edit-pose-preview-animations-383990" in share, "free edition linked")
+        assertTrue("animation-workbench-pro-edit-pose-preview-animations-347928" in share, "pro edition linked")
+
+        val home = mvc.get("/").andReturn().response.contentAsString
+        assertTrue("""href="/share.html"""" in home, "the header and footer lead there")
+
+        val clip = mvc.get("/clip.html?p=nothing").andReturn().response.contentAsString
+        assertTrue("animation-workbench-free-edit-pose-preview-animations-383990" in clip, "under the download button")
     }
 
     /**
