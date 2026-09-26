@@ -210,6 +210,67 @@ class SignInFlowTest {
         assertTrue(accounts.signIns(account.id).single().profileSource)
     }
 
+    /**
+     * "Use for profile": die Quelle fuer Name und Bild ist waehlbar - aber nur
+     * unter den EIGENEN Anmeldungen, und nur mit dem Konto, das dort
+     * verbunden ist. Wird die gewaehlte geloest, gilt wieder die aelteste.
+     */
+    @Test
+    fun `name and picture can come from a chosen sign-in, and fall back when it goes`() {
+        val githubId = unique()
+        val account = accounts.login(github(githubId))
+        val discordId = (100_000_000_000L + (Math.random() * 1e9).toLong()).toString()
+        val discord = SignIn("discord", discordId, "Nickname", AvatarSources.discord(discordId, "abc123"))
+        accounts.connect(account.id, discord)
+
+        val chosen = accounts.useForProfile(account.id, discord)
+        assertEquals("Nickname", chosen.displayName)
+        assertEquals(AvatarSources.discord(discordId, "abc123"), chosen.avatarUrl)
+        assertEquals(listOf(false, true), accounts.signIns(account.id).map { it.profileSource })
+
+        //  Die aeltere Anmeldung meldet weiter an, aendert aber nichts mehr ...
+        assertEquals("Nickname", accounts.login(github(githubId)).displayName)
+        //  ... die gewaehlte dagegen schon.
+        assertEquals("Renamed", accounts.login(discord.copy(displayName = "Renamed")).displayName)
+
+        //  Ein anderes Discord-Konto als das verbundene ist keine Wahl, sondern ein Versehen.
+        val other = assertFailsWith<PortalException> {
+            accounts.useForProfile(account.id, SignIn("discord", "999${unique().filter { it.isDigit() }}1", "Someone"))
+        }
+        assertEquals("other-identity", other.code)
+
+        val after = accounts.disconnect(account.id, "discord")
+        assertNull(after.avatarUrl)
+        assertNull(after.profileProvider)
+        assertTrue(accounts.signIns(account.id).single().profileSource)
+    }
+
+    @Test
+    fun `returning from the provider with the profile intent switches the source`() {
+        val account = accounts.login(github(unique()))
+        val googleSub = unique()
+        accounts.connect(account.id, SignIn("google", googleSub, "Full Name"))
+        val principal = PortalPrincipal(account.id, account.role, account.displayName)
+        SecurityContextHolder.getContext().authentication = PortalAuthentication(principal)
+
+        val session = MockHttpSession().apply {
+            setAttribute(ConnectIntent.SESSION_KEY,
+                ConnectIntent(account.id, "google", Instant.now().plusSeconds(60), ConnectIntent.PROFILE))
+        }
+        val request = MockHttpServletRequest().apply { setSession(session) }
+        RequestContextHolder.setRequestAttributes(ServletRequestAttributes(request))
+
+        val back = userService.complete("google", mapOf("sub" to googleSub, "name" to "Full Name")) as PortalOAuth2User
+        assertEquals(account.id, back.portalPrincipal.accountId)
+        assertEquals("google", request.getAttribute(ConnectIntent.PROFILE_SET))
+        assertNull(request.getAttribute(ConnectIntent.CONNECTED))
+        assertEquals("Full Name", accountRepository.findById(account.id).get().displayName)
+
+        val response = MockHttpServletResponse()
+        SignInSuccessHandler().onAuthenticationSuccess(request, response, PortalAuthentication(principal))
+        assertEquals("/me.html?profile=google", response.redirectedUrl)
+    }
+
     @Test
     fun `moderator is the account, whichever of its sign-ins is on the list`() {
         //  Im Testprofil steht `dev:admin` auf der Liste - und nichts von GitHub.
@@ -277,6 +338,7 @@ class SignInFlowTest {
         assertEquals("/signin.html?error=failed", redirectFor("invalid_token_response", false))
         assertEquals("/me.html?connect-error=taken", redirectFor("identity_taken", true))
         assertEquals("/me.html?connect-error=cancelled", redirectFor("access_denied", true))
+        assertEquals("/me.html?connect-error=other-account", redirectFor("other_identity", true))
     }
 
     // ── Seiten und Schnittstelle ──────────────────────────────────────────

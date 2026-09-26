@@ -48,11 +48,18 @@ class Account(
      * oder Google, nie das Bild selbst. Ausgeliefert wird es trotzdem nur ueber
      * diesen Server ([avatarPath]); die Adresse verlaesst ihn nicht.
      *
-     * Sie kommt von der Anmeldung, mit der das Konto angelegt wurde (siehe
-     * `AccountService.login`), und wird beim Speichern gegen `AvatarSources`
-     * geprueft. Ohne Bild steht der Buchstabenkreis da.
+     * Sie kommt von der Anmeldung, die Name und Bild liefert - der aeltesten
+     * oder der gewaehlten ([profileProvider], siehe `AccountService.login`),
+     * und wird beim Speichern gegen `AvatarSources` geprueft. Ohne Bild steht der Buchstabenkreis da.
      */
     var avatarUrl: String? = null,
+
+    /**
+     * Von welcher Anmeldung Name und Bild kommen (`discord`, `github`,
+     * `google`), wenn sie jemand auf der Kontoseite gewaehlt hat. Leer = von
+     * der aeltesten, wie vor Schema 15. Siehe `AccountService.profileSource`.
+     */
+    var profileProvider: String? = null,
 
     /**
      * Follower. Abgeleitet aus `account_follow` und in derselben Transaktion

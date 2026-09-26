@@ -148,6 +148,28 @@ class MeController(
         return ConnectResponse("/oauth2/authorization/$provider")
     }
 
+    /**
+     * Name und Bild kuenftig von dieser (schon verbundenen) Anmeldung. Wie
+     * beim Verbinden: ein Vermerk in die Sitzung, und die Seite geht selbst
+     * zum Anbieter. Der nennt Name und Bild frisch - gespeichert sind sie nur
+     * von der bisherigen Quelle (`AccountService.useForProfile`).
+     */
+    @PostMapping("/sign-ins/{provider}/profile")
+    fun useForProfile(@PathVariable provider: String, authentication: Authentication?, request: HttpServletRequest): ConnectResponse {
+        val principal = authentication.requirePrincipal()
+        accounts.requireUsable(principal.accountId)
+
+        if (!providers.isEnabled(provider))
+            throw PortalException.notFound("This sign-in is not offered here.")
+        if (accounts.signIns(principal.accountId).none { it.provider == provider })
+            throw PortalException.notFound("This sign-in is not connected.")
+
+        request.getSession(true).setAttribute(ConnectIntent.SESSION_KEY,
+            ConnectIntent(principal.accountId, provider, Instant.now().plus(ConnectIntent.LIFETIME), ConnectIntent.PROFILE))
+
+        return ConnectResponse("/oauth2/authorization/$provider")
+    }
+
     @DeleteMapping("/sign-ins/{provider}")
     fun disconnect(@PathVariable provider: String, authentication: Authentication?, request: HttpServletRequest): List<SignInRow> {
         val principal = authentication.requirePrincipal()

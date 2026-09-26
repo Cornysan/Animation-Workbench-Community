@@ -49,9 +49,11 @@ data class SignInRow(
     val connected: Boolean,
     val connectedAt: Instant?,
     val lastUsedAt: Instant?,
-    /** Name und Bild kommen von hier - siehe `AccountService.login`. */
+    /** Name und Bild kommen von hier - siehe `AccountService.profileSource`. */
     val profileSource: Boolean,
     val canConnect: Boolean,
+    /** Verbunden, aber nicht die Quelle: "Use for profile" nimmt Name und Bild kuenftig von hier. */
+    val canUseForProfile: Boolean,
     /** Nicht die letzte: ohne Anmeldung kaeme niemand mehr hinein. */
     val canDisconnect: Boolean,
 )
@@ -155,6 +157,7 @@ class SignInProviders(private val registrations: ClientRegistrationRepository) {
                 lastUsedAt = link?.lastUsedAt,
                 profileSource = link?.profileSource == true,
                 canConnect = link == null && isEnabled(id),
+                canUseForProfile = link != null && !link.profileSource && isEnabled(id),
                 canDisconnect = link != null && connected.size > 1,
             )
         }
@@ -224,9 +227,21 @@ object SignInProfiles {
  * verlinken kann. Verbunden wird nur, wer es auf der Kontoseite ausgeloest hat,
  * und nur fuer das Konto, das es ausgeloest hat.
  */
-data class ConnectIntent(val accountId: UUID, val provider: String, val expiresAt: Instant) : Serializable {
+data class ConnectIntent(
+    val accountId: UUID,
+    val provider: String,
+    val expiresAt: Instant,
+    /** [CONNECT] haengt eine neue Anmeldung an, [PROFILE] nimmt Name und Bild von einer verbundenen. */
+    val purpose: String = CONNECT,
+) : Serializable {
     companion object {
         const val SESSION_KEY = "aw.connect-intent"
+
+        const val CONNECT = "connect"
+        const val PROFILE = "profile"
+
+        /** Gesetzt, wenn die Rueckkehr die Profilquelle gewechselt hat - fuer den Handler unten. */
+        const val PROFILE_SET = "aw.profile-set"
 
         /** Gesetzt, solange die Rueckkehr vom Anbieter gerade verbindet - fuer die beiden Handler unten. */
         const val CONNECTING = "aw.connecting"
@@ -262,10 +277,18 @@ class PortalUserService(
             if (intent != null && current != null && intent.accountId == current.accountId &&
                 intent.provider == provider && intent.expiresAt.isAfter(Instant.now())) {
                 httpRequest?.setAttribute(ConnectIntent.CONNECTING, provider)
-                accounts.connect(current.accountId, signIn).also {
-                    httpRequest?.setAttribute(ConnectIntent.CONNECTED, provider)
-                    audit.record(it.id, "account.sign-in.connected", "account", it.id.toString(),
-                        provider, httpRequest?.clientIp())
+                if (intent.purpose == ConnectIntent.PROFILE) {
+                    accounts.useForProfile(current.accountId, signIn).also {
+                        httpRequest?.setAttribute(ConnectIntent.PROFILE_SET, provider)
+                        audit.record(it.id, "account.profile-source", "account", it.id.toString(),
+                            provider, httpRequest?.clientIp())
+                    }
+                } else {
+                    accounts.connect(current.accountId, signIn).also {
+                        httpRequest?.setAttribute(ConnectIntent.CONNECTED, provider)
+                        audit.record(it.id, "account.sign-in.connected", "account", it.id.toString(),
+                            provider, httpRequest?.clientIp())
+                    }
                 }
             } else {
                 accounts.login(signIn)
@@ -303,12 +326,14 @@ class SignInSuccessHandler : SavedRequestAwareAuthenticationSuccessHandler() {
 
     override fun onAuthenticationSuccess(request: HttpServletRequest, response: HttpServletResponse, authentication: Authentication) {
         val connected = request.getAttribute(ConnectIntent.CONNECTED) as? String
-        if (connected == null) {
+        val profile = request.getAttribute(ConnectIntent.PROFILE_SET) as? String
+        if (connected == null && profile == null) {
             super.onAuthenticationSuccess(request, response, authentication)
             return
         }
         clearAuthenticationAttributes(request)
-        redirectStrategy.sendRedirect(request, response, "/me.html?connected=$connected")
+        redirectStrategy.sendRedirect(request, response,
+            if (profile != null) "/me.html?profile=$profile" else "/me.html?connected=$connected")
     }
 }
 
@@ -338,6 +363,7 @@ class SignInFailureHandler : AuthenticationFailureHandler {
             "account_banned", "forbidden" -> "banned"
             "identity_taken" -> "taken"
             "provider_connected" -> "provider-connected"
+            "other_identity" -> "other-account"
             else -> "failed"
         }
 

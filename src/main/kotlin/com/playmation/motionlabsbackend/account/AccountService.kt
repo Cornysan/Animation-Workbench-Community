@@ -49,10 +49,11 @@ class AccountService(
      * dieser Anmeldung finden oder anlegen. Gesperrte Konten kommen nicht
      * herein.
      *
-     * Name und Bild zieht NUR die Anmeldung nach, mit der das Konto angelegt
-     * wurde - so wie bisher Discord. Eine spaeter verbundene laesst beides
-     * stehen: wer sein Konto zusaetzlich mit Google verbindet, hat damit nicht
-     * darum gebeten, dass dort sein Klarname erscheint.
+     * Name und Bild zieht NUR die Quelle nach ([profileSource]): die
+     * Anmeldung, mit der das Konto angelegt wurde, oder die, die jemand auf
+     * der Kontoseite dafuer gewaehlt hat. Jede andere laesst beides stehen:
+     * wer sein Konto zusaetzlich mit Google verbindet, hat damit nicht darum
+     * gebeten, dass dort sein Klarname erscheint.
      *
      * Moderator wird, wessen Konto IRGENDEINE Anmeldung aus
      * `portal.admin-discord-ids` traegt - bei jedem Login neu ausgewertet,
@@ -161,20 +162,57 @@ class AccountService(
         //  eines Kontos, das nicht mehr dazugehoert. Der Name bleibt stehen,
         //  bis sich die naechste Quelle (jetzt die aelteste verbliebene)
         //  anmeldet; ein Konto ohne Namen gibt es nicht.
-        if (all.first().id == target.id) account.avatarUrl = null
+        if (sourceOf(account, all)?.id == target.id) {
+            account.avatarUrl = null
+            account.profileProvider = null
+        }
 
         account.role = roleOf(accountId)
         return accounts.save(account)
     }
 
-    fun signIns(accountId: UUID): List<ConnectedSignIn> {
-        val all = identities.findByAccountIdOrderByCreatedAtAsc(accountId)
-        return all.mapIndexed { index, it -> ConnectedSignIn(it.provider, it.createdAt, it.lastLoginAt, index == 0) }
+    /**
+     * Name und Bild kuenftig von dieser Anmeldung - ausgeloest auf der
+     * Kontoseite, abgeschlossen hier bei der Rueckkehr vom Anbieter.
+     *
+     * Der Umweg ueber den Anbieter ist Absicht: das Portal speichert Namen und
+     * Bild nur von der Quelle, nicht von jeder verbundenen Anmeldung. Die neue
+     * Quelle muss sie also frisch nennen - sonst stuende nach dem Wechsel der
+     * alte Name mit einem Haken daneben, der etwas anderes behauptet.
+     *
+     * Wer beim Anbieter gerade mit einem ANDEREN Konto angemeldet ist, als dem
+     * hier verbundenen, bekommt eine Absage statt eines stillen Verbindens.
+     */
+    @Transactional
+    fun useForProfile(accountId: UUID, signIn: SignIn): Account {
+        val account = requireUsable(accountId)
+        val identity = identities.findByProviderAndSubject(signIn.provider, signIn.subject)
+
+        if (identity == null)
+            throw PortalException.conflict("other-identity",
+                "You are signed in there with a different account than the one connected here.")
+        if (identity.accountId != accountId)
+            throw PortalException.conflict("identity-taken", "This sign-in belongs to a different account here.")
+
+        val now = clock.instant()
+        identity.lastLoginAt = now
+        account.profileProvider = signIn.provider
+        account.lastLoginAt = now
+        return finishLogin(account, signIn, now, fromProfileSource = true)
     }
 
-    /** Die aelteste Anmeldung: aus ihr kommen Name und Bild. */
+    fun signIns(accountId: UUID): List<ConnectedSignIn> {
+        val all = identities.findByAccountIdOrderByCreatedAtAsc(accountId)
+        val source = sourceOf(get(accountId), all)
+        return all.map { ConnectedSignIn(it.provider, it.createdAt, it.lastLoginAt, it.id == source?.id) }
+    }
+
+    /** Die Anmeldung, aus der Name und Bild kommen: die gewaehlte, sonst die aelteste. */
     fun profileSource(accountId: UUID): AccountIdentity? =
-        identities.findByAccountIdOrderByCreatedAtAsc(accountId).firstOrNull()
+        sourceOf(get(accountId), identities.findByAccountIdOrderByCreatedAtAsc(accountId))
+
+    private fun sourceOf(account: Account, all: List<AccountIdentity>): AccountIdentity? =
+        all.firstOrNull { it.provider == account.profileProvider } ?: all.firstOrNull()
 
     private fun roleOf(accountId: UUID): Role {
         val admins = properties.adminIds()

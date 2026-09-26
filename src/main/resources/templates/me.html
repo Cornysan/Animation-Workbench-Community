@@ -53,7 +53,8 @@
   <th:block th:if="${signIns != null}">
     <h2 id="sign-ins">Ways to sign in</h2>
     <p class="muted small">Any of these gets you into this account. Your name and picture come from
-      the one marked <em>Profile</em> - the one you signed up with.</p>
+      the one marked <em>Profile</em> - at first the one you signed up with. <em>Use for profile</em>
+      takes them from another one instead; you confirm it there once, so the name and picture are fresh.</p>
     <ul class="signin-list">
       <li class="signin-row" th:each="row : ${signIns}" th:attr="data-provider=${row.provider},data-label=${row.label}">
         <th:block th:replace="~{fragments/signin :: icon(${row.provider})}"></th:block>
@@ -65,6 +66,8 @@
           <span class="faint small" th:unless="${row.connected}">Not connected</span>
         </div>
         <button type="button" th:if="${row.canConnect}" th:attr="data-connect=${row.provider}">Connect</button>
+        <button type="button" th:if="${row.canUseForProfile}" th:attr="data-profile=${row.provider}"
+                th:title="${'Take your name and picture from ' + row.label}">Use for profile</button>
         <button type="button" class="ghost" th:if="${row.canDisconnect}" th:attr="data-disconnect=${row.provider}">Disconnect</button>
       </li>
     </ul>

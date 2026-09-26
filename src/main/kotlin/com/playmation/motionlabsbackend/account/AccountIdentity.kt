@@ -13,9 +13,11 @@ import java.util.UUID
  * nennt. Ein Konto hat einen oder mehrere, hoechstens einen je Anbieter.
  *
  * Die AELTESTE Anmeldung eines Kontos ist die, aus der Name und Bild kommen
- * (`AccountService.profileSource`). Eine spaeter verbundene aendert daran
- * nichts - sonst stuende nach dem ersten Google-Login ploetzlich der volle
- * Klarname auf einem Profil, das bisher einen Discord-Spitznamen trug.
+ * (`AccountService.profileSource`) - es sei denn, die Person hat auf der
+ * Kontoseite eine andere gewaehlt (`Account.profileProvider`). Eine spaeter
+ * verbundene aendert von sich aus nichts: sonst stuende nach dem ersten
+ * Google-Login ploetzlich der volle Klarname auf einem Profil, das bisher
+ * einen Discord-Spitznamen trug.
  */
 @Entity
 @Table(name = "account_identity")

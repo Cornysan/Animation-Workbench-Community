@@ -106,15 +106,19 @@
   const CONNECT_ERRORS = {
     taken: "That account already signs in to a different account here. Sign in with it and disconnect it there first.",
     "provider-connected": "An account of that provider is already connected. Disconnect it first.",
+    "other-account": "You are signed in there with a different account than the one connected here. " +
+      "Sign out there, or switch accounts, and try again.",
     cancelled: "Connecting was cancelled.",
     banned: "This account is banned.",
     failed: "Connecting did not work. Try again.",
   };
   const connected = param("connected");
+  const profileSet = param("profile");
   const connectError = param("connect-error");
   if (connected) toast(labelOf(connected) + " is connected. It signs you into this account from now on.", { kind: "ok" });
+  if (profileSet) toast("Your name and picture now come from " + labelOf(profileSet) + ".", { kind: "ok" });
   if (connectError) toast(CONNECT_ERRORS[connectError] || CONNECT_ERRORS.failed, { kind: "error" });
-  if (connected || connectError) {
+  if (connected || profileSet || connectError) {
     history.replaceState(null, "", location.pathname + "#sign-ins");
     //  Erst hier, nicht per Anker in der Weiterleitung: die Listen darueber
     //  kommen nachgeladen und haetten die Stelle wieder verschoben.
@@ -129,6 +133,21 @@
       //  anzumelden, und nennt die Adresse. Hingehen muss die Seite selbst:
       //  ein Formular, das zum Anbieter weiterleitet, haelt die CSP auf.
       const result = await api("POST", "/api/v1/me/sign-ins/" + encodeURIComponent(button.dataset.connect) + "/connect");
+      location.href = result.redirect;
+    } catch (e) {
+      toastError(e);
+      button.disabled = false;
+    }
+  }));
+
+  //  Name und Bild von einer anderen Anmeldung: derselbe Weg wie Verbinden -
+  //  der Server legt den Vermerk ab, die Seite geht zum Anbieter, und der
+  //  nennt Name und Bild frisch (AccountService.useForProfile).
+  document.querySelectorAll("[data-profile]").forEach((button) => button.addEventListener("click", async () => {
+    button.disabled = true;
+    try {
+      await ensureCsrf();
+      const result = await api("POST", "/api/v1/me/sign-ins/" + encodeURIComponent(button.dataset.profile) + "/profile");
       location.href = result.redirect;
     } catch (e) {
       toastError(e);
