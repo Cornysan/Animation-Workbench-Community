@@ -16,6 +16,9 @@ import com.playmation.motionlabsbackend.format.AwclipReader
 import com.playmation.motionlabsbackend.format.AwclipSchema
 import com.playmation.motionlabsbackend.format.RestPose
 import com.playmation.motionlabsbackend.format.StrictJson
+import com.playmation.motionlabsbackend.notification.NotificationKind
+import com.playmation.motionlabsbackend.notification.NotificationLinks
+import com.playmation.motionlabsbackend.notification.Notifier
 import com.playmation.motionlabsbackend.profile.ProfileService
 import com.playmation.motionlabsbackend.storage.BlobStore
 import com.playmation.motionlabsbackend.system.AuditService
@@ -148,6 +151,8 @@ class CatalogService(
     private val unlocks: UnlockService,
     /** Nur fuer die Nachricht an die Follower, wenn ein neuer Clip erscheint. */
     private val profiles: ProfileService,
+    /** Herzen melden sich beim Besitzer. */
+    private val notifier: Notifier,
     private val accountRepository: AccountRepository,
     private val accounts: AccountService,
     private val blobs: BlobStore,
@@ -313,8 +318,8 @@ class CatalogService(
         //  beim neuen Clip: eine zweite Fassung ist keine Nachricht wert, und
         //  ein privater Clip schon gar nicht.
         if (existing == null && notifyFollowers && manifest.license == AwclipSchema.LICENSE_PUBLIC) {
-            profiles.notifyFollowers(
-                account.id, "${account.displayName} shared a new clip: '${pkg.title}'.")
+            profiles.notifyFollowers(account, "shared a new clip: '${pkg.title}'.",
+                NotificationKind.NEW_CLIP, NotificationLinks.clip(pkg.slug))
         }
 
         //  Ein frischer Clip darf nicht eine Minute darauf warten, dass die
@@ -1068,9 +1073,18 @@ class CatalogService(
 
         val already = likes.existsByPackageIdAndAccountId(pkg.id, principal.accountId)
 
-        if (liked && !already)
+        if (liked && !already) {
             likes.save(PackageLike(pkg.id, principal.accountId, clock.instant()))
-        else if (!liked && already)
+
+            //  Nur fuer Clips im Katalog, und EINMAL je Person und Clip: Herz
+            //  aus und wieder an ist keine zweite Nachricht.
+            if (pkg.license == AwclipSchema.LICENSE_PUBLIC) {
+                accountRepository.findById(principal.accountId).orElse(null)?.let { liker ->
+                    notifier.fromActor(pkg.ownerId, liker, "liked '${pkg.title}'.", NotificationKind.LIKE,
+                        NotificationLinks.clip(pkg.slug), once = true)
+                }
+            }
+        } else if (!liked && already)
             likes.deleteByPackageIdAndAccountId(pkg.id, principal.accountId)
         else
             return pkg.likeCount

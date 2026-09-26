@@ -6,6 +6,8 @@ import com.playmation.motionlabsbackend.account.SignIn
 import com.playmation.motionlabsbackend.common.PortalException
 import com.playmation.motionlabsbackend.common.clientIp
 import com.playmation.motionlabsbackend.moderation.NotificationRepository
+import com.playmation.motionlabsbackend.notification.NotificationView
+import com.playmation.motionlabsbackend.notification.Notifier
 import com.playmation.motionlabsbackend.system.AuditService
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -19,7 +21,6 @@ import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository
-import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -80,6 +81,7 @@ class EditorLinkController(private val links: EditorLinkService) {
 class MeController(
     private val accounts: AccountService,
     private val notifications: NotificationRepository,
+    private val notifier: Notifier,
     private val tokens: ApiTokenService,
     private val providers: SignInProviders,
     private val audit: AuditService,
@@ -94,8 +96,6 @@ class MeController(
         val avatarUrl: String? = null,
     )
 
-    data class NotificationDto(val id: UUID, val message: String, val createdAt: Instant, val read: Boolean)
-
     @GetMapping
     fun me(authentication: Authentication?): MeResponse {
         val principal = authentication.requirePrincipal()
@@ -104,16 +104,10 @@ class MeController(
             notifications.countByAccountIdAndReadAtIsNull(account.id), account.avatarPath())
     }
 
+    /** Das Postfach - und damit gelesen. Was eine Zeile traegt, steht bei [Notifier.inbox]. */
     @GetMapping("/notifications")
-    @Transactional
-    fun notifications(authentication: Authentication?): List<NotificationDto> {
-        val principal = authentication.requirePrincipal()
-        val list = notifications.findByAccountIdOrderByCreatedAtDesc(principal.accountId).take(100)
-        val result = list.map { NotificationDto(it.id, it.message, it.createdAt, it.readAt != null) }
-        val now = Instant.now()
-        list.filter { it.readAt == null }.forEach { it.readAt = now }
-        return result
-    }
+    fun notifications(authentication: Authentication?): List<NotificationView> =
+        notifier.inbox(authentication.requirePrincipal().accountId)
 
     /** Meldet alle Workbench-Anmeldungen dieses Kontos ab. */
     @PostMapping("/tokens/revoke-all")

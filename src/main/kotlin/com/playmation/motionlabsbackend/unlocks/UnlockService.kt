@@ -4,6 +4,9 @@ import com.playmation.motionlabsbackend.account.Account
 import com.playmation.motionlabsbackend.catalog.AnimationPackage
 import com.playmation.motionlabsbackend.catalog.AnimationPackageRepository
 import com.playmation.motionlabsbackend.format.AwclipSchema
+import com.playmation.motionlabsbackend.notification.NotificationKind
+import com.playmation.motionlabsbackend.notification.NotificationLinks
+import com.playmation.motionlabsbackend.notification.Notifier
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Clock
@@ -30,6 +33,7 @@ import java.util.UUID
 class UnlockService(
     private val unlocks: PackageUnlockRepository,
     private val packages: AnimationPackageRepository,
+    private val notifier: Notifier,
     private val clock: Clock,
 ) {
 
@@ -59,7 +63,18 @@ class UnlockService(
         pkg.takeCount = unlocks.countByPackageId(pkg.id)
         packages.save(pkg)
 
+        //  Eine runde Zahl ist eine Nachricht wert - ohne Namen: wer einen
+        //  Clip holt, hat damit niemandem etwas mitgeteilt.
+        if (listed && pkg.takeCount in MILESTONES) {
+            notifier.send(pkg.ownerId, "'${pkg.title}' is now used in ${pkg.takeCount} projects.",
+                NotificationKind.MILESTONE, NotificationLinks.clip(pkg.slug))
+        }
+
         return true
+    }
+
+    companion object {
+        val MILESTONES = setOf(10L, 25L, 50L, 100L, 250L, 500L, 1000L, 2500L, 5000L, 10000L)
     }
 
     fun hasUnlocked(packageId: UUID, accountId: UUID): Boolean =

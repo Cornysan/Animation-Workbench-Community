@@ -9,6 +9,8 @@ import com.playmation.motionlabsbackend.common.Crypto
 import com.playmation.motionlabsbackend.common.PortalException
 import com.playmation.motionlabsbackend.common.RateLimiter
 import com.playmation.motionlabsbackend.format.AwclipSchema
+import com.playmation.motionlabsbackend.notification.NotificationKind
+import com.playmation.motionlabsbackend.notification.NotificationLinks
 import com.playmation.motionlabsbackend.profile.ProfileService
 import com.playmation.motionlabsbackend.system.AuditService
 import org.springframework.stereotype.Service
@@ -303,8 +305,9 @@ class PackService(
         //  EINE Nachricht fuer den ganzen Pack. Die Clips darin haben beim
         //  Hochladen je eine ausgeloest, es sei denn, die Workbench hat sie als
         //  Teil eines Packs geschickt (`notifyFollowers=false`).
-        val ownerName = accounts.findById(ownerId).orElse(null)?.displayName ?: actor.displayName
-        profiles.notifyFollowers(ownerId, "$ownerName shared a new pack: '$title' (${clips.size} clips).")
+        val owner = accounts.findById(ownerId).orElse(null) ?: actor
+        profiles.notifyFollowers(owner, "shared a new pack: '$title' (${clips.size} clips).",
+            NotificationKind.NEW_PACK, NotificationLinks.pack(pack.slug))
 
         return detail(pack, principal)
     }

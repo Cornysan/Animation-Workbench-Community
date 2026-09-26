@@ -96,6 +96,14 @@ class ModerationAction(
     var createdAt: Instant,
 )
 
+/**
+ * Eine Nachricht an ein Konto. Geschrieben wird sie ueber den `Notifier`.
+ *
+ * Mit [actorId] ist [message] nur der REST des Satzes ("follows you now.") -
+ * der Name davor kommt beim Lesen aus dem Konto, damit ein geschlossenes Konto
+ * nicht in fremden Postfaechern weiter mit Namen dasteht. Ohne [actorId] ist
+ * [message] der ganze Satz (Moderation, und alles vor Schema 14).
+ */
 @Entity
 @Table(name = "notification")
 class Notification(
@@ -105,6 +113,12 @@ class Notification(
     var message: String,
     var createdAt: Instant,
     var readAt: Instant? = null,
+    /** `follow`, `like`, `comment`, ... - siehe `NotificationKind`. Null bei allem vor Schema 14. */
+    var kind: String? = null,
+    /** Wer es ausgeloest hat - oder null (Moderation, Meilensteine). */
+    var actorId: UUID? = null,
+    /** Wohin ein Klick fuehrt, eine Adresse dieses Portals. Null mit Absender = dessen Profil. */
+    var link: String? = null,
 )
 
 interface ReportRepository : JpaRepository<Report, UUID> {
@@ -137,4 +151,16 @@ interface ModerationActionRepository : JpaRepository<ModerationAction, UUID> {
 interface NotificationRepository : JpaRepository<Notification, UUID> {
     fun findByAccountIdOrderByCreatedAtDesc(accountId: UUID): List<Notification>
     fun countByAccountIdAndReadAtIsNull(accountId: UUID): Long
+
+    /** Die Nachrichten, die ein Konto bei ANDEREN ausgeloest hat - fuers Schliessen des Kontos. */
+    fun findByActorId(actorId: UUID): List<Notification>
+
+    /** Gab es genau diese Nachricht schon? Gegen Herz-an-Herz-aus-Herz-an. */
+    fun existsByAccountIdAndActorIdAndKindAndLinkAndMessage(
+        accountId: UUID, actorId: UUID, kind: String, link: String, message: String): Boolean
+
+    fun existsByAccountIdAndActorIdAndKind(accountId: UUID, actorId: UUID, kind: String): Boolean
+
+    /** Liegt zu diesem Ziel noch eine ungelesene Nachricht dieser Art? Dann reicht die. */
+    fun existsByAccountIdAndKindAndLinkAndReadAtIsNull(accountId: UUID, kind: String, link: String): Boolean
 }

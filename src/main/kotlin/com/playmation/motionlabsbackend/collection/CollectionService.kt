@@ -11,6 +11,9 @@ import com.playmation.motionlabsbackend.common.Crypto
 import com.playmation.motionlabsbackend.common.PortalException
 import com.playmation.motionlabsbackend.common.RateLimiter
 import com.playmation.motionlabsbackend.format.AwclipSchema
+import com.playmation.motionlabsbackend.notification.NotificationKind
+import com.playmation.motionlabsbackend.notification.NotificationLinks
+import com.playmation.motionlabsbackend.notification.Notifier
 import com.playmation.motionlabsbackend.profile.AccountFollowRepository
 import com.playmation.motionlabsbackend.profile.CollectionCounter
 import com.playmation.motionlabsbackend.system.AuditService
@@ -96,6 +99,7 @@ class CollectionService(
     private val accounts: AccountRepository,
     private val accountService: AccountService,
     private val follows: AccountFollowRepository,
+    private val notifier: Notifier,
     private val audit: AuditService,
     private val rateLimiter: RateLimiter,
     private val clock: Clock,
@@ -326,6 +330,17 @@ class CollectionService(
             touch(collection)
             refreshSaveCount(pkg.id)
             audit.record(principal.accountId, "collection.item-added", "collection", collection.slug, pkg.slug, ip)
+
+            //  Der Ersteller erfaehrt es, wenn die Sammlung oeffentlich ist.
+            //  Eine ungelistete lebt nur hinter ihrem Link - die Nachricht
+            //  wuerde genau diesen Link an jemand Fremdes geben.
+            if (collection.visibility == CollectionVisibility.PUBLIC) {
+                accounts.findById(principal.accountId).orElse(null)?.let { collector ->
+                    notifier.fromActor(pkg.ownerId, collector,
+                        "added '${pkg.title}' to the collection '${collection.title}'.",
+                        NotificationKind.COLLECTED, NotificationLinks.collection(collection.slug), once = true)
+                }
+            }
         }
 
         return summary(collection, principal)

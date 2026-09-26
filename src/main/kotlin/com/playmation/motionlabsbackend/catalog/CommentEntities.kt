@@ -8,6 +8,7 @@ import jakarta.persistence.Table
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Query
 import java.time.Instant
 import java.util.UUID
 
@@ -52,4 +53,8 @@ interface PackageCommentRepository : JpaRepository<PackageComment, UUID> {
 
     /** Wie oft sich jemand am Gespraech beteiligt hat - eine Zahl fuers Profil. */
     fun countByAccountIdAndStatus(accountId: UUID, status: CommentStatus): Long
+
+    /** Wer unter diesem Clip schon geschrieben hat - fuer "also commented". */
+    @Query("select distinct c.accountId from PackageComment c where c.packageId = :packageId and c.status = :status")
+    fun participantsOf(packageId: UUID, status: CommentStatus): List<UUID>
 }

@@ -11,7 +11,8 @@
   if (!user) {
     notice(state, "Your sign-in has ended. Sign in again to see your clips.");
     state.append(AW.signInButton("Sign in", true));
-    document.querySelectorAll("h2, table, button.danger, .muted.small").forEach((n) => n.classList.add("hidden"));
+    document.querySelectorAll("h2, table, button.danger, .muted.small, .page-sections, .signin-list, #export")
+      .forEach((n) => n.classList.add("hidden"));
     return;
   }
 
@@ -21,12 +22,16 @@
   const notificationsRequest = api("GET", "/api/v1/me/notifications").catch(() => []);
   const clipsRequest = api("GET", "/api/v1/me/packages").catch(() => []);
 
+  //  Dieselbe Zeile wie im Kasten unter der Glocke (app.js): Name als Link
+  //  aufs Profil, die ganze Zeile zum Clip oder zur Sammlung. Geholt heisst
+  //  gelesen - die Zahl an der Glocke ist damit hinfaellig.
   const notifications = await notificationsRequest;
-  document.getElementById("notifications").replaceChildren(
+  document.querySelector("#bell-button .bell-count")?.remove();
+  document.getElementById("notification-list").replaceChildren(
     notifications.length === 0
-      ? el("p", { class: "muted" }, "Nothing new.")
-      : el("table", { class: "list" }, el("tbody", {}, ...notifications.map((n) =>
-          el("tr", {}, el("td", { class: "muted small" }, formatDate(n.createdAt)), el("td", {}, n.message))))));
+      ? el("p", { class: "muted" },
+          "Nothing yet. When someone follows you, likes, collects or comments on your clips, it shows up here.")
+      : el("div", { class: "notification-list notification-page" }, ...notifications.map(AW.notificationRow)));
 
   const clips = await clipsRequest;
   const body = document.querySelector("#clips tbody");

@@ -9,9 +9,10 @@
   Workbench und der Weg hinaus. Ein Navigationspunkt daneben haette dieselbe
   Person an zwei Adressen gezeigt.
 
-  Der Weg hierher: der eigene Name im Kopf fuehrt aufs Profil, dort der Stift,
-  und im Dialog steht der Link. Wartet eine Nachricht, fuehrt die Sprechblase
-  im Kopf direkt hierher.
+  Der Weg hierher: das Menue unter dem eigenen Namen oben rechts ("Your
+  account"), und die Glocke daneben ("See all"). Vorher ging es nur ueber
+  Profil, Stift und einen Satz im Dialog - Befund: "me.html ist sehr schwer zu
+  finden".
 -->
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{fragments/shell :: head('Your account')}"></head>
@@ -23,16 +24,21 @@
   <p class="lead">Only you see this page: your messages, what each of your clips is doing, and the
     account itself. What everyone else sees is your profile.</p>
 
-  <p th:if="${user != null and user.handle != null}">
-    <a class="button" th:href="${'/u.html?u=' + user.handle}">View my public profile</a>
-  </p>
+  <!-- Was hier alles liegt, auf einen Blick - die Seite ist lang geworden. -->
+  <nav class="page-sections" aria-label="On this page">
+    <a th:if="${user != null and user.handle != null}" th:href="${'/u.html?u=' + user.handle}">Public profile</a>
+    <a href="#notifications">Notifications</a>
+    <a href="#clips-title">Your clips</a>
+    <a href="#sign-ins" th:if="${signIns != null}">Ways to sign in</a>
+    <a href="#close-account">Closing your account</a>
+  </nav>
 
   <div id="state"></div>
 
-  <h2>Notifications</h2>
-  <div id="notifications"></div>
+  <h2 id="notifications">Notifications</h2>
+  <div id="notification-list"></div>
 
-  <h2>Your clips</h2>
+  <h2 id="clips-title">Your clips</h2>
   <p class="muted small">Every clip of yours, whatever state it is in - withdrawn and hidden ones
     included, which is why they are here and not on your profile. New ones come from the Animation
     Workbench: right-click a clip &rarr; <em>Share with the Community</em>.</p>
@@ -64,16 +70,17 @@
     </ul>
   </th:block>
 
-  <h2>Closing your account</h2>
+  <h2>Workbench sign-ins</h2>
+  <p class="muted small">Signed in on a computer you no longer use? End every Workbench sign-in of this account.</p>
+  <button id="revoke" class="danger">Sign out all Workbench installations</button>
+
+  <h2 id="close-account">Closing your account</h2>
   <p class="muted small">Closing it takes your name, your profile, your collections and your likes
     with it, and withdraws your clips from the catalogue. Comments stay without your name so the
     conversations under other people's clips stay readable, and copies of your clips that others
     already took remain theirs - that is what CC0 means.</p>
   <button id="delete-account" class="danger">Close my account</button>
 
-  <h2>Workbench sign-ins</h2>
-  <p class="muted small">Signed in on a computer you no longer use? End every Workbench sign-in of this account.</p>
-  <button id="revoke" class="danger">Sign out all Workbench installations</button>
   </main>
 <footer th:replace="~{fragments/shell :: footer}"></footer>
 <script th:src="|${@buildStamp.assets}/app.js|"></script>

@@ -8,8 +8,9 @@ import com.playmation.motionlabsbackend.auth.PortalPrincipal
 import com.playmation.motionlabsbackend.common.PortalException
 import com.playmation.motionlabsbackend.common.RateLimiter
 import com.playmation.motionlabsbackend.config.PortalProperties
-import com.playmation.motionlabsbackend.moderation.Notification
-import com.playmation.motionlabsbackend.moderation.NotificationRepository
+import com.playmation.motionlabsbackend.notification.NotificationKind
+import com.playmation.motionlabsbackend.notification.NotificationLinks
+import com.playmation.motionlabsbackend.notification.Notifier
 import com.playmation.motionlabsbackend.system.AuditService
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
@@ -53,7 +54,7 @@ class CommentService(
     private val catalog: CatalogService,
     private val accountRepository: AccountRepository,
     private val accounts: AccountService,
-    private val notifications: NotificationRepository,
+    private val notifier: Notifier,
     private val rateLimiter: RateLimiter,
     private val audit: AuditService,
     private val properties: PortalProperties,
@@ -92,9 +93,18 @@ class CommentService(
         audit.record(author.id, "comment.created", "comment", saved.id.toString(), "package=${pkg.slug}", ip)
 
         //  Der Besitzer soll es erfahren - aber nicht, wenn er sich selbst
-        //  unter den eigenen Clip schreibt.
-        if (pkg.ownerId != author.id)
-            notify(pkg.ownerId, "${author.displayName} commented on '${pkg.title}'.")
+        //  unter den eigenen Clip schreibt (das faengt der Notifier ab).
+        val link = NotificationLinks.comments(pkg.slug)
+        notifier.fromActor(pkg.ownerId, author, "commented on '${pkg.title}'.", NotificationKind.COMMENT, link)
+
+        //  Und wer schon mitgeredet hat, erfaehrt, dass geantwortet wurde -
+        //  EINMAL, solange die letzte Nachricht dazu ungelesen ist. Ein
+        //  lebhaftes Gespraech ist sonst ein Postfach voller Zeilen, die alle
+        //  dasselbe sagen: schau mal wieder rein.
+        val others = comments.participantsOf(pkg.id, CommentStatus.VISIBLE)
+            .filter { it != author.id && it != pkg.ownerId && !notifier.hasUnread(it, NotificationKind.REPLY, link) }
+            .take(MAX_REPLY_NOTIFICATIONS)
+        notifier.fromActorToMany(others, author, "also commented on '${pkg.title}'.", NotificationKind.REPLY, link)
 
         return view(saved, mapOf(author.id to author), principal)
     }
@@ -192,7 +202,8 @@ class CommentService(
     private fun authors(ids: Collection<UUID>): Map<UUID, Account> =
         accountRepository.findAllById(ids.toSet()).associateBy { it.id }
 
-    private fun notify(accountId: UUID, message: String) {
-        notifications.save(Notification(accountId = accountId, message = message.take(1000), createdAt = clock.instant()))
+    companion object {
+        /** Mehr Mitschreibende bekommen keine Nachricht - ab da ist es kein Gespraech mehr, sondern ein Forum. */
+        const val MAX_REPLY_NOTIFICATIONS = 50
     }
 }

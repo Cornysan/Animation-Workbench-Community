@@ -547,6 +547,8 @@ const AW = (() => {
     //  Ein Stapel: zwei Blaetter hinter einem - das Zeichen der Pack-Karte.
     pack: '<rect x="3" y="9" width="12.5" height="11" rx="1.6"/><path d="M6.5 6h10.7a1.3 1.3 0 0 1 1.3 1.3V16"/><path d="M10 3h10.2a1.3 1.3 0 0 1 1.3 1.3V12.5"/>',
     dots: '<circle cx="6" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="18" cy="12" r="1.4"/>',
+    bell: '<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>',
+    user: '<circle cx="12" cy="8.5" r="3.6"/><path d="M5 20c0-3.8 3.1-6 7-6s7 2.2 7 6"/>',
   };
 
   /**
@@ -1456,9 +1458,137 @@ const AW = (() => {
     });
   }
 
+  // ── Nachrichten ──────────────────────────────────────────────────────
+
+  //  Das Zeichen einer Nachricht ohne Absender (Meilenstein, Moderation, und
+  //  alles von vor Schema 14 - das traegt keine Art und bekommt die Glocke).
+  //  Mit Absender steht dessen Bild davor, ohne Bild sein Buchstabe.
+  const KIND_ICONS = {
+    follow: "follow", like: "heart", collected: "star", comment: "comment", reply: "comment",
+    "new-clip": "share", "new-pack": "pack", milestone: "award",
+  };
+
+  function profileLink(handle) {
+    return "/u.html?u=" + encodeURIComponent(handle);
+  }
+
+  /**
+   * Eine Nachricht als Zeile - im Kasten unter der Glocke und auf der
+   * Kontoseite dieselbe.
+   *
+   * Der Name des Absenders ist ein Link auf sein Profil (Befund: "wenn mir
+   * jemand folgt, kann ich nicht auf seinen Namen klicken"). Die ganze Zeile
+   * fuehrt zum Ziel der Nachricht - dem Clip, der Sammlung, oder, wenn sie
+   * keins hat (ein neuer Follower), zu dem, der sie ausgeloest hat.
+   */
+  function notificationRow(n) {
+    const actor = n.actor;
+    const actorHref = actor && actor.handle ? profileLink(actor.handle) : null;
+    const target = n.link || actorHref;
+
+    const lead = actor
+      ? avatar(actor.displayName, actor.avatarUrl)
+      : el("span", { class: "notification-kind", "aria-hidden": "true" }, icon(KIND_ICONS[n.kind] || "bell"));
+
+    //  Ohne Absender traegt der Satz selbst den Link zum Ziel; mit Absender
+    //  der Rest des Satzes hinter dem Namen. Beides mit `notification-target`,
+    //  dessen `::after` die ganze Zeile klickbar macht.
+    const rest = actor ? " " + n.text : n.message;
+    const sentence = target
+      ? el("a", { class: "notification-target", href: target }, rest)
+      : rest;
+
+    return el("div", { class: "notification" + (n.read ? "" : " unread") },
+      lead,
+      el("div", { class: "notification-body" },
+        el("p", {},
+          actor
+            ? (actorHref
+                ? el("a", { class: "notification-actor", href: actorHref }, actor.displayName)
+                : el("strong", { class: "notification-actor" }, actor.displayName))
+            : null,
+          sentence),
+        el("time", { datetime: n.createdAt, title: new Date(n.createdAt).toLocaleString() }, formatRelative(n.createdAt))));
+  }
+
+  // ── Kopfleiste: Glocke und Kontomenue ────────────────────────────────
+
+  /**
+   * Ein Knopf im Kopf mit einem Kasten darunter. Hoechstens einer ist offen;
+   * ein Klick daneben oder Escape schliesst ihn.
+   *
+   * Die Knoepfe sind Links (Glocke -> Kontoseite, Name -> Profil), damit sie
+   * ohne Skript etwas tun - und damit Strg-Klick oder die mittlere Taste
+   * weiter einen neuen Tab oeffnen. Nur der einfache Klick oeffnet den Kasten.
+   */
+  let openDrop = null;
+
+  function headerDrop(button, panel, onOpen) {
+    if (!button || !panel) return;
+
+    const close = () => {
+      panel.hidden = true;
+      button.setAttribute("aria-expanded", "false");
+      if (openDrop === close) openDrop = null;
+    };
+
+    button.addEventListener("click", (event) => {
+      if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      if (!panel.hidden) return close();
+
+      if (openDrop) openDrop();
+      closePopover();
+      panel.hidden = false;
+      button.setAttribute("aria-expanded", "true");
+      openDrop = close;
+      if (onOpen) onOpen(panel);
+    });
+
+    document.addEventListener("mousedown", (event) => {
+      if (panel.hidden || panel.contains(event.target) || button.contains(event.target)) return;
+      close();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape" || panel.hidden) return;
+      close();
+      button.focus();
+    });
+  }
+
+  /**
+   * Der Kasten unter der Glocke: die neuesten Nachrichten, holt sie bei
+   * JEDEM Oeffnen neu. Holen heisst gelesen (`Notifier.inbox`) - also geht
+   * die Zahl an der Glocke weg, sobald die Liste da ist.
+   */
+  async function fillNotifications(panel) {
+    const scroll = el("div", { class: "notifications-scroll" }, el("p", { class: "notifications-empty" }, "Loading…"));
+    panel.replaceChildren(
+      el("div", { class: "notifications-head" },
+        el("strong", {}, "Notifications"),
+        el("a", { href: "/me.html#notifications" }, "See all")),
+      scroll);
+
+    try {
+      const list = await api("GET", "/api/v1/me/notifications");
+      document.querySelector("#bell-button .bell-count")?.remove();
+      document.getElementById("bell-button")?.setAttribute("aria-label", "Notifications");
+
+      scroll.replaceChildren(list.length === 0
+        ? el("p", { class: "notifications-empty" },
+            "Nothing yet. When someone follows you, likes, collects or comments on your clips, it shows up here.")
+        : el("div", { class: "notification-list" }, ...list.slice(0, 12).map(notificationRow)));
+    } catch (e) {
+      scroll.replaceChildren(el("p", { class: "notifications-empty" }, e.message));
+    }
+  }
+
   //  Die Skripte stehen am Ende des <body>, der Rahmen ist also schon da.
   const signOutButton = document.getElementById("sign-out");
   if (signOutButton) signOutButton.addEventListener("click", signOut);
+  headerDrop(document.getElementById("bell-button"), document.getElementById("bell-panel"), fillNotifications);
+  headerDrop(document.getElementById("account-button"), document.getElementById("account-panel"),
+    (panel) => panel.querySelector(".menu-row")?.focus());
   bindSearchShortcut();
   resumePendingLink();
 
@@ -1470,5 +1600,6 @@ const AW = (() => {
     icon, iconButton, setIconState, popover, closePopover, signInHint, signedIn,
     likeButton, saveButton, collectionDialog, profileHref, releasePreviews,
     toast, toastError, confirmDialog, copyLink, pulse, placeholderCards, avatar,
+    notificationRow, profileLink,
   };
 })();

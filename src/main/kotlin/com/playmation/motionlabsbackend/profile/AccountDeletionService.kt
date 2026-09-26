@@ -14,6 +14,7 @@ import com.playmation.motionlabsbackend.catalog.PackageStatus
 import com.playmation.motionlabsbackend.collection.ClipCollectionRepository
 import com.playmation.motionlabsbackend.collection.CollectionItemRepository
 import com.playmation.motionlabsbackend.moderation.NotificationRepository
+import com.playmation.motionlabsbackend.notification.Notifier
 import com.playmation.motionlabsbackend.system.AuditService
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -44,7 +45,8 @@ import java.util.UUID
  *   die Haelfte verschwindet, ist fuer alle anderen unlesbar.
  *
  * WAS GEHT: Sammlungen (die Auswahl gehoert der Person), Herzen, Folgen in
- * beide Richtungen, Benachrichtigungen, alle Workbench-Anmeldungen.
+ * beide Richtungen, Benachrichtigungen (die eigenen und die, die das Konto bei
+ * anderen ausgeloest hat), alle Workbench-Anmeldungen.
  */
 @Service
 class AccountDeletionService(
@@ -59,6 +61,7 @@ class AccountDeletionService(
     /** Packs gehen wie Sammlungen: Titel und Beschreibung gehoeren der Person. */
     private val packs: PackService,
     private val notifications: NotificationRepository,
+    private val notifier: Notifier,
     private val tokens: ApiTokenService,
     private val overview: CatalogOverviewService,
     private val audit: AuditService,
@@ -134,6 +137,9 @@ class AccountDeletionService(
 
         // ── Benachrichtigungen und Anmeldungen ───────────────────────────
         notifications.deleteAll(notifications.findByAccountIdOrderByCreatedAtDesc(account.id))
+        //  Und was dieses Konto bei ANDEREN ausgeloest hat ("... follows you
+        //  now"): ohne Absender waere es eine Zeile ueber niemanden.
+        notifier.forgetActor(account.id)
         tokens.revokeAll(account.id)
 
         // ── Und zuletzt das Konto selbst ─────────────────────────────────

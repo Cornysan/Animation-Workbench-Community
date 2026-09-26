@@ -65,16 +65,29 @@
 
   //  Zahlen als Zeichen mit Zahl - dieselbe Schreibweise wie auf den Karten,
   //  damit man sie nicht zweimal lernen muss. Nullen bleiben weg.
+  //
+  //  Die mit einem Reiter dahinter sind Knoepfe: wer "3 followers" liest,
+  //  will wissen, WER - vorher stand die Zahl da, und die Liste gab es
+  //  nirgends (Befund: "ich kann nicht sehen, wer mir alles folgt").
   const numbers = [
-    ["grid", profile.clips, profile.clips === 1 ? "clip" : "clips"],
-    ["folder", profile.collections, profile.collections === 1 ? "collection" : "collections"],
-    ["users", profile.followers, profile.followers === 1 ? "follower" : "followers"],
+    ["grid", profile.clips, profile.clips === 1 ? "clip" : "clips", "clips"],
+    ["folder", profile.collections, profile.collections === 1 ? "collection" : "collections", "collections"],
+    ["users", profile.followers, profile.followers === 1 ? "follower" : "followers", "followers"],
+    ["follow", profile.following, "following", "following"],
     ["heart", profile.likesReceived, "hearts received"],
     ["download", profile.takes, "used in projects"],
   ].filter(([, value]) => value > 0);
 
-  document.getElementById("numbers").replaceChildren(...numbers.map(([name, value, label]) =>
-    el("span", { "data-tip": label }, icon(name), el("b", {}, value.toLocaleString()), label.split(" ")[0])));
+  document.getElementById("numbers").replaceChildren(...numbers.map(([name, value, label, tab]) => {
+    const content = [icon(name), el("b", {}, value.toLocaleString()), label.split(" ")[0]];
+    if (!tab) return el("span", { "data-tip": label }, content);
+    const button = el("button", { type: "button", class: "profile-number", "data-tip": "Show " + label }, content);
+    button.addEventListener("click", () => {
+      selectTab(tab);
+      tabsBox.scrollIntoView({ block: "start" });
+    });
+    return button;
+  }));
 
   // ── Folgen, teilen, melden ───────────────────────────────────────────
   const actions = document.getElementById("actions");
@@ -258,7 +271,8 @@
   const TABS = [
     { id: "clips", label: "Clips", count: profile.clips, load: loadClips },
     { id: "collections", label: "Collections", count: profile.collections, load: loadCollections },
-    { id: "following", label: "Following", count: null, load: loadFollowing },
+    { id: "followers", label: "Followers", count: profile.followers, load: () => loadPeople("followers") },
+    { id: "following", label: "Following", count: profile.following, load: () => loadPeople("following") },
     { id: "awards", label: "Awards", count: profile.achievements.filter((a) => a.earned).length, load: loadAwards },
   ];
 
@@ -285,23 +299,25 @@
         type: "button", class: active ? "active" : null, role: "tab", "data-tab": tab.id,
         "aria-selected": String(active), tabindex: active ? "0" : "-1",
       }, tab.label, tab.count ? el("span", { class: "tag-count" }, tab.count) : null);
-      button.addEventListener("click", () => {
-        if (current === tab.id) return;
-        current = tab.id;
-
-        //  Der Reiter steht in der Adresse, aber ohne neuen Eintrag in der
-        //  Verlaufsliste: viermal Zurueck durch vier Reiter zu muessen, bis
-        //  man wieder im Katalog ist, waere eine Falle.
-        const next = new URLSearchParams(location.search);
-        next.set("tab", tab.id);
-        history.replaceState(null, "", "/u.html?" + next.toString());
-
-        drawTabs();
-        show();
-      });
+      button.addEventListener("click", () => selectTab(tab.id));
       return button;
     }));
   };
+
+  function selectTab(id) {
+    if (current === id) return;
+    current = id;
+
+    //  Der Reiter steht in der Adresse, aber ohne neuen Eintrag in der
+    //  Verlaufsliste: viermal Zurueck durch vier Reiter zu muessen, bis
+    //  man wieder im Katalog ist, waere eine Falle.
+    const next = new URLSearchParams(location.search);
+    next.set("tab", id);
+    history.replaceState(null, "", "/u.html?" + next.toString());
+
+    drawTabs();
+    show();
+  }
 
   const loaded = {};
 
@@ -392,9 +408,15 @@
       el("div", { class: "grid" }, ...list.map((item) => collectionCard(item, observer))));
   }
 
-  async function loadFollowing() {
-    const list = await api("GET", "/api/v1/users/" + encodeURIComponent(profile.handle) + "/following");
+  //  Wer folgt, und wem gefolgt wird - dieselbe Liste in zwei Richtungen.
+  async function loadPeople(direction) {
+    const list = await api("GET", "/api/v1/users/" + encodeURIComponent(profile.handle) + "/" + direction);
     if (!list.length) {
+      if (direction === "followers") {
+        return empty(profile.isMe
+          ? "Nobody follows you yet. Followers hear about every clip you share."
+          : "Nobody follows " + profile.displayName + " yet.");
+      }
       return empty(profile.isMe
         ? "You are not following anyone yet."
         : profile.displayName + " is not following anyone yet.");

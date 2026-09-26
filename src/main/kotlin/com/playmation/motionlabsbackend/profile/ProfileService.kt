@@ -17,8 +17,8 @@ import com.playmation.motionlabsbackend.common.PortalException
 import com.playmation.motionlabsbackend.common.RateLimiter
 import com.playmation.motionlabsbackend.config.PortalProperties
 import com.playmation.motionlabsbackend.format.AwclipSchema
-import com.playmation.motionlabsbackend.moderation.Notification
-import com.playmation.motionlabsbackend.moderation.NotificationRepository
+import com.playmation.motionlabsbackend.notification.NotificationKind
+import com.playmation.motionlabsbackend.notification.Notifier
 import com.playmation.motionlabsbackend.system.AuditService
 import com.playmation.motionlabsbackend.unlocks.PackageUnlockRepository
 import org.springframework.beans.factory.ObjectProvider
@@ -88,7 +88,7 @@ class ProfileService(
     private val likes: PackageLikeRepository,
     private val unlocks: PackageUnlockRepository,
     private val achievements: AchievementService,
-    private val notifications: NotificationRepository,
+    private val notifier: Notifier,
     private val audit: AuditService,
     private val rateLimiter: RateLimiter,
     /** Sammlungen, wenn es sie gibt - siehe [CollectionCounter]. */
@@ -199,14 +199,9 @@ class ProfileService(
             follows.save(AccountFollow(me.id, target.id, clock.instant()))
 
             //  Nur beim ersten Mal, und nur in diese Richtung: dass jemand
-            //  entfolgt, ist keine Nachricht, die irgendwem hilft.
-            notifications.save(
-                Notification(
-                    accountId = target.id,
-                    message = "${me.displayName} follows you now.",
-                    createdAt = clock.instant(),
-                )
-            )
+            //  entfolgt, ist keine Nachricht, die irgendwem hilft. Und
+            //  entfolgen und wieder folgen ist kein zweites erstes Mal.
+            notifier.fromActor(target.id, me, "follows you now.", NotificationKind.FOLLOW, once = true)
         } else if (!following && already) {
             follows.deleteByFollowerIdAndFolloweeId(me.id, target.id)
         } else {
@@ -228,12 +223,11 @@ class ProfileService(
      * jemanden gibt, der ihn braucht.
      */
     @Transactional
-    fun notifyFollowers(ownerId: UUID, message: String) {
-        val followers = follows.followerIdsOf(ownerId)
+    fun notifyFollowers(owner: Account, text: String, kind: String, link: String) {
+        val followers = follows.followerIdsOf(owner.id)
         if (followers.isEmpty() || followers.size > MAX_FOLLOWER_NOTIFICATIONS) return
 
-        val now = clock.instant()
-        notifications.saveAll(followers.map { Notification(accountId = it, message = message, createdAt = now) })
+        notifier.fromActorToMany(followers, owner, text, kind, link)
     }
 
     // ════════════════════════════════════════════════════════════════════

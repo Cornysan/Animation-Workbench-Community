@@ -247,26 +247,83 @@
         </svg>
       </button>
 
+      <!--
+        Angemeldet: eine Glocke und der eigene Name, beide mit einem Kasten
+        darunter (app.js, `headerDrop`).
+
+        Vorher standen hier der Name (-> Profil), eine Sprechblase nur bei
+        ungelesenen Nachrichten und ein Abmeldeknopf aus dem Zeichen U+23FB.
+        Zwei Befunde: das Zeichen fehlt in vielen Schriften und stand dann als
+        Kasten mit Hexzahl da, und die Kontoseite war nur ueber Profil, Stift
+        und einen Satz im Dialog zu finden. Jetzt liegt alles, was das eigene
+        Konto betrifft, an EINER Stelle - dem Menue unter dem Namen - und die
+        Zeichen sind SVG wie alle anderen.
+
+        Ohne Skript bleiben es gewoehnliche Links: die Glocke fuehrt auf die
+        Kontoseite, der Name aufs Profil.
+      -->
       <div class="account" th:if="${user != null}">
-        <!-- `data-count`: auf dem Telefon steht nur die Zahl (app.css). -->
-        <a class="badge" href="/me.html" title="Notifications"
-           th:if="${user.unread > 0}" th:attr="data-count=${user.unread}"
-           th:text="${user.unreadLabel}">1 message</a>
-        <!--
-          Der eigene Name fuehrt aufs eigene PROFIL, nicht ins private Fach:
-          "wie sehen mich die anderen" ist die Frage, die man sich beim Klick
-          auf den eigenen Namen stellt. Ins private Fach geht es von dort
-          weiter - Stift, dann der Link im Dialog. Die Sprechblase links
-          daneben springt direkt hinein, aber nur wenn dort etwas wartet.
-        -->
-        <a class="account-name" th:href="${user.handle != null} ? ${'/u.html?u=' + user.handle} : '/me.html'"
-           th:title="${user.roleLabel}">
+        <a class="header-icon bell" id="bell-button" href="/me.html#notifications"
+           aria-haspopup="true" aria-expanded="false" aria-controls="bell-panel"
+           th:aria-label="${user.unread > 0} ? ${'Notifications, ' + user.unreadLabel} : 'Notifications'"
+           th:title="${user.unread > 0} ? ${'Notifications (' + user.unread + ' new)'} : 'Notifications'">
+          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
+               stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
+            <path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"></path><path d="M10 20.5a2 2 0 0 0 4 0"></path>
+          </svg>
+          <span class="bell-count" th:if="${user.unread > 0}"
+                th:text="${user.unread > 99} ? '99+' : ${user.unread}">1</span>
+        </a>
+        <div class="header-panel notifications-panel" id="bell-panel" hidden></div>
+
+        <a class="account-name" id="account-button"
+           th:href="${user.handle != null} ? ${'/u.html?u=' + user.handle} : '/me.html'"
+           aria-haspopup="true" aria-expanded="false" aria-controls="account-panel" title="Your account">
           <img class="avatar" th:if="${user.avatar != null}" th:src="${user.avatar}"
                th:attr="data-initial=${user.initial}" alt="" width="28" height="28">
           <span class="avatar" th:unless="${user.avatar != null}" th:text="${user.initial}">?</span>
-          <span th:text="${user.displayName}">Name</span>
+          <span class="account-label" th:text="${user.displayName}">Name</span>
+          <svg class="account-chevron" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
+               stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round">
+            <path d="m7 10 5 5 5-5"></path>
+          </svg>
         </a>
-        <button class="ghost icon-button" id="sign-out" type="button" title="Sign out">&#9211;</button>
+
+        <div class="header-panel account-menu" id="account-panel" hidden>
+          <div class="account-menu-head">
+            <img class="avatar" th:if="${user.avatar != null}" th:src="${user.avatar}"
+                 th:attr="data-initial=${user.initial}" alt="" width="40" height="40">
+            <span class="avatar" th:unless="${user.avatar != null}" th:text="${user.initial}">?</span>
+            <span class="account-menu-who">
+              <strong th:text="${user.displayName}">Name</strong>
+              <span class="faint small" th:if="${user.handle != null}" th:text="${'@' + user.handle}">@name</span>
+              <span class="faint small" th:if="${user.admin}">Moderator</span>
+            </span>
+          </div>
+          <a class="menu-row" th:if="${user.handle != null}" th:href="${'/u.html?u=' + user.handle}">
+            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
+                 stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
+              <circle cx="12" cy="8.5" r="3.6"></circle><path d="M5 20c0-3.8 3.1-6 7-6s7 2.2 7 6"></path>
+            </svg>
+            <span class="menu-text"><strong>Your profile</strong><small>What everyone sees: clips, collections, followers</small></span>
+          </a>
+          <a class="menu-row" href="/me.html">
+            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
+                 stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
+              <path d="M4 7h9"></path><path d="M18 7h2"></path><path d="M4 17h3"></path><path d="M11 17h9"></path>
+              <circle cx="15.5" cy="7" r="2.3"></circle><circle cx="8.5" cy="17" r="2.3"></circle>
+            </svg>
+            <span class="menu-text"><strong>Your account</strong><small>Notifications, your clips, sign-ins, your data</small></span>
+          </a>
+          <div class="menu-divider" role="separator"></div>
+          <button class="menu-row" id="sign-out" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
+                 stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
+              <path d="M12 3.5v7.5"></path><path d="M7.1 6.4a7.2 7.2 0 1 0 9.8 0"></path>
+            </svg>
+            <span class="menu-text"><strong>Sign out</strong></span>
+          </button>
+        </div>
       </div>
 
       <!--

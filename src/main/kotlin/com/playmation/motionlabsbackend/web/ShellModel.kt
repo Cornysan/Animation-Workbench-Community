@@ -53,8 +53,8 @@ class ShellModel(
         val initial: String,
         val admin: Boolean,
         val unread: Long,
+        /** "3 new" - fuer die Vorlesefassung der Glocke. */
         val unreadLabel: String,
-        val roleLabel: String,
         /** Das eigene Profilbild, sonst null - dann bleibt der Buchstabe. */
         val avatar: String? = null,
     )
@@ -71,8 +71,7 @@ class ShellModel(
             initial = account.displayName.firstOrNull()?.uppercase() ?: "?",
             admin = admin,
             unread = unread,
-            unreadLabel = if (unread == 1L) "1 message" else "$unread messages",
-            roleLabel = if (admin) "Moderator" else "Signed in",
+            unreadLabel = "$unread new",
             avatar = account.avatarPath(),
         )
     }
