@@ -194,8 +194,8 @@ async function logo() {
   return lockup;
 }
 
-/** Hoehe zu Breite des Logos (viewBox 1420.72 x 196.42). */
-const LOGO_RATIO = 1420.72 / 196.42;
+/** Hoehe zu Breite des Logos (viewBox 1008.81 x 164). */
+const LOGO_RATIO = 1008.81 / 164;
 
 function toPng(canvas) {
   return new Promise((resolve, reject) => {

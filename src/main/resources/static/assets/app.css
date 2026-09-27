@@ -340,7 +340,10 @@ a:focus-visible, button:focus-visible, summary:focus-visible, [tabindex]:focus-v
 .brand:hover { text-decoration: none; }
 
 /* Das Lockup haelt seinen Freiraum: ein Viertel der eigenen Hoehe ringsum. */
-.brand-lockup { width: 180px; height: auto; display: block; }
+/* Klein wie bei YouTube: das Zeichen fuehrt, die Schrift (Inter 600) steht
+   nur wenig ueber der Navigation. Die erste Fassung war Inter 800 bei 25 px -
+   sie schrie lauter als alles darunter. */
+.brand-lockup { width: 123px; height: auto; display: block; }
 .brand-mark { width: 28px; height: 28px; display: none; }
 
 /* DIE MARKE IN TINTE. Die ausgelieferte Datei ist die weisse - sie steht auf
@@ -710,16 +713,23 @@ main.wide { max-width: var(--page-wide); }
   color: var(--text-faint);
   font-size: 13px;
 }
+/* Alles auf EINER Achse: "Powered by", darunter die Links, darunter der
+   Build. Vorher standen die Links links und der Build rechts - die Zeile war
+   als Ganzes zentriert, der Build zaehlte also mit, und die Links allein
+   standen links von der Mitte, unter dem mittigen "Powered by" verrutscht.
+   Den Build rechts zu lassen und nur die Links zu zentrieren traegt nicht:
+   "Build 60 - af67710 - 2026-09-27 21:28 UTC" ist so lang, dass die Links
+   unterhalb von gut 1400 px wieder aus der Mitte rutschen. */
 .footer-inner {
   max-width: var(--page);
   margin-inline: auto;
-  padding: 24px var(--gutter);
+  padding: 16px var(--gutter) 24px;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   align-items: center;
-  gap: 10px 22px;
+  gap: 10px;
 }
-.footer-links { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.footer-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 18px; }
 
 /* "Powered by": mittig ueber den Links, leiser als die Marke oben - sie
    nennt, worauf das Portal laeuft, und soll nicht mit Playmations reden. */
@@ -1691,11 +1701,9 @@ table.list tr:hover td { background: var(--row-hover); }
   h1 { font-size: 30px; }
 }
 
-/*  Die Build-Marke steht im Fuss ganz rechts und soll dort nicht mitreden:
-    kleiner, blasser, und bei schmalen Fenstern faellt sie in die naechste
-    Zeile wie die Links daneben. */
+/*  Die Build-Marke steht im Fuss ganz unten und soll dort nicht mitreden:
+    kleiner und blasser als die Links darueber. */
 .site-footer .build {
-  margin-left: auto;
   color: var(--text-faint);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
