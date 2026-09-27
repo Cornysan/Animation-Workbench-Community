@@ -561,20 +561,11 @@ class PageController(
 
     private val shared = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.ENGLISH).withZone(ZoneOffset.UTC)
 
-    /** "1 view", "1,234 views" - null bei null, wie in clip.js (`counted`). */
-    private fun counted(n: Long, noun: String): String? = when {
-        n <= 0 -> null
-        n == 1L -> "1 $noun"
-        else -> String.format(Locale.ENGLISH, "%,d %ss", n, noun)
-    }
 
     private fun clipPage(clip: PackageDetail): ClipPage {
-        //  Dieselbe Zeile wie clip.js: Nullen bleiben weg.
-        val sub = listOfNotNull(
-            "Shared " + shared.format(clip.createdAt),
-            counted(clip.views, "view"),
-            counted(clip.downloads, "download"),
-        ).joinToString("  ·  ")
+        //  Dieselbe Zeile wie clip.js. Aufrufe und Downloads stehen als
+        //  Zeichen in der Aktionsleiste, die baut clip.js.
+        val sub = "Shared " + shared.format(clip.createdAt)
 
         //  Die Nachbarschaft wie clip.js: erst das erste Schlagwort, sonst das
         //  Beliebte. Fuer einen Crawler sind das die Wege zum naechsten Clip.

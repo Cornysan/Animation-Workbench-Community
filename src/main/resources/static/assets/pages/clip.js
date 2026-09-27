@@ -44,27 +44,37 @@
   }, clip.author));
   document.getElementById("author-initial").replaceWith(AW.avatar(clip.author, clip.authorAvatar));
 
-  //  Eine Zeile statt vier Tabellenzeilen: was hier steht, liest man im
-  //  Vorbeigehen. Nullen bleiben weg - ein frischer Clip ist nicht unbeliebt.
-  //  Dieselbe Zeile schreibt der Server ins HTML (PageController, `counted`).
+  //  Unter dem Namen nur noch, WANN - dieselbe Zeile schreibt der Server
+  //  ins HTML (PageController, `clipPage`).
+  document.getElementById("clip-sub").textContent = "Shared " + formatDate(clip.createdAt);
+
+  //  AUFRUFE UND DOWNLOADS ALS ZEICHEN MIT ZAHL, vorn in der Aktionsleiste -
+  //  wie Herz und Stern daneben, nur ohne Knopf: man kann sie nicht
+  //  anfassen, nur ablesen. Bis hierher standen sie als "1 view · 1
+  //  download" klein hinter dem Datum und lasen sich wie Kleingedrucktes
+  //  (Pablo: "sehr trocken").
   //
-  //  Aufrufe und Downloads zaehlt der Server je Besucher und Tag einmal
-  //  (catalog/ClipCounts.kt). "Downloads" sind beide Wege zusammen - die
-  //  .awclip (Unity oder hier, je Konto einmal) und FBX/GLB von dieser
-  //  Seite; der Tooltip trennt sie wieder.
+  //  Gezaehlt je Besucher und Tag (catalog/ClipCounts.kt). "Downloads" sind
+  //  beide Wege zusammen - die .awclip (Unity oder hier, je Konto einmal)
+  //  und FBX/GLB von dieser Seite; der Tooltip trennt sie wieder. Nullen
+  //  bleiben weg - ein frischer Clip ist nicht unbeliebt.
   const counted = (n, noun) => (n === 1 ? "1 " + noun : n.toLocaleString("en") + " " + noun + "s");
-  const sub = ["Shared " + formatDate(clip.createdAt)];
+  const stats = [];
   if (clip.views > 0) {
-    sub.push(el("span", { "data-tip": "Visits to this page, each visitor counted once a day" }, counted(clip.views, "view")));
+    stats.push(el("span", { class: "clip-stat", "data-tip": counted(clip.views, "view") + " - each visitor counted once a day" },
+      AW.icon("eye"), el("b", {}, clip.views.toLocaleString("en"))));
   }
   if (clip.downloads > 0) {
     const files = clip.downloads - clip.takes;
     const ways = [];
     if (clip.takes > 0) ways.push(clip.takes.toLocaleString("en") + " as .awclip for Unity");
     if (files > 0) ways.push(files.toLocaleString("en") + " as FBX or GLB");
-    sub.push(el("span", { "data-tip": ways.join(", ") }, counted(clip.downloads, "download")));
+    stats.push(el("span", { class: "clip-stat", "data-tip": counted(clip.downloads, "download") + ": " + ways.join(", ") },
+      AW.icon("download"), el("b", {}, clip.downloads.toLocaleString("en"))));
   }
-  document.getElementById("clip-sub").replaceChildren(...sub.flatMap((part, i) => (i ? ["  ·  ", part] : [part])));
+  if (stats.length) {
+    document.getElementById("clip-actions").prepend(el("div", { class: "clip-stats" }, ...stats));
+  }
 
   //  Der Aufruf. Ob er zaehlt, entscheidet der Server (Besucher, Tag, eigener
   //  Clip); scheitert er, merkt es niemand - eine fehlende Eins ist kein

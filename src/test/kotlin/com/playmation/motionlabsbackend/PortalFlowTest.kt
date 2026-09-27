@@ -697,9 +697,9 @@ class PortalFlowTest {
         assertEquals(1L, clip["takes"].asLong())
         assertEquals(2L, clip["downloads"].asLong(), "one FBX/GLB visitor plus one .awclip take")
 
-        //  Dieselbe Zeile steht schon im ausgelieferten HTML.
+        //  Fuer Suchmaschinen stehen sie im JSON-LD der Seite.
         val page = mvc.get("/clip.html?p=$slug").andReturn().response.contentAsString
-        assertTrue("2 views" in page && "2 downloads" in page, "the counts are on the page")
+        assertTrue("DownloadAction" in page && "ViewAction" in page, "the counts are in the structured data")
 
         //  Was man nicht sehen darf, laesst sich auch nicht zaehlen.
         val hidden = uploadOk(owner, awclip(0.8124, "Private jog", license = AwclipSchema.LICENSE_PRIVATE))

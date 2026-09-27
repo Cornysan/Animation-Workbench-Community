@@ -549,6 +549,8 @@ const AW = (() => {
     dots: '<circle cx="6" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="18" cy="12" r="1.4"/>',
     bell: '<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>',
     user: '<circle cx="12" cy="8.5" r="3.6"/><path d="M5 20c0-3.8 3.1-6 7-6s7 2.2 7 6"/>',
+    //  Aufrufe unter einem Clip (clip.js) - ein Auge, wie bei jedem Video.
+    eye: '<path d="M2.8 12S6.2 5.8 12 5.8 21.2 12 21.2 12 17.8 18.2 12 18.2 2.8 12 2.8 12z"/><circle cx="12" cy="12" r="2.9"/>',
   };
 
   /**
