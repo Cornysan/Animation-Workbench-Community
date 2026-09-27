@@ -2466,3 +2466,74 @@ dialog[open]::backdrop { animation: aw-fade var(--dur) var(--ease-out) backwards
   35% { transform: scale(1.08); border-color: var(--accent); }
   100% { transform: none; }
 }
+
+/* ── Stats (Admin) ─────────────────────────────────────────────────────
+   Kacheln oben, zwei Kaesten, dann die Tabellen. Zahlen in Spalten mit
+   gleich breiten Ziffern, in den Kacheln mit den normalen: eine grosse Zahl
+   mit Tabellenziffern hat Luecken. */
+
+.admin-tabs { margin: 0 0 20px; }
+
+.stat-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+  margin: 0 0 20px;
+}
+.stat-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--highlight);
+  min-width: 0;
+}
+.stat-label { color: var(--text-dim); font-size: 13.5px; }
+.stat-value { color: var(--text); font-size: 30px; font-weight: 650; line-height: 1.15; letter-spacing: -0.01em; }
+.stat-sub { color: var(--text-faint); font-size: 12.5px; }
+
+.stats-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 12px;
+}
+.stats-columns .panel h2 { margin-top: 0; }
+.stats-columns dl.facts { margin-bottom: 0; }
+
+.stats-section { margin-top: 36px; }
+.stats-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.stats-heading h2 { margin: 0; }
+.stats-heading input { max-width: 260px; }
+
+/* Sechzehn Spalten passen auf kein Telefon - die Tabelle rollt in sich,
+   die Seite bleibt schmal. */
+.table-scroll { overflow-x: auto; margin-top: 12px; }
+table.stats-table { font-size: 14px; }
+table.stats-table th, table.stats-table td { padding: 10px 10px; }
+table.stats-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+table.stats-table .zero { color: var(--text-faint); }
+table.stats-table .nowrap { white-space: nowrap; }
+table.stats-table th .sort-button {
+  all: unset;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  white-space: nowrap;
+}
+table.stats-table th .sort-button:hover { color: var(--text); }
+table.stats-table th .sort-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+table.stats-table th[aria-sort] { color: var(--text); }
+table.stats-table th[aria-sort="descending"] .sort-button::after { content: " ↓"; }
+table.stats-table th[aria-sort="ascending"] .sort-button::after { content: " ↑"; }
+
+.member-cell { min-width: 180px; }
+.member-name { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.member-name .chip { height: 20px; padding: 0 8px; font-size: 11.5px; }
+.member-banned, .member-closed { color: var(--danger); }
+.member-restricted { color: var(--warn); }
+.member-row.closed td { opacity: 0.55; }

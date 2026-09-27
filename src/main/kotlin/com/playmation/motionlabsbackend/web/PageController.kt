@@ -119,7 +119,7 @@ class PageController(
             //  ein Crawler, der sie ausfuehrt, haelt sich beim Nachladen an
             //  diese Datei - gesperrt saehe er leere Seiten. Die Profilbilder
             //  dagegen gehoeren in keine Bildersuche.
-            "User-agent: *\nDisallow: /admin.html\nDisallow: /dev.html\nDisallow: /link.html\n" +
+            "User-agent: *\nDisallow: /admin.html\nDisallow: /admin-stats.html\nDisallow: /dev.html\nDisallow: /link.html\n" +
                 "Disallow: /signin.html\nDisallow: /me.html\nDisallow: /avatar/\n\n" +
                 "Sitemap: " + portal.publicBaseUrl.trimEnd('/') + "/sitemap.xml\n"
         else
@@ -494,6 +494,17 @@ class PageController(
 
     @GetMapping("/admin.html")
     fun admin(model: Model) = view(model, "admin", active = "admin")
+
+    /**
+     * Kennzahlen fuer Admins (system/AdminStats.kt). Die Seite selbst ist ein
+     * leerer Rahmen - ihr Inhalt kommt aus `/api/v1/admin/stats`, und das
+     * verlangt die Rolle. Im Index hat sie trotzdem nichts zu suchen.
+     */
+    @GetMapping("/admin-stats.html")
+    fun adminStats(model: Model): String {
+        model.addAttribute("meta", ShellModel.PageMeta("Stats", "Portal statistics for administrators.", noindex = true))
+        return view(model, "admin-stats", active = "admin")
+    }
 
     /**
      * Der Entwickler-Login - nur, wo es ihn gibt. Ohne `portal.dev-login`

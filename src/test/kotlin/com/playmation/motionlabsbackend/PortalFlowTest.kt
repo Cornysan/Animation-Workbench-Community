@@ -707,6 +707,36 @@ class PortalFlowTest {
         beacon("no-such-clip", "downloaded", "203.0.113.6").andExpect { status { isNotFound() } }
     }
 
+    /**
+     * Die Stats-Seite zaehlt aus, was schon da ist - und nur ein Admin sieht
+     * sie. Ein Mitglied mit einem oeffentlichen und einem privaten Clip muss
+     * genau so in der Tabelle stehen.
+     */
+    @Test
+    fun `admin stats count members and their clips, and only for admins`() {
+        val name = "stats-${unique()}"
+        val owner = login(name)
+        uploadOk(owner, awclip(0.8211, "Stats walk"))
+        uploadOk(owner, awclip(0.8212, "Stats secret", license = AwclipSchema.LICENSE_PRIVATE))
+
+        mvc.get("/api/v1/admin/stats") { header("Authorization", "Bearer $owner") }
+            .andExpect { status { isForbidden() } }
+        mvc.get("/api/v1/admin/stats").andExpect { status { isUnauthorized() } }
+
+        val stats = mvc.get("/api/v1/admin/stats") { header("Authorization", "Bearer ${login("admin")}") }
+            .andExpect { status { isOk() } }.body()
+        val member = stats["members"].first { it["name"].asString() == name }
+        assertEquals(1, member["publicClips"].asInt())
+        assertEquals(1, member["privateClips"].asInt())
+        assertEquals("active", member["state"].asString())
+        assertFalse(member["lastSeen"].isNull, "signing in counts as seen")
+        assertTrue(stats["accounts"]["total"].asInt() >= 2)
+        assertTrue(stats["clips"]["public"].asInt() >= 1 && stats["clips"]["private"].asInt() >= 1)
+
+        val page = mvc.get("/admin-stats.html").andExpect { status { isOk() } }.andReturn().response.contentAsString
+        assertTrue("noindex" in page, "the stats page stays out of search engines")
+    }
+
     @Test
     fun `a like needs an account, counts once, and can be taken back`() {
         val owner = login("liker-${unique()}")

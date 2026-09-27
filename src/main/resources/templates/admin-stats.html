@@ -1,0 +1,68 @@
+<!doctype html>
+<!--
+  Kennzahlen fuer Admins: wie viele Mitglieder, wer teilt wie viel, was
+  angesehen und geladen wird. Alles aus den Tabellen, die das Portal ohnehin
+  fuehrt (system/AdminStats.kt) - kein Besuchsprotokoll, keine Zeitreihe.
+
+  Gefuellt von `pages/admin-stats.js`; ohne die Rolle bleibt der Rahmen leer.
+-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/shell :: head('Stats')}"></head>
+<body th:attr="data-signed-in=${user != null}">
+<header th:replace="~{fragments/shell :: header}"></header>
+<main id="main" class="wide">
+  <div th:replace="~{fragments/shell :: paused}"></div>
+  <nav class="segmented admin-tabs" aria-label="Administration">
+    <a href="/admin.html">Moderation</a>
+    <a href="/admin-stats.html" class="active" aria-current="page">Stats</a>
+  </nav>
+  <h1>Stats</h1>
+  <p class="lead" id="stats-lead">Members, clips and what people look at. Counted from what the portal stores
+    anyway &ndash; no visitor log.</p>
+  <div id="state"></div>
+
+  <div id="stats" class="hidden">
+    <section class="stat-tiles" id="tiles" aria-label="Key figures"></section>
+
+    <div class="stats-columns">
+      <section class="panel">
+        <h2>Members</h2>
+        <dl class="facts" id="member-facts"></dl>
+      </section>
+      <section class="panel">
+        <h2>Content</h2>
+        <dl class="facts" id="content-facts"></dl>
+      </section>
+    </div>
+
+    <section class="stats-section">
+      <h2>Most viewed</h2>
+      <div class="table-scroll">
+        <table class="list stats-table" id="top-clips">
+          <thead><tr><th>Clip</th><th>By</th><th class="num">Views</th><th class="num">Downloads</th><th class="num">Hearts</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="stats-section">
+      <div class="stats-heading">
+        <h2 id="members-title">All members</h2>
+        <input type="search" id="member-filter" placeholder="Filter by name or handle" aria-label="Filter members">
+      </div>
+      <div class="table-scroll">
+        <table class="list stats-table" id="members">
+          <thead><tr></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="muted small">Last seen: the latest sign-in, browser visit while signed in, or Workbench request.
+        Workbench: a valid Workbench sign-in. Views and downloads are those of the member's own clips.</p>
+    </section>
+  </div>
+</main>
+<footer th:replace="~{fragments/shell :: footer}"></footer>
+<script th:src="|${@buildStamp.assets}/app.js|"></script>
+<script th:src="|${@buildStamp.assets}/pages/admin-stats.js|"></script>
+</body>
+</html>

@@ -5,6 +5,10 @@
 <header th:replace="~{fragments/shell :: header}"></header>
 <main id="main">
   <div th:replace="~{fragments/shell :: paused}"></div>
+  <nav class="segmented admin-tabs" aria-label="Administration">
+    <a href="/admin.html" class="active" aria-current="page">Moderation</a>
+    <a href="/admin-stats.html">Stats</a>
+  </nav>
   <h1>Moderation</h1>
   <p class="lead">Reported clips are already hidden. Decide in your own time.</p>
   <div id="state"></div>
