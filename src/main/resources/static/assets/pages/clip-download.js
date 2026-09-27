@@ -62,6 +62,19 @@ function save(bytes, fileName, type) {
   //  Erst freigeben, wenn der Browser den Griff hat. Sofort widerrufen laedt
   //  in Firefox eine leere Datei herunter.
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  counted();
+}
+
+/*
+ * FBX und GLB entstehen hier im Browser - der Server erfaehrt von ihnen nur,
+ * was diese Meldung sagt. Er zaehlt je Besucher, Clip und Tag einmal, egal
+ * welches Format (catalog/ClipCounts.kt). Die .awclip meldet sich nicht: sie
+ * zaehlt schon beim Freischalten (`/unlock`), je Konto einmal.
+ */
+function counted() {
+  ensureCsrf()
+    .then(() => api('POST', '/api/v1/packages/' + encodeURIComponent(slug) + '/downloaded'))
+    .catch(() => {});
 }
 
 /*

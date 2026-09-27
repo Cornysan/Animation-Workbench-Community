@@ -231,7 +231,7 @@ class PackService(
             cover = cover,
             tags = tags,
             durationSeconds = clips.sumOf { it.second.durationSeconds.toDouble() }.toFloat(),
-            downloads = clips.sumOf { it.first.takeCount },
+            downloads = clips.sumOf { it.first.downloads() },
             likes = clips.sumOf { it.first.likeCount },
             source = source,
             createdAt = pack.createdAt,

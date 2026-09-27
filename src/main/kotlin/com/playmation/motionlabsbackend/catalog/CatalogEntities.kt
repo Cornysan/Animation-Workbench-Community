@@ -1,6 +1,7 @@
 package com.playmation.motionlabsbackend.catalog
 
 import com.playmation.motionlabsbackend.format.AwclipSchema
+import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
@@ -9,6 +10,7 @@ import jakarta.persistence.IdClass
 import jakarta.persistence.Table
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor
+import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import java.time.Instant
@@ -72,6 +74,18 @@ class AnimationPackage(
     var commentCount: Long = 0,
 
     /**
+     * Aufrufe der Clip-Seite und FBX/GLB-Downloads im Browser - siehe
+     * [ClipCounts]. NICHT `updatable`: beide steigen nur per Update direkt in
+     * der Datenbank. Ein Herz oder ein Kommentar speichert das ganze Paket,
+     * und ohne die Sperre schriebe es den Stand von vor seinem Laden zurueck -
+     * jeder Aufruf dazwischen waere verloren.
+     */
+    @Column(updatable = false)
+    var viewCount: Long = 0,
+    @Column(updatable = false)
+    var fileDownloadCount: Long = 0,
+
+    /**
      * Woher ein Starter-Clip stammt ("Quaternius - Universal Animation
      * Library"), samt Link. Nur bei Clips, die ein Admin eingespielt hat
      * ([StarterClips]) - ein Nutzer kann das Feld nicht setzen, also kann auch
@@ -90,6 +104,9 @@ class AnimationPackage(
     var packPosition: Int? = null,
 ) {
     fun tagList(): List<String> = tags.split(',').filter { it.isNotEmpty() }
+
+    /** Alle Downloads: als .awclip (Unity oder Browser, je Konto einmal) plus FBX/GLB im Browser. */
+    fun downloads(): Long = takeCount + fileDownloadCount
 
     companion object {
         fun joinTags(tags: List<String>) = if (tags.isEmpty()) "," else tags.joinToString(",", ",", ",")
@@ -150,6 +167,16 @@ class UploadDeclaration(
 
 interface AnimationPackageRepository : JpaRepository<AnimationPackage, UUID>, JpaSpecificationExecutor<AnimationPackage> {
     fun findBySlug(slug: String): AnimationPackage?
+
+    /** Siehe [ClipCounts] - in der Datenbank hochgezaehlt, nie ueber das Objekt. */
+    @Modifying
+    @Query("update animation_package set view_count = view_count + 1 where id = :id", nativeQuery = true)
+    fun addView(@Param("id") id: UUID): Int
+
+    @Modifying
+    @Query("update animation_package set file_download_count = file_download_count + 1 where id = :id", nativeQuery = true)
+    fun addFileDownload(@Param("id") id: UUID): Int
+
     fun findByOwnerIdOrderByCreatedAtDesc(ownerId: UUID): List<AnimationPackage>
 
     /** Die Clips eines Packs, in seiner Reihenfolge - auch die, die gerade niemand sieht. */

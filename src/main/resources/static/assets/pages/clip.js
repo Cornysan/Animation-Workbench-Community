@@ -46,9 +46,32 @@
 
   //  Eine Zeile statt vier Tabellenzeilen: was hier steht, liest man im
   //  Vorbeigehen. Nullen bleiben weg - ein frischer Clip ist nicht unbeliebt.
+  //  Dieselbe Zeile schreibt der Server ins HTML (PageController, `counted`).
+  //
+  //  Aufrufe und Downloads zaehlt der Server je Besucher und Tag einmal
+  //  (catalog/ClipCounts.kt). "Downloads" sind beide Wege zusammen - die
+  //  .awclip (Unity oder hier, je Konto einmal) und FBX/GLB von dieser
+  //  Seite; der Tooltip trennt sie wieder.
+  const counted = (n, noun) => (n === 1 ? "1 " + noun : n.toLocaleString("en") + " " + noun + "s");
   const sub = ["Shared " + formatDate(clip.createdAt)];
-  if (clip.downloads > 0) sub.push(clip.downloads === 1 ? "used once" : "used " + clip.downloads + "×");
-  document.getElementById("clip-sub").textContent = sub.join("  ·  ");
+  if (clip.views > 0) {
+    sub.push(el("span", { "data-tip": "Visits to this page, each visitor counted once a day" }, counted(clip.views, "view")));
+  }
+  if (clip.downloads > 0) {
+    const files = clip.downloads - clip.takes;
+    const ways = [];
+    if (clip.takes > 0) ways.push(clip.takes.toLocaleString("en") + " as .awclip for Unity");
+    if (files > 0) ways.push(files.toLocaleString("en") + " as FBX or GLB");
+    sub.push(el("span", { "data-tip": ways.join(", ") }, counted(clip.downloads, "download")));
+  }
+  document.getElementById("clip-sub").replaceChildren(...sub.flatMap((part, i) => (i ? ["  ·  ", part] : [part])));
+
+  //  Der Aufruf. Ob er zaehlt, entscheidet der Server (Besucher, Tag, eigener
+  //  Clip); scheitert er, merkt es niemand - eine fehlende Eins ist kein
+  //  Fehler, den jemand beheben koennte.
+  ensureCsrf()
+    .then(() => api("POST", "/api/v1/packages/" + encodeURIComponent(slug) + "/viewed"))
+    .catch(() => {});
 
   //  Die Nachbarschaft braucht nur die Schlagworte - sie wartet nicht auf
   //  das Konto.

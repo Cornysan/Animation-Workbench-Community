@@ -70,7 +70,7 @@ data class PackageSummary(
     val frameRate: Float,
     /** `humanoid` oder `generic` - die Karte zeigt danach Figur oder Strichmännchen. */
     val rig: String,
-    /** Übernahmen in ein Projekt - siehe [AnimationPackage.takeCount]. */
+    /** Alle Downloads, .awclip plus FBX/GLB - siehe [AnimationPackage.downloads]. */
     val downloads: Long,
     val likes: Long,
     /** Der Stern: wie viele Personen den Clip in einer Sammlung haben. */
@@ -109,6 +109,7 @@ data class PackageDetail(
     val frameRate: Float,
     val curveCount: Int,
     val rig: String,
+    /** Alle Downloads, .awclip plus FBX/GLB - siehe [AnimationPackage.downloads]. */
     val downloads: Long,
     val likes: Long,
     val saves: Long,
@@ -128,6 +129,10 @@ data class PackageDetail(
     val source: ClipSource? = null,
     /** Der Pack, in dem der Clip liegt ("Part of ..." auf der Clip-Seite). */
     val pack: PackRef? = null,
+    /** Davon als .awclip uebernommen, je Konto einmal - [AnimationPackage.takeCount]. */
+    val takes: Long = 0,
+    /** Aufrufe der Clip-Seite, je Besucher und Tag einmal ([ClipCounts]). */
+    val views: Long = 0,
 )
 
 /** Die Herkunft eines Starter-Clips, wie die Clip-Seite sie nennt. */
@@ -906,7 +911,7 @@ class CatalogService(
             val author = authors[pkg.ownerId]
             PackageSummary(pkg.slug, pkg.title, pkg.tagList(), pkg.license,
                 author?.name ?: "unknown", author?.handle,
-                version.durationSeconds, version.frameRate, version.rig, pkg.takeCount, pkg.likeCount,
+                version.durationSeconds, version.frameRate, version.rig, pkg.downloads(), pkg.likeCount,
                 pkg.saveCount, pkg.commentCount, pkg.id in likedByMe, pkg.id in savedByMe,
                 pkg.id in unlockedByMe, version.previewBlobKey != null, pkg.createdAt,
                 isOwner = principal?.accountId == pkg.ownerId,
@@ -1131,7 +1136,7 @@ class CatalogService(
             pkg.slug, pkg.title, pkg.description, pkg.tagList(), pkg.license,
             author?.name ?: "unknown", author?.handle,
             version.versionNumber, version.durationSeconds, version.frameRate, version.curveCount, version.rig,
-            pkg.takeCount, pkg.likeCount, pkg.saveCount, pkg.commentCount,
+            pkg.downloads(), pkg.likeCount, pkg.saveCount, pkg.commentCount,
             principal != null && likes.existsByPackageIdAndAccountId(pkg.id, principal.accountId),
             principal != null && savedCollections.collectionsOfOwnerContaining(principal.accountId, pkg.id).isNotEmpty(),
             principal != null && (isOwner || unlocks.hasUnlocked(pkg.id, principal.accountId)),
@@ -1141,6 +1146,8 @@ class CatalogService(
             authorAvatar = author?.avatar,
             source = pkg.sourceCredit?.let { ClipSource(it, pkg.sourceUrl) },
             pack = pkg.packId?.let { id -> clipPacks.findById(id).orElse(null)?.let { PackRef(it.slug, it.title) } },
+            takes = pkg.takeCount,
+            views = pkg.viewCount,
         )
     }
 

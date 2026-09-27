@@ -549,15 +549,19 @@ class PageController(
 
     private val shared = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.ENGLISH).withZone(ZoneOffset.UTC)
 
+    /** "1 view", "1,234 views" - null bei null, wie in clip.js (`counted`). */
+    private fun counted(n: Long, noun: String): String? = when {
+        n <= 0 -> null
+        n == 1L -> "1 $noun"
+        else -> String.format(Locale.ENGLISH, "%,d %ss", n, noun)
+    }
+
     private fun clipPage(clip: PackageDetail): ClipPage {
         //  Dieselbe Zeile wie clip.js: Nullen bleiben weg.
         val sub = listOfNotNull(
             "Shared " + shared.format(clip.createdAt),
-            when {
-                clip.downloads <= 0 -> null
-                clip.downloads == 1L -> "used once"
-                else -> "used ${clip.downloads}×"
-            },
+            counted(clip.views, "view"),
+            counted(clip.downloads, "download"),
         ).joinToString("  ·  ")
 
         //  Die Nachbarschaft wie clip.js: erst das erste Schlagwort, sonst das
@@ -631,6 +635,14 @@ class PageController(
                 },
                 clip.comments.takeIf { it > 0 }?.let {
                     Seo.obj("@type" to "InteractionCounter", "interactionType" to "https://schema.org/CommentAction",
+                        "userInteractionCount" to it)
+                },
+                clip.downloads.takeIf { it > 0 }?.let {
+                    Seo.obj("@type" to "InteractionCounter", "interactionType" to "https://schema.org/DownloadAction",
+                        "userInteractionCount" to it)
+                },
+                clip.views.takeIf { it > 0 }?.let {
+                    Seo.obj("@type" to "InteractionCounter", "interactionType" to "https://schema.org/ViewAction",
                         "userInteractionCount" to it)
                 },
             ),

@@ -17,6 +17,7 @@ import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.MockHttpServletRequestDsl
 import org.springframework.test.web.servlet.ResultActionsDsl
+import org.springframework.test.web.servlet.request.RequestPostProcessor
 import org.springframework.test.web.servlet.get
 import org.springframework.test.web.servlet.multipart
 import org.springframework.test.web.servlet.post
@@ -655,6 +656,55 @@ class PortalFlowTest {
         mvc.get(link).andExpect { status { isOk() } }
         unlockOk(taker, slug)
         assertEquals(1L, downloads(), "a second fetch is not a second take")
+    }
+
+    private val browser = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36"
+
+    /** Was `clip.js` und `clip-download.js` melden - ohne Konto, wie die meisten Besucher. */
+    private fun beacon(slug: String, what: String, ip: String, userAgent: String? = browser, token: String? = null) =
+        mvc.post("/api/v1/packages/$slug/$what") {
+            with(csrf())
+            with(RequestPostProcessor { it.remoteAddr = ip; it })
+            userAgent?.let { header("User-Agent", it) }
+            token?.let { header("Authorization", "Bearer $it") }
+        }
+
+    /**
+     * Aufrufe und FBX/GLB-Downloads zaehlen ohne Konto - also muss der Server
+     * selbst dafuer sorgen, dass Neuladen, Crawler und der Besitzer die Zahl
+     * nicht machen. "Downloads" ist die Summe mit den .awclip-Quittungen.
+     */
+    @Test
+    fun `views and downloads count each visitor once a day, not bots and not the owner`() {
+        val owner = login("counts-${unique()}")
+        val slug = uploadOk(owner, awclip(0.8123, "Counted jog"))
+
+        beacon(slug, "viewed", "203.0.113.1").andExpect { status { isNoContent() } }
+        beacon(slug, "viewed", "203.0.113.1").andExpect { status { isNoContent() } }   // neu geladen
+        beacon(slug, "viewed", "203.0.113.2").andExpect { status { isNoContent() } }
+        beacon(slug, "viewed", "203.0.113.3", "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)")
+            .andExpect { status { isNoContent() } }
+        beacon(slug, "viewed", "203.0.113.4", userAgent = null).andExpect { status { isNoContent() } }
+        beacon(slug, "viewed", "203.0.113.5", token = owner).andExpect { status { isNoContent() } }
+
+        //  Zwei Formate hintereinander sind EIN Download.
+        beacon(slug, "downloaded", "203.0.113.1").andExpect { status { isNoContent() } }
+        beacon(slug, "downloaded", "203.0.113.1").andExpect { status { isNoContent() } }
+        unlockOk(login("counts-taker-${unique()}"), slug)
+
+        val clip = mvc.get("/api/v1/packages/$slug").andExpect { status { isOk() } }.body()
+        assertEquals(2L, clip["views"].asLong(), "two visitors - not the reload, the crawler, the script or the owner")
+        assertEquals(1L, clip["takes"].asLong())
+        assertEquals(2L, clip["downloads"].asLong(), "one FBX/GLB visitor plus one .awclip take")
+
+        //  Dieselbe Zeile steht schon im ausgelieferten HTML.
+        val page = mvc.get("/clip.html?p=$slug").andReturn().response.contentAsString
+        assertTrue("2 views" in page && "2 downloads" in page, "the counts are on the page")
+
+        //  Was man nicht sehen darf, laesst sich auch nicht zaehlen.
+        val hidden = uploadOk(owner, awclip(0.8124, "Private jog", license = AwclipSchema.LICENSE_PRIVATE))
+        beacon(hidden, "viewed", "203.0.113.6").andExpect { status { isNotFound() } }
+        beacon("no-such-clip", "downloaded", "203.0.113.6").andExpect { status { isNotFound() } }
     }
 
     @Test

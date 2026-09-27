@@ -17,7 +17,8 @@
   <h2>You can read without an account</h2>
   <p>Browsing the catalogue, watching a preview and downloading a public clip as FBX or GLB need no
      account and no sign-in. For those requests the server stores nothing about you: the web server
-     keeps no access log (see &ldquo;How long&rdquo;). Taking the <code>.awclip</code> file for the
+     keeps no access log (see &ldquo;How long&rdquo;). Opening a clip and downloading it add one to that
+     clip&rsquo;s view and download counts &ndash; a number, not a record of who (see the table). Taking the <code>.awclip</code> file for the
      Animation Workbench does need an account, because it is recorded which account took which clip
      (see the table).</p>
 
@@ -72,6 +73,14 @@
           through Subscribe/Import in the Workbench &ndash; and when</td>
         <td>Counting how often a clip is used, and showing you which clips you already have</td>
         <td>Art. 6(1)(b) GDPR</td>
+      </tr>
+      <tr>
+        <td>Views and downloads of a clip: only a number on the clip. So that each visitor counts once a
+          day, the server keeps a checksum of your account or IP address together with the clip in its
+          memory until midnight (UTC). It is never written to disk, and the random value it is made with
+          is discarded at midnight, after which the checksum cannot be traced back to anyone</td>
+        <td>Showing how often a clip is looked at and downloaded, without counting a reload twice</td>
+        <td>Art. 6(1)(f) GDPR &ndash; showing members how their clips are received</td>
       </tr>
       <tr>
         <td>Workbench sign-in: a token, of which only a SHA-256 hash is kept</td>
@@ -185,6 +194,8 @@
 
   <h2>How long</h2>
   <ul>
+    <li><strong>Counting views and downloads:</strong> the checksum until midnight (UTC), in memory only;
+      the numbers themselves as long as the clip.</li>
     <li><strong>IP addresses in declarations, reports and takedowns:</strong> replaced by a keyed
       pseudonym after 30 days. The record stays, the address does not. Running this is a scheduled
       job on the server, not a promise for later.</li>

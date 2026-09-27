@@ -109,6 +109,7 @@ class DataExportService(
         val license: String, val visibility: String, val status: String, val pack: String?,
         val createdAt: Instant, val updatedAt: Instant,
         val likes: Long, val usedInProjects: Long, val savedToCollections: Long, val comments: Long,
+        val views: Long, val downloads: Long,
         val versions: List<VersionPart>,
     )
     data class PackPart(val slug: String, val title: String, val description: String, val clips: List<String>,
@@ -294,6 +295,8 @@ class DataExportService(
         updatedAt = pkg.updatedAt,
         likes = pkg.likeCount,
         usedInProjects = pkg.takeCount,
+        views = pkg.viewCount,
+        downloads = pkg.downloads(),
         savedToCollections = pkg.saveCount,
         comments = pkg.commentCount,
         versions = versions,

@@ -36,7 +36,7 @@
   const clips = await clipsRequest;
   const body = document.querySelector("#clips tbody");
   body.replaceChildren(...(clips.length === 0
-    ? [el("tr", {}, el("td", { colspan: 5, class: "muted" }, "You have not shared a clip yet."))]
+    ? [el("tr", {}, el("td", { colspan: 6, class: "muted" }, "You have not shared a clip yet."))]
     : clips.map((clip) => el("tr", {},
         //  Privat heisst "nur ich" - hier, wo nur man selbst hinsieht, steht
         //  es dabei, sonst sieht die Liste aus, als waere alles im Katalog.
@@ -44,6 +44,7 @@
           clip.license === "ARR" ? el("span", { class: "chip", "data-tip": "Only you can see it" }, "Private") : null),
         el("td", {}, el("span", { class: "status " + clip.status }, clip.status)),
         el("td", {}, clip.version),
+        el("td", {}, clip.views),
         el("td", {}, clip.downloads),
         el("td", { class: "muted small" }, formatDate(clip.updatedAt))))));
 

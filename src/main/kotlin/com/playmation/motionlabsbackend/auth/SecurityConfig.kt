@@ -132,6 +132,12 @@ class SecurityConfig {
                 //  Herzen dagegen NUR angemeldet: eine offene Zahl waere eine
                 //  Einladung an jeden Skriptschreiber.
                 authorize(HttpMethod.POST, "/api/v1/packages/*/like", authenticated)
+                //  Aufrufe und FBX/GLB-Downloads zaehlen OHNE Konto - so kommen
+                //  die meisten Besucher. Sie sind deshalb nur Auskunft unter dem
+                //  Clip: Sortierung und Auszeichnungen haengen weiter an den
+                //  Quittungen oben. Einmal je Besucher und Tag (catalog/ClipCounts.kt).
+                authorize(HttpMethod.POST, "/api/v1/packages/*/viewed", permitAll)
+                authorize(HttpMethod.POST, "/api/v1/packages/*/downloaded", permitAll)
                 authorize(HttpMethod.GET, "/api/v1/files/**", permitAll)
                 authorize(HttpMethod.POST, "/api/v1/takedowns", permitAll)
                 authorize(HttpMethod.POST, "/api/v1/auth/editor/start", permitAll)
