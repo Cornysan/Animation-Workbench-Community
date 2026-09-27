@@ -1,3 +1,7 @@
+//  Fuer das Nachladen von og-card.js - im asynchronen Teil gibt es
+//  `document.currentScript` nicht mehr.
+const ADMIN_SCRIPT = document.currentScript ? document.currentScript.src : location.href;
+
 (async () => {
   const { api, ensureCsrf, me, el, notice, formatDate, packDialog, packCandidates, toastError } = AW;
 
@@ -42,6 +46,97 @@
   //  Wirkt erst beim naechsten Seitenaufbau: der Schalter steht im Kopf
   //  jeder Seite, und der wird auf dem Server gesetzt.
   characters.addEventListener("change", () => saveSwitch({ charactersEnabled: characters.checked }, characters));
+
+  // ── Vorschaubilder ──────────────────────────────────────────────────
+  //  Einer nach dem anderen, mit einer Zeile je Clip: bei fuenfzig Clips will
+  //  man sehen, dass es vorangeht - und welcher nicht wollte.
+  const cardsLog = document.getElementById("cards-log");
+  const previews = document.getElementById("card-previews");
+  const cardButtons = ["cards-missing", "cards-all", "site-card-render"].map((id) => document.getElementById(id));
+  const ogCard = () => import(new URL("../og-card.js", ADMIN_SCRIPT).href);
+
+  const logLine = (text, kind) => {
+    const line = el("li", { class: kind || "" }, text);
+    cardsLog.prepend(line);
+    return line;
+  };
+  //  Als data:-Adresse, nicht als blob: - die CSP laesst Bilder nur von hier
+  //  und aus `data:` zu.
+  const showPreview = async (blob, label) => {
+    const url = await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.readAsDataURL(blob);
+    });
+    previews.prepend(el("figure", {}, el("img", { src: url, alt: label, width: 300, height: 158 }), el("figcaption", { class: "faint small" }, label)));
+    while (previews.children.length > 6) previews.lastElementChild.remove();
+  };
+  const busy = (on) => cardButtons.forEach((b) => { b.disabled = on; });
+
+  async function renderClips(all) {
+    busy(true);
+    try {
+      const { slugs } = await api("GET", "/api/v1/admin/cards" + (all ? "?all=true" : ""));
+      if (slugs.length === 0) { logLine("Every public clip has its image.", "ok"); return; }
+      const { refreshClipCard } = await ogCard();
+      let done = 0;
+      for (const slug of slugs) {
+        const line = logLine(slug + " ...");
+        try {
+          const blob = await refreshClipCard(slug);
+          done++;
+          line.textContent = slug + " - done (" + done + "/" + slugs.length + ")";
+          line.className = "ok";
+          showPreview(blob, slug);
+        } catch (e) {
+          line.textContent = slug + " - " + e.message;
+          line.className = "error";
+        }
+      }
+    } catch (e) {
+      logLine(e.message, "error");
+    } finally {
+      busy(false);
+    }
+  }
+  document.getElementById("cards-missing").addEventListener("click", () => renderClips(false));
+  document.getElementById("cards-all").addEventListener("click", () => renderClips(true));
+
+  async function renderSite() {
+    busy(true);
+    try {
+      let slug = document.getElementById("site-card-clip").value.trim();
+      if (!slug) {
+        const popular = await api("GET", "/api/v1/packages?sort=popular&size=1");
+        slug = popular.items[0]?.slug;
+        if (!slug) throw new Error("There is no public clip to show yet.");
+      }
+      const { renderSiteCard, fetchPreview, uploadCard } = await ogCard();
+      const blob = await renderSiteCard(await fetchPreview(slug));
+      await uploadCard("/api/v1/admin/site-card", blob);
+      showPreview(blob, "site image (" + slug + ")");
+      logLine("Site image rendered from " + slug + ".", "ok");
+    } catch (e) {
+      logLine(e.message, "error");
+    } finally {
+      busy(false);
+    }
+  }
+  document.getElementById("site-card-render").addEventListener("click", renderSite);
+
+  //  WAS FEHLT, ENTSTEHT BEIM OEFFNEN DIESER SEITE - ohne Klick. Nach dem
+  //  ersten Ausrollen sind das alle Clips und das Bild der Seite; danach nur,
+  //  was neu dazukam und dessen Besitzer seine Seite noch nicht gesehen hat.
+  (async () => {
+    try {
+      const site = await fetch("/site-card.png", { method: "HEAD", credentials: "same-origin" });
+      if (site.status === 404) await renderSite();
+      const { slugs } = await api("GET", "/api/v1/admin/cards");
+      if (slugs.length > 0) await renderClips(false);
+    } catch (e) {
+      console.warn("[admin] preview images", e);
+    }
+  })();
 
   // ── Fälle ────────────────────────────────────────────────────────────
   async function load() {

@@ -143,6 +143,13 @@ class PackageVersion(
     var status: VersionStatus = VersionStatus.PUBLISHED,
 
     var createdAt: Instant,
+
+    /**
+     * Das Vorschaubild fuer Discord & Co., gerendert im Browser mit der echten
+     * Buehne (V17, `web/PreviewCards.kt`). Null, bis es jemand gerendert hat -
+     * dann steht dort das Bild der Seite.
+     */
+    var cardBlobKey: String? = null,
 )
 
 /**
@@ -294,6 +301,18 @@ interface PackageVersionRepository : JpaRepository<PackageVersion, UUID> {
     fun findByContentHash(contentHash: String): List<PackageVersion>
     fun findByPackageIdOrderByVersionNumberDesc(packageId: UUID): List<PackageVersion>
     fun countByPackageId(packageId: UUID): Long
+
+    /** Slug und Bild der aktuellen Version jedes oeffentlichen Clips mit Vorschau - wer ein Vorschaubild braucht. */
+    @Query(
+        "select p.slug, v.cardBlobKey from AnimationPackage p, PackageVersion v " +
+            "where v.id = p.currentVersionId and p.status = :status and p.license = :license " +
+            "and v.rig = :rig and v.previewBlobKey is not null order by p.createdAt desc"
+    )
+    fun publicCards(
+        @Param("status") status: PackageStatus,
+        @Param("license") license: String,
+        @Param("rig") rig: String,
+    ): List<Array<Any?>>
 
     @Query("select count(v) from PackageVersion v, AnimationPackage p where v.packageId = p.id and p.ownerId = :ownerId and v.createdAt > :after")
     fun countUploadsSince(@Param("ownerId") ownerId: UUID, @Param("after") after: Instant): Long

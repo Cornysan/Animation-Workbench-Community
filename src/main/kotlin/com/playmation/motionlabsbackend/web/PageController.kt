@@ -58,6 +58,8 @@ class PageController(
     /** Die Karten der Startseite stehen im HTML - siehe [animations]. */
     private val wall: CatalogWall,
     private val overview: CatalogOverviewService,
+    /** Die Bilder fuer Link-Vorschauen - gerendert im Browser, siehe PreviewCards. */
+    private val cards: PreviewCards,
 ) {
     private val base get() = portal.publicBaseUrl.trimEnd('/')
 
@@ -292,7 +294,7 @@ class PageController(
                 //  die Beschreibung allein ist oft ein halber Satz ueber eine Hand.
                 description = listOfNotNull(clip.description.takeIf { it.isNotBlank() }, Seo.CLIP_PITCH)
                     .joinToString(" "),
-                image = if (clip.hasPreview) portal.publicBaseUrl.trimEnd('/') + "/clip-card/" + clip.slug + ".png" else null,
+                image = cards.imageFor(clip.slug),
                 url = url,
                 noindex = !portal.searchIndexing,
             ))
@@ -320,7 +322,7 @@ class PageController(
                 description = meta.bio
                     ?: "Animation clips shared by ${meta.displayName} - preview them in the browser, " +
                         "download them as FBX or GLB, or take them into Unity.",
-                image = meta.cardSlug?.let { "$base/clip-card/$it.png" },
+                image = cards.imageFor(meta.cardSlug),
                 url = "$base/u.html?u=$handle",
                 noindex = !portal.searchIndexing,
             ))
@@ -347,7 +349,7 @@ class PageController(
                 title = detail.title + " by " + detail.owner,
                 description = detail.description.takeIf { it.isNotBlank() }
                     ?: "A collection of ${detail.items.size} animation clips.",
-                image = cover?.let { "$base/clip-card/$it.png" },
+                image = cards.imageFor(cover),
                 url = "$base/collection.html?c=${detail.slug}",
                 noindex = !portal.searchIndexing,
             ))
@@ -375,7 +377,7 @@ class PageController(
                 description = detail.description.takeIf { it.isNotBlank() }
                     ?: "A pack of ${detail.clips} humanoid animation clips - preview them in the browser, " +
                         "download them as FBX or GLB, or take them into Unity.",
-                image = cover?.let { "$base/clip-card/$it.png" },
+                image = cards.imageFor(cover),
                 url = url,
                 noindex = !portal.searchIndexing,
             ))
@@ -389,7 +391,7 @@ class PageController(
                     "license" to Seo.CC0,
                     "isAccessibleForFree" to true,
                     "author" to Seo.person(detail.author, detail.authorHandle?.let { "$base/u.html?u=$it" }),
-                    "image" to cover?.let { "$base/clip-card/$it.png" },
+                    "image" to cover?.let { cards.ownImage(it) },
                     "hasPart" to detail.items.map { item ->
                         Seo.obj("@type" to "CreativeWork", "name" to item.title, "url" to "$base/clip.html?p=${item.slug}")
                     },
@@ -605,7 +607,9 @@ class PageController(
 
     private fun clipJsonLd(clip: PackageDetail): String {
         val url = "$base/clip.html?p=${clip.slug}"
-        val image = if (clip.hasPreview) "$base/clip-card/${clip.slug}.png" else null
+        //  Nur das EIGENE Bild des Clips - das Ersatzbild der Seite zeigt eine
+        //  andere Bewegung und haette in der Bildersuche nichts verloren.
+        val image = cards.ownImage(clip.slug)
         //  Ein Starter-Clip ist nicht von der Person, deren Konto ihn traegt,
         //  sondern aus einer Sammlung mit Namen - das sagt die Seite auch.
         val creator = clip.source?.let { Seo.obj("@type" to "Organization", "name" to it.credit, "url" to it.url) }

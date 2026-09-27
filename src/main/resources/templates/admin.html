@@ -52,6 +52,30 @@
     <div class="actions"><button id="starter-pack" type="button">New starter pack</button></div>
   </div>
 
+  <!--
+    Die Bilder fuer Link-Vorschauen (Discord, Slack, Google). Gerendert im
+    Browser mit derselben Buehne wie die Clip-Seite (og-card.js) - der Server
+    kann es nicht, ihm fehlen WebGL und Schrift. Neue Clips rendert die Seite
+    ihres Besitzers selbst; hier geht es um den Rest und um das Bild der Seite.
+  -->
+  <div class="panel" id="cards-panel">
+    <h2>Preview images</h2>
+    <p class="muted small">The picture Discord, Slack and search results show for a link. Each public clip gets
+      its own, rendered here with the same stage as the clip page; the owner's browser also renders it the next
+      time they open their clip. Until then a clip shows the site image.</p>
+    <div class="actions">
+      <button class="primary" id="cards-missing" type="button">Render missing</button>
+      <button id="cards-all" type="button">Render all again</button>
+    </div>
+    <h3>Site image</h3>
+    <p class="muted small">For the home page, Share, and every clip without its own image.</p>
+    <label class="field"><span>Clip to show on it (the address after <code>?p=</code>)</span>
+      <input id="site-card-clip" maxlength="32" placeholder="most popular clip"></label>
+    <div class="actions"><button id="site-card-render" type="button">Render site image</button></div>
+    <div class="card-previews" id="card-previews"></div>
+    <ol class="starter-log small" id="cards-log"></ol>
+  </div>
+
   <h2>Open cases</h2>
   <div id="cases"></div>
   </main>

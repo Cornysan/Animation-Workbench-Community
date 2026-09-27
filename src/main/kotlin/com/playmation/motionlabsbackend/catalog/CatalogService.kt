@@ -133,6 +133,11 @@ data class PackageDetail(
     val takes: Long = 0,
     /** Aufrufe der Clip-Seite, je Besucher und Tag einmal ([ClipCounts]). */
     val views: Long = 0,
+    /**
+     * Hat die aktuelle Version ihr Vorschaubild fuer Link-Vorschauen? Fehlt es,
+     * rendert es die Seite des Besitzers (clip.js, og-card.js).
+     */
+    val hasCard: Boolean = false,
 )
 
 /** Die Herkunft eines Starter-Clips, wie die Clip-Seite sie nennt. */
@@ -1148,6 +1153,7 @@ class CatalogService(
             pack = pkg.packId?.let { id -> clipPacks.findById(id).orElse(null)?.let { PackRef(it.slug, it.title) } },
             takes = pkg.takeCount,
             views = pkg.viewCount,
+            hasCard = version.cardBlobKey != null,
         )
     }
 

@@ -23,6 +23,7 @@ import org.springframework.test.web.servlet.multipart
 import org.springframework.test.web.servlet.post
 import org.springframework.test.web.servlet.delete
 import org.springframework.test.web.servlet.patch
+import org.springframework.test.web.servlet.put
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 import java.io.ByteArrayOutputStream
@@ -556,33 +557,85 @@ class PortalFlowTest {
      * legen, die dann in jedem Kanal auftaucht, in den der Link geraet - und
      * seine Beschreibung nicht in ein `og:`-Feld, das jeder Bot mitliest.
      */
+    /** Ein PNG in der Groesse, die Discord erwartet - so wie og-card.js es hochlaedt. */
+    private fun cardPng(width: Int = 1200, height: Int = 630, rgb: Int = 0x202028): ByteArray {
+        val image = java.awt.image.BufferedImage(width, height, java.awt.image.BufferedImage.TYPE_INT_RGB)
+        for (y in 0 until height step 7) for (x in 0 until width step 5) image.setRGB(x, y, rgb)
+        return ByteArrayOutputStream().also { javax.imageio.ImageIO.write(image, "png", it) }.toByteArray()
+    }
+
+    private fun putCard(path: String, token: String?, bytes: ByteArray) =
+        mvc.put(path) {
+            contentType = MediaType.IMAGE_PNG
+            content = bytes
+            with(csrf())
+            token?.let { header("Authorization", "Bearer $it") }
+        }
+
     @Test
     fun `a shared link previews itself, unless the clip is private`() {
         val owner = login("card-${unique()}")
+        val stranger = login("card-stranger-${unique()}")
         val public = uploadOk(owner, awclip(0.99, "Card walk"))
         val private = uploadOk(owner, awclip(0.995, "Card secret", license = AwclipSchema.LICENSE_PRIVATE))
+
+        //  Das Bild rendert der Browser des Besitzers und laedt es hoch -
+        //  niemand sonst, und nur in der Groesse, die Discord erwartet.
+        putCard("/api/v1/packages/$public/card", stranger, cardPng()).andExpect { status { isForbidden() } }
+        putCard("/api/v1/packages/$public/card", null, cardPng()).andExpect { status { isUnauthorized() } }
+        putCard("/api/v1/packages/$public/card", owner, cardPng(800, 600)).andExpect { status { isBadRequest() } }
+        putCard("/api/v1/packages/$public/card", owner, "not a png".toByteArray()).andExpect { status { isBadRequest() } }
+        putCard("/api/v1/packages/$public/card", owner, cardPng()).andExpect { status { isNoContent() } }
 
         val page = mvc.get("/clip.html?p=$public").andExpect { status { isOk() } }
             .andReturn().response.contentAsString
         assertTrue("""property="og:title" content="Card walk by""" in page, "the title belongs in the preview")
-        assertTrue("""/clip-card/$public.png"""" in page, "and so does the image")
+        assertTrue("""/clip-card/$public.png?v=""" in page, "and so does the image, with its version")
 
-        //  Das Bild entsteht aus dem Vorschau-Block, ohne Browser und ohne
-        //  Schrift - PNG-Dateien fangen mit diesen acht Bytes an.
+        //  Gespeichert wird ein neu geschriebenes PNG, nicht die Datei selbst.
         val png = mvc.get("/clip-card/$public.png").andExpect {
             status { isOk() }
             header { string("Content-Type", MediaType.IMAGE_PNG_VALUE) }
         }.andReturn().response.contentAsByteArray
-        assertContentEquals(
-            byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A), png.take(8).toByteArray(),
-            "a PNG, not an error page",
-        )
+        val read = javax.imageio.ImageIO.read(java.io.ByteArrayInputStream(png))
+        assertEquals(1200, read.width)
+        assertEquals(630, read.height)
 
+        //  Privat: kein Bild, kein Titel, auch nicht fuer den Besitzer hochladbar.
+        putCard("/api/v1/packages/$private/card", owner, cardPng()).andExpect { status { isBadRequest() } }
         val privatePage = mvc.get("/clip.html?p=$private").andExpect { status { isOk() } }
             .andReturn().response.contentAsString
         assertFalse("Card secret" in privatePage, "a private clip keeps its title out of the preview")
         assertFalse("clip-card/$private" in privatePage, "and has no card at all")
         mvc.get("/clip-card/$private.png").andExpect { status { isNotFound() } }
+    }
+
+    /**
+     * Das Bild der Seite: nur ein Admin setzt es, und dann steht es auf der
+     * Startseite und bei jedem Clip, der noch kein eigenes hat.
+     */
+    @Test
+    fun `the site preview image comes from an admin and fills in for clips without one`() {
+        val owner = login("sitecard-${unique()}")
+        val slug = uploadOk(owner, awclip(0.8311, "No card yet"))
+
+        putCard("/api/v1/admin/site-card", owner, cardPng()).andExpect { status { isForbidden() } }
+        putCard("/api/v1/admin/site-card", login("admin"), cardPng(rgb = 0x3a3a50)).andExpect { status { isNoContent() } }
+
+        val home = mvc.get("/").andReturn().response.contentAsString
+        assertTrue("/site-card.png?v=" in home, "the home page has an image now")
+        mvc.get("/site-card.png").andExpect { status { isOk() } }
+
+        val clipPage = mvc.get("/clip.html?p=$slug").andReturn().response.contentAsString
+        assertTrue("/site-card.png?v=" in clipPage, "a clip without its own image borrows the site's")
+        mvc.get("/clip-card/$slug.png").andExpect {
+            status { isOk() }
+            header { string("Cache-Control", "max-age=600, public") }
+        }
+
+        val todo = mvc.get("/api/v1/admin/cards") { header("Authorization", "Bearer ${login("admin")}") }
+            .andExpect { status { isOk() } }.body()
+        assertTrue(todo["slugs"].any { it.asString() == slug }, "the admin page knows it still needs one")
     }
     /**
      * Der Ueberblick zaehlt, was im Katalog STEHT - nicht, was in der Datenbank

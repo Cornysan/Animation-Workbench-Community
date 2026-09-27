@@ -773,6 +773,11 @@ export class MannequinStage {
     //  Flaeche haelt, holt sich das Bild ab.
     this.surface = options.surface || null;
 
+    //  Ein festes Thema statt dem der Seite - fuer das Vorschaubild
+    //  (og-card.js), das in Discord immer gleich aussehen soll, egal was der
+    //  Besucher gerade eingestellt hat, der es rendert.
+    this.forcedTheme = STAGE_LOOKS[options.theme] ? options.theme : null;
+
     this.solved = solvePreview(preview);
     this.fps = preview.frameRate;
     this.duration = Math.max(1 / this.fps, (this.solved.frames - 1) / this.fps);
@@ -1959,7 +1964,7 @@ export class MannequinStage {
    * und jedes Mal, wenn jemand oben rechts umschaltet ([watchTheme]).
    */
   applyLook() {
-    const theme = stageTheme();
+    const theme = this.forcedTheme || stageTheme();
     const look = STAGE_LOOKS[theme];
 
     this.hemi.color.setHex(look.sky);

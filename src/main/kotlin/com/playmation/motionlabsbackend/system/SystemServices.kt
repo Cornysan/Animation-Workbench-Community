@@ -48,6 +48,7 @@ class SystemSettingsService(private val repository: SystemSettingRepository, pri
         const val COMMUNITY_ENABLED = "community.enabled"
         const val UPLOADS_ENABLED = "uploads.enabled"
         const val CHARACTERS_ENABLED = "characters.enabled"
+        private const val SITE_CARD = "site.card"
 
         private val KEYS = setOf(COMMUNITY_ENABLED, UPLOADS_ENABLED, CHARACTERS_ENABLED)
     }
@@ -86,6 +87,20 @@ class SystemSettingsService(private val repository: SystemSettingRepository, pri
 
     private fun flag(key: String, default: Boolean) =
         repository.findById(key).map { it.settingValue == "true" }.orElse(default)
+
+    /**
+     * Das Vorschaubild der Seite selbst (Startseite, Share, und jeder Clip,
+     * der noch kein eigenes hat) - ein Blob-Schluessel, gerendert und
+     * hochgeladen von der Admin-Seite (`web/PreviewCards.kt`). Kein Schalter,
+     * darum nicht in [KEYS].
+     */
+    fun siteCardKey(): String? = repository.findById(SITE_CARD).map { it.settingValue }.orElse(null)
+
+    @Transactional
+    fun setSiteCardKey(key: String) {
+        repository.save(SystemSetting(SITE_CARD, key, clock.instant()))
+    }
+
 }
 
 /**

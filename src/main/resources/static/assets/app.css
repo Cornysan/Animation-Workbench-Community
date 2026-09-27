@@ -2482,6 +2482,13 @@ dialog[open]::backdrop { animation: aw-fade var(--dur) var(--ease-out) backwards
   100% { transform: none; }
 }
 
+/* Vorschaubilder auf der Admin-Seite: die zuletzt gerenderten, klein. */
+.card-previews { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 14px; }
+.card-previews figure { margin: 0; }
+.card-previews img { display: block; width: 300px; height: auto; border-radius: var(--radius-sm); border: 1px solid var(--line); }
+.starter-log li.ok { color: var(--ok); }
+.starter-log li.error { color: var(--danger); }
+
 /* ── Stats (Admin) ─────────────────────────────────────────────────────
    Kacheln oben, zwei Kaesten, dann die Tabellen. Zahlen in Spalten mit
    gleich breiten Ziffern, in den Kacheln mit den normalen: eine grosse Zahl

@@ -34,6 +34,7 @@ class ShellModel(
     private val portal: PortalProperties,
     private val build: BuildStamp,
     private val providers: SignInProviders,
+    private val cards: PreviewCards,
 ) {
 
     /**
@@ -154,6 +155,9 @@ class ShellModel(
         "Animation Workbench Community",
         "Free humanoid animation clips for Unity and any humanoid rig. Preview them in the browser, " +
             "import them with the Animation Workbench, or download them as FBX or GLB.",
+        //  Das Bild der Seite (PreviewCards) - bis 2026-09-27 hatten Startseite
+        //  und alle Seiten ohne eigenes Bild gar keins.
+        image = cards.siteImage(),
         noindex = !portal.searchIndexing,
     )
 

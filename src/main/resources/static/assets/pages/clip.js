@@ -5,6 +5,10 @@
  * `clip-viewer.js` - drei Dateien, drei Zustaendigkeiten, kein gemeinsamer
  * Zustand ausser dem Slug in der Adresse.
  */
+//  Wo diese Datei liegt - fuer das Nachladen von og-card.js. Spaeter, im
+//  asynchronen Teil, gibt es `document.currentScript` nicht mehr.
+const CLIP_SCRIPT = document.currentScript ? document.currentScript.src : location.href;
+
 (async () => {
   const {
     api, ensureCsrf, me, el, notice, formatDuration, formatDate, copyText, param,
@@ -74,6 +78,23 @@
   }
   if (stats.length) {
     document.getElementById("clip-actions").prepend(el("div", { class: "clip-stats" }, ...stats));
+  }
+
+  //  DAS VORSCHAUBILD FUER DISCORD & CO. Fehlt es noch, rendert es die Seite
+  //  des Besitzers - still, wenn die Seite steht, mit derselben Buehne
+  //  (og-card.js). Hochladen darf es nur er (oder ein Admin), deshalb
+  //  passiert es hier und nicht bei jedem Besucher. Scheitert es, bleibt das
+  //  Bild der Seite stehen; niemand muss davon erfahren.
+  if (clip.isOwner && clip.license === "CC0-1.0" && clip.rig === "humanoid" && !clip.hasCard && clip.hasPreview
+      && clip.status === "PUBLISHED") {
+    setTimeout(async () => {
+      try {
+        const { refreshClipCard } = await import(new URL("../og-card.js", CLIP_SCRIPT).href);
+        await refreshClipCard(slug);
+      } catch (error) {
+        console.warn("[clip] preview image not rendered", error);
+      }
+    }, 2500);
   }
 
   //  Der Aufruf. Ob er zaehlt, entscheidet der Server (Besucher, Tag, eigener
