@@ -64,7 +64,7 @@
       <p id="clip-source" class="clip-source" th:attr="hidden=${clipPage == null or clipPage.sourceCredit == null} ? 'hidden'"><th:block
          th:if="${clipPage != null and clipPage.sourceCredit != null}">Original: <a th:if="${clipPage.sourceUrl != null}"
          th:href="${clipPage.sourceUrl}" rel="noopener" target="_blank" th:text="${clipPage.sourceCredit}">Source</a><span
-         th:unless="${clipPage.sourceUrl != null}" th:text="${clipPage.sourceCredit}">Source</span> · CC0 · added by the operator, not made by a community member</th:block></p>
+         th:unless="${clipPage.sourceUrl != null}" th:text="${clipPage.sourceCredit}">Source</span> · added by the operator, not made by a community member</th:block></p>
       <div id="action-state"></div>
 
       <div class="tags" id="tags"><a class="tag" th:each="t : ${clipPage?.tags}"

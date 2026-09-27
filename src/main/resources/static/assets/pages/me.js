@@ -64,7 +64,7 @@
       body: [
         el("p", {}, el("strong", {}, "Gone: "), "your name, your profile, your collections, your likes, who you follow."),
         el("p", {}, el("strong", {}, "Withdrawn: "), "your shared clips disappear from the catalogue - but copies other people " +
-          "already took stay theirs, as CC0 says."),
+          "already took stay theirs."),
         el("p", {}, el("strong", {}, "Kept without your name: "), "your comments, so conversations under other people's clips " +
           "stay readable."),
         el("p", { class: "muted" }, "This cannot be undone."),

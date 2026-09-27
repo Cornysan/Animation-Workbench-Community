@@ -56,8 +56,7 @@
       source.replaceChildren("Original: ",
         pack.source.url
           ? el("a", { href: pack.source.url, rel: "noopener", target: "_blank" }, pack.source.credit)
-          : pack.source.credit,
-        el("span", { class: "faint" }, " · CC0, free to use, no credit needed"));
+          : pack.source.credit);
     }
 
     const description = document.getElementById("description");

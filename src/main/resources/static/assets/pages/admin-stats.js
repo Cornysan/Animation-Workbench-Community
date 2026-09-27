@@ -111,7 +111,7 @@
         m.lastSeen ? formatRelative(m.lastSeen) : "never") },
     { key: "providers", label: "Sign-in", text: true, value: (m) => m.providers.join(","),
       render: (m) => el("td", { class: "muted" }, m.providers.map((p) => providerNames[p] || p).join(", ") || "none") },
-    { key: "publicClips", label: "Public", tip: "Public clips (CC0)" },
+    { key: "publicClips", label: "Public", tip: "Public clips" },
     { key: "privateClips", label: "Private", tip: "Private clips - only the member sees them" },
     { key: "hiddenClips", label: "Hidden", tip: "Hidden after reports, waiting for a decision" },
     { key: "packs", label: "Packs" },

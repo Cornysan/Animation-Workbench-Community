@@ -175,8 +175,7 @@ class PageController(
                         title = "Free " + Seo.tagLabel(tagName).lowercase() + " animations",
                         description = (if (clips == 1L) "One free " else "$clips free ") +
                             Seo.tagLabel(tagName).lowercase() + " animation" + (if (clips == 1L) "" else "s") +
-                            " for Unity and any humanoid rig. Preview in the browser, download FBX or GLB - " +
-                            "CC0, no credit needed.",
+                            " for Unity and any humanoid rig. Preview in the browser, download FBX or GLB.",
                         url = url,
                         noindex = !indexing,
                     ))
@@ -319,7 +318,8 @@ class PageController(
             model.addAttribute("meta", ShellModel.PageMeta(
                 title = meta.displayName + " on Animation Workbench Community",
                 description = meta.bio
-                    ?: "Animation clips shared by ${meta.displayName} - free to use under CC0, no credit needed.",
+                    ?: "Animation clips shared by ${meta.displayName} - preview them in the browser, " +
+                        "download them as FBX or GLB, or take them into Unity.",
                 image = meta.cardSlug?.let { "$base/clip-card/$it.png" },
                 url = "$base/u.html?u=$handle",
                 noindex = !portal.searchIndexing,
@@ -373,7 +373,8 @@ class PageController(
             model.addAttribute("meta", ShellModel.PageMeta(
                 title = detail.title + " by " + detail.author,
                 description = detail.description.takeIf { it.isNotBlank() }
-                    ?: "A pack of ${detail.clips} humanoid animation clips, free to use under CC0 - no credit needed.",
+                    ?: "A pack of ${detail.clips} humanoid animation clips - preview them in the browser, " +
+                        "download them as FBX or GLB, or take them into Unity.",
                 image = cover?.let { "$base/clip-card/$it.png" },
                 url = url,
                 noindex = !portal.searchIndexing,

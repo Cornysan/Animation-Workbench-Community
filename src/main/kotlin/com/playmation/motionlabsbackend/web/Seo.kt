@@ -40,7 +40,7 @@ object Seo {
     fun packTitle(title: String) = "$title – Free Animation Pack (FBX, GLB, Unity) | $SITE"
 
     /** Der Satz hinter jeder Clip-Beschreibung: was man hier bekommt, in den Worten einer Suche. */
-    const val CLIP_PITCH = "Free humanoid animation under CC0 - download it as FBX or GLB, " +
+    const val CLIP_PITCH = "Free humanoid animation - download it as FBX or GLB, " +
         "or import it into Unity with the Animation Workbench."
 
     // ── JSON-LD ──────────────────────────────────────────────────────────

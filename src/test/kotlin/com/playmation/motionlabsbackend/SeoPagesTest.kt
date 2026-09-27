@@ -92,7 +92,7 @@ class SeoPagesTest {
         assertTrue("""href="/u.html?u=$author"""" in page, "the author is a link")
         assertTrue("""href="/?tag=$tag"""" in page, "the tag leads to its page")
         assertTrue("<dt>Duration</dt>" in page, "the facts are in the HTML")
-        assertTrue("A calm stroll. Free humanoid animation under CC0" in page, "description with the pitch")
+        assertTrue("A calm stroll. Free humanoid animation - download it as FBX or GLB" in page, "description with the pitch")
 
         val ld = jsonLdOf(page)["@graph"]
         val work = ld[0]

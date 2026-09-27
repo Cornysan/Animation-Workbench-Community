@@ -99,7 +99,7 @@
         clip.source.url
           ? el("a", { href: clip.source.url, rel: "noopener", target: "_blank" }, clip.source.credit)
           : clip.source.credit,
-        " · CC0 · added by the operator, not made by a community member");
+        " · added by the operator, not made by a community member");
     }
     //  Ein Clip aus einem Pack hat Geschwister - und wer ueber die Suche hier
     //  gelandet ist, weiss das sonst nicht.
@@ -369,7 +369,7 @@
         el("fieldset", { class: "choices" },
           el("legend", {}, "Who can see it"),
           el("label", {}, publicChoice,
-            el("span", {}, el("strong", {}, "Public"), " - in the community, free to use under CC0")),
+            el("span", {}, el("strong", {}, "Public"), " - in the community, for everyone to use")),
           el("label", {}, privateChoice,
             el("span", {}, el("strong", {}, "Private"), " - only you"))),
         toPublic,
