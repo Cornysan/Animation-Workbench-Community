@@ -31,7 +31,7 @@
     return;
   }
 
-  document.title = profile.displayName + " - Animation Workbench Community";
+  document.title = profile.displayName + " - Playmations";
   document.getElementById("profile").classList.remove("hidden");
 
   // ── Kopf ─────────────────────────────────────────────────────────────

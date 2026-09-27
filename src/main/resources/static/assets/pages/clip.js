@@ -105,7 +105,7 @@ const CLIP_SCRIPT = document.currentScript ? document.currentScript.src : locati
     //  machte die Zeile im Suchergebnis wieder zu "Name - Portal".
     document.title = clip.title +
       (/animation/i.test(clip.title) ? " – Free Download (FBX, GLB, Unity)" : " – Free Animation (FBX, GLB, Unity)") +
-      " | Animation Workbench Community";
+      " | Playmations";
     document.getElementById("title").textContent = clip.title;
     document.getElementById("description").textContent = clip.description || "No description.";
     //  Ein Starter-Clip hat keinen Ersteller in der Community - er kommt aus

@@ -21,9 +21,9 @@
     Eingang und nicht wie ein Absatz.
   -->
   <div class="signin-card">
-    <img class="signin-mark" th:src="|${@buildStamp.assets}/brand/aw-mark-dark.svg|" alt="" width="44" height="44">
+    <img class="signin-mark" th:src="|${@buildStamp.assets}/brand/playmations-mark-dark.svg|" alt="" width="44" height="44">
     <h1>Sign in</h1>
-    <p class="signin-lead" th:if="${user == null}" th:text="${signInContinue} ?: 'to the Animation Workbench Community'">to the Animation Workbench Community</p>
+    <p class="signin-lead" th:if="${user == null}" th:text="${signInContinue} ?: 'to Playmations'">to Playmations</p>
 
     <div class="notice error" th:if="${signInError != null}" th:text="${signInError}">Sign-in did not work.</div>
 

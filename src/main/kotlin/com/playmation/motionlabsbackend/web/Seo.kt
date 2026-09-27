@@ -20,7 +20,7 @@ import java.util.Locale
  * nimmt Google den Namen ueber dem Treffer).
  */
 object Seo {
-    const val SITE = "Animation Workbench Community"
+    const val SITE = "Playmations"
     const val CC0 = "https://creativecommons.org/publicdomain/zero/1.0/"
 
     /** "sword-fight" -> "Sword Fight": ein Schlagwort, wie es in einem Titel steht. */

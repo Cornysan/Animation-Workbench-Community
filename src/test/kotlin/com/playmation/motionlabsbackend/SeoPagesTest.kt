@@ -87,7 +87,7 @@ class SeoPagesTest {
 
         val page = html("/clip.html?p=$slug")
 
-        assertTrue("<title>Evening Stroll – Free Animation (FBX, GLB, Unity) | Animation Workbench Community</title>" in page)
+        assertTrue("<title>Evening Stroll – Free Animation (FBX, GLB, Unity) | Playmations</title>" in page)
         assertTrue("""<div id="clip" class="clip-layout">""" in page, "the clip is not hidden in the delivered HTML")
         assertTrue("""href="/u.html?u=$author"""" in page, "the author is a link")
         assertTrue("""href="/?tag=$tag"""" in page, "the tag leads to its page")
@@ -109,7 +109,7 @@ class SeoPagesTest {
         val page = html("/")
 
         assertTrue("""href="/clip.html?p=$slug"""" in page, "the first page of the wall is in the HTML")
-        assertTrue("<title>Free Humanoid Animations – FBX, GLB & Unity | Animation Workbench Community</title>"
+        assertTrue("<title>Free Humanoid Animations – FBX, GLB & Unity | Playmations</title>"
             .replace("&", "&amp;") in page, page.substringAfter("<title>").substringBefore("</title>"))
         assertEquals("WebSite", jsonLdOf(page)["@graph"][0]["@type"].asString())
     }

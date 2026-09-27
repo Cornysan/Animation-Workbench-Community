@@ -1561,7 +1561,7 @@ table.list tr:hover td { background: var(--row-hover); }
   box-shadow: var(--highlight), var(--shadow);
 }
 .signin-mark { display: block; margin: 0 auto 18px; }
-:root[data-theme="light"] .signin-mark { content: url("brand/aw-mark-tinte.svg"); }
+:root[data-theme="light"] .signin-mark { content: url("brand/playmations-mark-tinte.svg"); }
 .signin-card h1 { margin: 0 0 6px; }
 .signin-card h1::after { content: none; }
 .signin-lead { color: var(--text-dim); margin: 0 0 22px; }

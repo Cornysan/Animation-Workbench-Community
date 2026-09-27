@@ -40,7 +40,7 @@
   //  keine Figur neu auf, und ein herausgenommener Clip nimmt nur SEINE Karte mit.
   const drawHead = () => {
     //  Wie der Server (web/Seo.kt, packTitle) - siehe clip.js.
-    document.title = pack.title + " – Free Animation Pack (FBX, GLB, Unity) | Animation Workbench Community";
+    document.title = pack.title + " – Free Animation Pack (FBX, GLB, Unity) | Playmations";
     document.getElementById("title").textContent = pack.title;
 
     const count = pack.items.length;

@@ -323,7 +323,7 @@ class DataExportService(
     }
 
     private fun readme(account: Account, baseUrl: String, now: Instant) = """
-        Your data from the Animation Workbench Community ($baseUrl)
+        Your data from Playmations ($baseUrl)
         Exported $now for ${account.displayName}${account.handle?.let { " (@$it)" } ?: ""}.
 
         data.json   Everything the portal keeps about your account, in one JSON file:

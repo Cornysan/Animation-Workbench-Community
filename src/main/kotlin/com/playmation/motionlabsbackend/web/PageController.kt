@@ -318,7 +318,7 @@ class PageController(
         if (meta != null) {
             val base = portal.publicBaseUrl.trimEnd('/')
             model.addAttribute("meta", ShellModel.PageMeta(
-                title = meta.displayName + " on Animation Workbench Community",
+                title = meta.displayName + " on Playmations",
                 description = meta.bio
                     ?: "Animation clips shared by ${meta.displayName} - preview them in the browser, " +
                         "download them as FBX or GLB, or take them into Unity.",
@@ -486,8 +486,8 @@ class PageController(
         model.addAttribute("pageTitle", "Share Your Animations - Animation Workbench for Unity | ${Seo.SITE}")
         model.addAttribute("meta", shell.defaultMeta().copy(
             title = "Share your animations",
-            description = "Clips come into the Animation Workbench Community from Unity. The free Animation " +
-                "Workbench shares any humanoid clip in two clicks and imports the Community's clips the same way.",
+            description = "Clips come to Playmations from Unity. The free Animation " +
+                "Workbench shares any humanoid clip in two clicks and imports clips from here the same way.",
         ))
         return view(model, "share", active = "share")
     }

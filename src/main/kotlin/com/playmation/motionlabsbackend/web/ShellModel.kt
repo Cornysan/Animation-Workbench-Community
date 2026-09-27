@@ -152,7 +152,7 @@ class ShellModel(
      * Seit jeder Clip als FBX und GLB zu haben ist, stimmt das nicht mehr.
      */
     fun defaultMeta() = PageMeta(
-        "Animation Workbench Community",
+        "Playmations",
         "Free humanoid animation clips for Unity and any humanoid rig. Preview them in the browser, " +
             "import them with the Animation Workbench, or download them as FBX or GLB.",
         //  Das Bild der Seite (PreviewCards) - bis 2026-09-27 hatten Startseite

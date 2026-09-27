@@ -187,15 +187,15 @@ let lockup = null;
 async function logo() {
   if (!lockup) {
     const image = new Image();
-    image.src = new URL('./brand/aw-lockup-weiss.svg', import.meta.url).href;
+    image.src = new URL('./brand/playmations-lockup-weiss.svg', import.meta.url).href;
     await image.decode();
     lockup = image;
   }
   return lockup;
 }
 
-/** Hoehe zu Breite des Logos (viewBox 1496.51 x 282). */
-const LOGO_RATIO = 1496.51 / 282;
+/** Hoehe zu Breite des Logos (viewBox 1420.72 x 196.42). */
+const LOGO_RATIO = 1420.72 / 196.42;
 
 function toPng(canvas) {
   return new Promise((resolve, reject) => {
