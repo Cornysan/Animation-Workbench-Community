@@ -11,7 +11,7 @@ const CLIP_SCRIPT = document.currentScript ? document.currentScript.src : locati
 
 (async () => {
   const {
-    api, ensureCsrf, me, el, notice, formatDuration, formatDate, copyText, param,
+    api, ensureCsrf, me, el, notice, formatDuration, formatRelative, copyText, param,
     iconButton, likeButton, saveButton, profileHref, toast, toastError, confirmDialog, copyLink,
   } = AW;
 
@@ -48,36 +48,24 @@ const CLIP_SCRIPT = document.currentScript ? document.currentScript.src : locati
   }, clip.author));
   document.getElementById("author-initial").replaceWith(AW.avatar(clip.author, clip.authorAvatar));
 
-  //  Unter dem Namen nur noch, WANN - dieselbe Zeile schreibt der Server
-  //  ins HTML (PageController, `clipPage`).
-  document.getElementById("clip-sub").textContent = "Shared " + formatDate(clip.createdAt);
+  //  AUFRUFE UND WANN, WIE BEI YOUTUBE: "1,234 views  2 weeks ago" oben im
+  //  Kasten mit der Beschreibung, dahinter die Schlagworte mit # (showClip).
+  //  Gezaehlt je Besucher und Tag (catalog/ClipCounts.kt); null Aufrufe
+  //  stehen nicht da - ein frischer Clip ist nicht unbeliebt. Dieselbe Zeile
+  //  schreibt der Server ins HTML (PageController, `clipPage`).
+  const views = clip.views === 1 ? "1 view" : clip.views.toLocaleString("en") + " views";
+  document.getElementById("clip-when").textContent =
+    (clip.views > 0 ? views + "  " : "") + formatRelative(clip.createdAt);
 
-  //  AUFRUFE UND DOWNLOADS ALS ZEICHEN MIT ZAHL, vorn in der Aktionsleiste -
-  //  wie Herz und Stern daneben, nur ohne Knopf: man kann sie nicht
-  //  anfassen, nur ablesen. Bis hierher standen sie als "1 view · 1
-  //  download" klein hinter dem Datum und lasen sich wie Kleingedrucktes
-  //  (Pablo: "sehr trocken").
-  //
-  //  Gezaehlt je Besucher und Tag (catalog/ClipCounts.kt). "Downloads" sind
-  //  beide Wege zusammen - die .awclip (Unity oder hier, je Konto einmal)
-  //  und FBX/GLB von dieser Seite; der Tooltip trennt sie wieder. Nullen
-  //  bleiben weg - ein frischer Clip ist nicht unbeliebt.
-  const counted = (n, noun) => (n === 1 ? "1 " + noun : n.toLocaleString("en") + " " + noun + "s");
-  const stats = [];
-  if (clip.views > 0) {
-    stats.push(el("span", { class: "clip-stat", "data-tip": counted(clip.views, "view") + " - each visitor counted once a day" },
-      AW.icon("eye"), el("b", {}, clip.views.toLocaleString("en"))));
-  }
+  //  DOWNLOADS ALS ZEICHEN MIT ZAHL, vorn in der Aktionsleiste - wie Herz und
+  //  Stern daneben, nur ohne Knopf: ablesen, nicht anfassen. Beide Wege
+  //  zusammen (.awclip und FBX/GLB), ohne Tooltip: wie sie sich aufteilen,
+  //  will beim Stoebern niemand wissen (Pablo).
   if (clip.downloads > 0) {
-    const files = clip.downloads - clip.takes;
-    const ways = [];
-    if (clip.takes > 0) ways.push(clip.takes.toLocaleString("en") + " as .awclip for Unity");
-    if (files > 0) ways.push(files.toLocaleString("en") + " as FBX or GLB");
-    stats.push(el("span", { class: "clip-stat", "data-tip": counted(clip.downloads, "download") + ": " + ways.join(", ") },
-      AW.icon("download"), el("b", {}, clip.downloads.toLocaleString("en"))));
-  }
-  if (stats.length) {
-    document.getElementById("clip-actions").prepend(el("div", { class: "clip-stats" }, ...stats));
+    const label = clip.downloads === 1 ? "1 download" : clip.downloads.toLocaleString("en") + " downloads";
+    document.getElementById("clip-actions").prepend(el("div", { class: "clip-stats" },
+      el("span", { class: "clip-stat", role: "img", "aria-label": label },
+        AW.icon("download"), el("b", {}, clip.downloads.toLocaleString("en")))));
   }
 
   //  DAS VORSCHAUBILD FUER DISCORD & CO. Fehlt es noch, rendert es die Seite
@@ -140,8 +128,11 @@ const CLIP_SCRIPT = document.currentScript ? document.currentScript.src : locati
       packLine.replaceChildren(AW.icon("pack"), "Part of the pack ",
         el("a", { href: "/pack.html?k=" + encodeURIComponent(clip.pack.slug) }, clip.pack.title));
     }
-    document.getElementById("tags").replaceChildren(
-      ...clip.tags.map((tag) => el("a", { class: "tag", href: "/?tag=" + encodeURIComponent(tag) }, tag)));
+    //  Die Schlagworte mit #, in der Zeile ueber der Beschreibung - wie bei
+    //  YouTube. Vorher standen sie als Pillen in einer eigenen Reihe.
+    const meta = document.getElementById("clip-meta");
+    meta.querySelectorAll(".hashtag").forEach((node) => node.remove());
+    meta.append(...clip.tags.map((tag) => el("a", { class: "hashtag", href: "/?tag=" + encodeURIComponent(tag) }, "#" + tag)));
     showFacts();
   }
 

@@ -49,11 +49,8 @@
              th:if="${clipPage != null and clipPage.authorAvatar != null}" th:src="${clipPage.authorAvatar}">
         <span class="avatar" id="author-initial" th:unless="${clipPage != null and clipPage.authorAvatar != null}"
               th:text="${clipPage != null} ? ${clipPage.authorInitial} : '?'">?</span>
-        <div>
-          <div id="author" class="clip-author"><a th:if="${clipPage != null}" th:href="${clipPage.authorHref}"
-               th:text="${clipPage.author}">Author</a></div>
-          <div class="faint small" id="clip-sub" th:text="${clipPage != null} ? ${clipPage.sub}"></div>
-        </div>
+        <div id="author" class="clip-author"><a th:if="${clipPage != null}" th:href="${clipPage.authorHref}"
+             th:text="${clipPage.author}">Author</a></div>
         <div class="clip-actions" id="clip-actions"></div>
       </div>
       <!-- Der Pack, zu dem der Clip gehoert - der Weg zu seinen Geschwistern. -->
@@ -67,9 +64,16 @@
          th:unless="${clipPage.sourceUrl != null}" th:text="${clipPage.sourceCredit}">Source</span> · added by the operator, not made by a community member</th:block></p>
       <div id="action-state"></div>
 
-      <div class="tags" id="tags"><a class="tag" th:each="t : ${clipPage?.tags}"
-           th:href="@{/(tag=${t})}" th:text="${t}">tag</a></div>
-      <p id="description" class="clip-description" th:text="${clipDescription}"></p>
+      <!-- Wie die Beschreibung bei YouTube: oben Aufrufe, wann, und die
+           Schlagworte mit #, darunter der Text. clip.js schreibt dieselbe
+           Zeile; die Links auf die Schlagwort-Seiten stehen schon im HTML,
+           damit ein Crawler sie findet. -->
+      <div class="clip-about">
+        <p class="clip-meta" id="clip-meta"><span class="clip-when" id="clip-when"
+           th:text="${clipPage != null} ? ${clipPage.sub}"></span><a class="hashtag" th:each="t : ${clipPage?.tags}"
+           th:href="@{/(tag=${t})}" th:text="'#' + ${t}">#tag</a></p>
+        <p id="description" class="clip-description" th:text="${clipDescription}"></p>
+      </div>
 
       <!-- E10: unter jeder Animation steht ein Gespraech. Flach, ohne Antworten
            auf Antworten - die Endpunkte gibt es seit dem 20.09., im Web fehlte

@@ -563,11 +563,33 @@ class PageController(
 
     private val shared = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.ENGLISH).withZone(ZoneOffset.UTC)
 
+    /**
+     * "2 weeks ago" - dieselbe Rechnung wie `formatRelative` in app.js, damit
+     * die Zeile nicht umspringt, wenn das Skript sie neu schreibt. Ab einem
+     * Monat das Datum: dann ist "vor 43 Tagen" eine Rechenaufgabe.
+     */
+    private fun ago(then: java.time.Instant): String {
+        val seconds = java.time.Duration.between(then, java.time.Instant.now()).seconds
+        if (seconds < 45) return "just now"
+        var label: Pair<String, Long>? = null
+        for ((unit, size) in listOf("minute" to 60L, "hour" to 3600L, "day" to 86400L, "week" to 604800L)) {
+            val value = seconds / size
+            if (value < 1) break
+            if (unit == "week" && value > 4) break
+            label = unit to value
+        }
+        val (unit, value) = label ?: return shared.format(then)
+        return if (value == 1L) "1 $unit ago" else "$value ${unit}s ago"
+    }
+
 
     private fun clipPage(clip: PackageDetail): ClipPage {
-        //  Dieselbe Zeile wie clip.js. Aufrufe und Downloads stehen als
-        //  Zeichen in der Aktionsleiste, die baut clip.js.
-        val sub = "Shared " + shared.format(clip.createdAt)
+        //  Dieselbe Zeile wie clip.js (`whenLine`): Aufrufe und wann, wie
+        //  bei YouTube. Die Schlagworte haengt die Vorlage an.
+        val sub = listOfNotNull(
+            clip.views.takeIf { it > 0 }?.let { if (it == 1L) "1 view" else String.format(Locale.ENGLISH, "%,d views", it) },
+            ago(clip.createdAt),
+        ).joinToString("  ")
 
         //  Die Nachbarschaft wie clip.js: erst das erste Schlagwort, sonst das
         //  Beliebte. Fuer einen Crawler sind das die Wege zum naechsten Clip.

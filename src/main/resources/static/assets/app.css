@@ -1147,7 +1147,19 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
 .clip-stat .icon { width: 19px; height: 19px; color: var(--text-faint); }
 .clip-stat b { color: var(--text); font-weight: 650; font-variant-numeric: tabular-nums; }
 
-.clip-description { color: var(--text-dim); margin: 14px 0 0; white-space: pre-wrap; max-width: 72ch; }
+/* Der Kasten unter der Kopfzeile, wie die Beschreibung bei YouTube: oben
+   Aufrufe, wann und die Schlagworte mit #, darunter der Text. */
+.clip-about {
+  margin: 16px 0 0;
+  padding: 12px 16px 14px;
+  background: var(--surface-2);
+  border-radius: var(--radius);
+}
+.clip-meta { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; font-size: 14.5px; }
+.clip-when { color: var(--text); font-weight: 600; white-space: pre; }
+.hashtag { color: var(--accent-strong); font-weight: 500; }
+.hashtag:hover { color: var(--accent); }
+.clip-description { color: var(--text-dim); margin: 6px 0 0; white-space: pre-wrap; max-width: 72ch; }
 
 .get-panel { display: flex; flex-direction: column; gap: 14px; }
 .get-panel .actions { display: flex; flex-direction: column; gap: 8px; margin: 0; }
