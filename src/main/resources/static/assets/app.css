@@ -1694,7 +1694,12 @@ table.list tr:hover td { background: var(--row-hover); }
 .icon { width: 18px; height: 18px; flex: none; display: block; }
 .icon.filled { fill: currentColor; }
 
-[data-tip] { position: relative; }
+/* Nur als Vorgabe (`:where` = keine Spezifitaet): ein Element, das seine Lage
+   selbst setzt, behaelt sie. Vorher gewann diese Zeile gegen jede Klasse, die
+   weiter oben in der Datei stand - die Marke "Unlisted" auf der
+   Sammlungskarte (.card-flag, absolut oben links) rutschte dadurch unter das
+   Bild und wurde abgeschnitten, "New" ohne Tooltip nicht. */
+:where([data-tip]) { position: relative; }
 
 [data-tip]::after {
   content: attr(data-tip);
