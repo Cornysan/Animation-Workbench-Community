@@ -340,7 +340,7 @@ a:focus-visible, button:focus-visible, summary:focus-visible, [tabindex]:focus-v
 .brand:hover { text-decoration: none; }
 
 /* Das Lockup haelt seinen Freiraum: ein Viertel der eigenen Hoehe ringsum. */
-.brand-lockup { width: 150px; height: auto; display: block; }
+.brand-lockup { width: 180px; height: auto; display: block; }
 .brand-mark { width: 28px; height: 28px; display: none; }
 
 /* DIE MARKE IN TINTE. Die ausgelieferte Datei ist die weisse - sie steht auf
@@ -352,17 +352,8 @@ a:focus-visible, button:focus-visible, summary:focus-visible, [tabindex]:focus-v
    zeigt. Die Adresse ist relativ zu DIESER Datei und traegt damit denselben
    Stempel wie alles andere unter /assets - eine absolute stuende ohne ihn da
    und laege nach dem naechsten Build im Cache fest. */
-:root[data-theme="light"] .brand-lockup { content: url("brand/aw-lockup-tinte.svg"); }
-:root[data-theme="light"] .brand-mark { content: url("brand/aw-mark-tinte.svg"); }
-.brand small {
-  color: var(--text-faint);
-  font-weight: 600;
-  font-size: 10.5px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  border-left: 1px solid var(--line-strong);
-  padding-left: 8px;
-}
+:root[data-theme="light"] .brand-lockup { content: url("brand/playmations-lockup-tinte.svg"); }
+:root[data-theme="light"] .brand-mark { content: url("brand/playmations-mark-tinte.svg"); }
 
 .site-nav { display: flex; align-items: center; gap: 2px; flex: none; }
 
@@ -664,7 +655,7 @@ img.avatar { object-fit: cover; padding: 0; background: var(--surface-2); }
    Navigation weichen ihren Symbolen. Die Suche bleibt - sie ist der Grund,
    warum die Leiste oben liegt. */
 @media (max-width: 1080px) {
-  .brand-lockup, .brand small { display: none; }
+  .brand-lockup { display: none; }
   .brand-mark { display: block; }
   .nav-item span { display: none; }
   .nav-item { padding: 8px 10px; }
@@ -729,6 +720,34 @@ main.wide { max-width: var(--page-wide); }
   gap: 10px 22px;
 }
 .footer-links { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+
+/* "Powered by": mittig ueber den Links, leiser als die Marke oben - sie
+   nennt, worauf das Portal laeuft, und soll nicht mit Playmations reden. */
+.footer-powered {
+  display: flex;
+  justify-content: center;
+  padding: 28px var(--gutter) 0;
+}
+.site-footer .powered-by {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-faint);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.site-footer .powered-by:hover { color: var(--text-dim); text-decoration: none; }
+.powered-lockup { width: 120px; height: auto; display: block; opacity: 0.8; }
+.powered-by:hover .powered-lockup { opacity: 1; }
+:root[data-theme="light"] .powered-lockup { content: url("brand/aw-lockup-tinte.svg"); }
+.powered-by small {
+  font-weight: 600;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border-left: 1px solid var(--line-strong);
+  padding-left: 8px;
+}
 .site-footer a { color: var(--text-faint); }
 .site-footer a:hover { color: var(--text-dim); }
 

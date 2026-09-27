@@ -129,17 +129,20 @@
   <a class="skip-link" href="#main">Skip to content</a>
   <div class="header-inner">
 
-    <a class="brand" href="/" title="Animation Workbench Community">
-      <img class="brand-lockup" th:src="|${@buildStamp.assets}/brand/aw-lockup-weiss.svg|"
-           alt="Animation Workbench" width="150" height="29">
-      <img class="brand-mark" th:src="|${@buildStamp.assets}/brand/aw-mark-dark.svg|"
-           alt="Animation Workbench" width="28" height="28">
-      <!--
-        Bis 2026-09-25 stand hier noch eine Marke "Beta". Pablo wollte sie aus
-        dem Kopf; dass es eine Beta ist, sagen weiter die Nutzungsbedingungen
-        und der Titel im Browser-Reiter.
-      -->
-      <small>Community</small>
+    <!--
+      OBEN STEHT PLAYMATIONS. Das Portal laeuft unter playmations.com, also
+      traegt der Kopf diese Marke; Animation Workbench Community ist seit
+      2026-09-27 das, worauf es laeuft, und steht als "Powered by" im Fuss.
+
+      Bis 2026-09-25 stand hier noch eine Marke "Beta". Pablo wollte sie aus
+      dem Kopf; dass es eine Beta ist, sagen weiter die Nutzungsbedingungen
+      und der Titel im Browser-Reiter.
+    -->
+    <a class="brand" href="/" title="Playmations">
+      <img class="brand-lockup" th:src="|${@buildStamp.assets}/brand/playmations-lockup-weiss.svg|"
+           alt="Playmations" width="180" height="25">
+      <img class="brand-mark" th:src="|${@buildStamp.assets}/brand/playmations-mark-dark.svg|"
+           alt="Playmations" width="28" height="28">
     </a>
 
     <!--
@@ -374,6 +377,19 @@
 </th:block>
 
 <footer class="site-footer" th:fragment="footer">
+  <!--
+    Worauf das Portal laeuft: die Marke, die bis 2026-09-27 oben links stand.
+    Sie fuehrt dorthin, wo es das Werkzeug gibt - dieselbe Seite wie der
+    erste Link darunter.
+  -->
+  <div class="footer-powered">
+    <a class="powered-by" href="/share.html" title="Animation Workbench for Unity">
+      <span>Powered by</span>
+      <img class="powered-lockup" th:src="|${@buildStamp.assets}/brand/aw-lockup-weiss.svg|"
+           alt="Animation Workbench" width="120" height="23">
+      <small>Community</small>
+    </a>
+  </div>
   <div class="footer-inner">
     <!--
       "Licenses" stand bis hierher oben in der Navigation, neben Katalog und
