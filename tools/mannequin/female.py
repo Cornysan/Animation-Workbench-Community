@@ -328,11 +328,14 @@ sy_t = curve([(-0.12, 1.00), (0.08, 1.00), (0.14, 0.92), (0.22, 0.84), (0.33, 0.
 # Das Skelett ist das des Originals, der Arm dreht also um denselben Punkt -
 # wird der Brustkorb dort schmaler oder tiefer, steht die Schulterkappe bei
 # haengendem Arm frei neben dem Koerper (in Unity gut zu sehen). Schmaler
-# werden darf er erst ein Stueck vom Gelenk weg.
+# werden darf er erst ein Stueck vom Gelenk weg - und das Stueck muss bis
+# vorn auf die Brust reichen: innen laeuft die Kappe in eine Spitze aus, die
+# dort anliegt. Mit 0,07..0,14 stand sie bei haengendem Arm in der Luft und
+# sah von oben wie eine abgebrochene Schulter aus (Pablo, 2026-09-28).
 ax_abs = np.abs(x)
 ARM_PIVOT = np.array([0.197, 0.0885, 0.541])   # |x|, y, h von DEF-upper_arm
 to_pivot = np.sqrt((ax_abs - ARM_PIVOT[0]) ** 2 + (y - ARM_PIVOT[1]) ** 2 + (h - ARM_PIVOT[2]) ** 2)
-socket = 1 - smoothstep(0.07, 0.14, to_pivot)
+socket = 1 - smoothstep(0.10, 0.26, to_pivot)
 sx_t = sx_t + (1 - sx_t) * socket
 sy_t = sy_t + (1 - sy_t) * socket
 
