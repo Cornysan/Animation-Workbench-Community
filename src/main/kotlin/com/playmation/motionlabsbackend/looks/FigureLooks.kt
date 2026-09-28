@@ -12,8 +12,17 @@ import org.springframework.web.bind.annotation.RestController
  * Clip-Seite und Link-Vorschau sehen.
  *
  * Der Ersteller waehlt beides beim Teilen (in der Workbench) und kann es
- * spaeter aendern. Die Figur ist frei; bei den Looks sind drei in Animation
- * Workbench Lite dabei, der Rest kommt mit Pro ([Look.pro]).
+ * spaeter aendern. Die Figur ist frei; in Animation Workbench Lite traegt
+ * sie ihren Standard-Look, alle anderen kommen mit Pro ([Look.pro]).
+ *
+ * ── Jede Figur hat ihre eigenen Looks ───────────────────────────────────
+ *
+ * Seit 2026-09-29 gehoert jeder Look genau einer Figur, und jeder hat bei
+ * der anderen ein Gegenstueck ([Look.twin]): Gold und Rose Gold, Galaxy und
+ * Nebula, Classic und Crimson als Standard. Kommt ein Look zur falschen
+ * Figur - eine aeltere Workbench, ein Figurwechsel beim Bearbeiten -, traegt
+ * der Clip das Gegenstueck ([FigureLooks.lookFor]), statt dass die Anfrage
+ * scheitert.
  *
  * ── Wer die Grenze zieht ────────────────────────────────────────────────
  *
@@ -32,44 +41,90 @@ import org.springframework.web.bind.annotation.RestController
  */
 object FigureLooks {
     const val DEFAULT_FIGURE = "default"
+    const val FEMALE_FIGURE = "female"
+
+    /** Der Standard des Mannes - und der eines Clips, der gar nichts angibt. */
     const val DEFAULT_LOOK = "classic"
 
-    data class Figure(val key: String, val label: String)
+    /** [defaultLook] = was die Figur ohne Wahl traegt, und das Einzige in Lite. */
+    data class Figure(val key: String, val label: String, val defaultLook: String)
 
     /** Die Figuren des Hauses - dieselben Schluessel wie `HOUSE_FIGURES` in stage.js. */
     val FIGURES = listOf(
-        Figure(DEFAULT_FIGURE, "Male"),
-        Figure("female", "Female"),
+        Figure(DEFAULT_FIGURE, "Male", DEFAULT_LOOK),
+        Figure(FEMALE_FIGURE, "Female", "crimson"),
     )
 
-    /** [pro] = nur mit Animation Workbench Pro waehlbar. Die Reihenfolge ist die der Auswahl. */
-    data class Look(val key: String, val label: String, val pro: Boolean = false)
+    /**
+     * [figure] = wem der Look gehoert, [twin] = sein Gegenstueck bei der
+     * anderen Figur. [pro] = nur mit Animation Workbench Pro waehlbar.
+     */
+    data class Look(val key: String, val label: String, val figure: String, val twin: String, val pro: Boolean)
 
-    val LOOKS = listOf(
-        Look(DEFAULT_LOOK, "Classic"),
-        Look("mint", "Mint"),
-        Look("coral", "Coral"),
-        Look("graphite", "Graphite", pro = true),
-        Look("ocean", "Ocean", pro = true),
-        Look("sunset", "Sunset", pro = true),
-        Look("marble", "Marble", pro = true),
-        Look("neon", "Neon", pro = true),
-        Look("gold", "Gold", pro = true),
-        Look("chrome", "Chrome", pro = true),
-        Look("galaxy", "Galaxy", pro = true),
-        Look("hologram", "Hologram", pro = true),
+    /**
+     * Die Paare, links der Mann, rechts die Frau. Dieselbe Tabelle steht in
+     * figure-looks.js (`PAIRS`) und in der Workbench (AWMannequinLooks.cs).
+     */
+    private val PAIRS = listOf(
+        ("classic" to "Classic") to ("crimson" to "Crimson"),
+        ("graphite" to "Graphite") to ("noir" to "Noir"),
+        ("mint" to "Mint") to ("blush" to "Blush"),
+        ("ocean" to "Ocean") to ("sunset" to "Sunset"),
+        ("marble" to "Marble") to ("rosequartz" to "Rose Quartz"),
+        ("neon" to "Neon") to ("magenta" to "Magenta"),
+        ("gold" to "Gold") to ("rosegold" to "Rose Gold"),
+        ("chrome" to "Chrome") to ("pearl" to "Pearl"),
+        ("galaxy" to "Galaxy") to ("nebula" to "Nebula"),
+        ("hologram" to "Hologram") to ("aurora" to "Aurora"),
     )
+
+    /** Erst die zehn des Mannes, dann die zehn der Frau - das Gegenstueck steht an derselben Stelle. */
+    val LOOKS: List<Look> =
+        PAIRS.map { (male, female) -> entry(male, DEFAULT_FIGURE, female.first) } +
+            PAIRS.map { (male, female) -> entry(female, FEMALE_FIGURE, male.first) }
+
+    private fun entry(look: Pair<String, String>, figure: String, twin: String) =
+        Look(look.first, look.second, figure, twin, pro = look.first != defaultLook(figure))
+
+    /**
+     * Looks, die es nicht mehr gibt, und was ein Clip mit ihnen je Figur
+     * traegt. Eine aeltere Workbench kann sie noch schicken - Coral war in
+     * Lite -, und das soll nicht scheitern.
+     */
+    private val RETIRED = mapOf("coral" to mapOf(DEFAULT_FIGURE to DEFAULT_LOOK, FEMALE_FIGURE to "crimson"))
 
     fun figure(key: String): Figure? = FIGURES.firstOrNull { it.key == key }
     fun look(key: String): Look? = LOOKS.firstOrNull { it.key == key }
+
+    fun defaultLook(figure: String): String = figure(figure)?.defaultLook ?: DEFAULT_LOOK
+
+    /**
+     * Der Look, den [figure] fuer [key] traegt: der Look selbst, wenn er ihr
+     * gehoert, sonst sein Gegenstueck; fuer einen ausgemusterten sein Ersatz.
+     * null = einen solchen Look gab es nie.
+     */
+    fun lookFor(figure: String, key: String): String? {
+        RETIRED[key]?.let { return it[figure] ?: defaultLook(figure) }
+        val look = look(key) ?: return null
+        return if (look.figure == figure) look.key else look.twin
+    }
 }
 
-data class FigureView(val key: String, val label: String)
+data class FigureView(
+    val key: String,
+    val label: String,
+    /** Was die Figur ohne Wahl traegt - und das Einzige in Lite. */
+    val defaultLook: String,
+)
 
 /** Ein Look, wie die Auswahl ihn zeigt. */
 data class LookView(
     val key: String,
     val label: String,
+    /** Wem der Look gehoert - die Auswahl zeigt je Figur nur ihre. */
+    val figure: String,
+    /** Das Gegenstueck bei der anderen Figur - fuer den Figurwechsel in der Auswahl. */
+    val twin: String,
     /** Nur mit Pro waehlbar - gesperrt wird in der Workbench, siehe [FigureLooks]. */
     val pro: Boolean,
     /**
@@ -96,27 +151,31 @@ class LookService(private val build: BuildStamp) {
 
     /** Alle Figuren und Looks - fuer jeden gleich, mit oder ohne Konto. */
     fun looks(): LooksView = LooksView(
-        figures = FigureLooks.FIGURES.map { FigureView(it.key, it.label) },
+        figures = FigureLooks.FIGURES.map { FigureView(it.key, it.label, it.defaultLook) },
         looks = FigureLooks.LOOKS.map { look ->
-            LookView(look.key, look.label, look.pro, "${build.assets}/looks/${look.key}.png")
+            LookView(look.key, look.label, look.figure, look.twin, look.pro, "${build.assets}/looks/${look.key}.png")
         },
     )
 
     /**
      * Was ein Clip nach einer Wahl traegt. `null` heisst "nicht angegeben" und
-     * behaelt [current] (oder den Standard bei einem neuen Clip). Geprueft
-     * wird nur, ob es Figur und Look gibt.
+     * behaelt [current] - bei einem neuen Clip den Standard der Figur. Ein
+     * Look der anderen Figur wird zu seinem Gegenstueck ([FigureLooks.lookFor]);
+     * scheitern tut nur, was es nie gab.
      */
     fun choose(figure: String?, look: String?, current: FigureChoice?): FigureChoice {
-        val base = current ?: FigureChoice(FigureLooks.DEFAULT_FIGURE, FigureLooks.DEFAULT_LOOK)
-
-        val chosenFigure = figure?.trim()?.lowercase()?.takeIf { it.isNotEmpty() } ?: base.figure
+        val chosenFigure = figure?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }
+            ?: current?.figure ?: FigureLooks.DEFAULT_FIGURE
         if (FigureLooks.figure(chosenFigure) == null)
             throw PortalException.badRequest("invalid-figure", "'$chosenFigure' is not a figure.")
 
-        val chosenLook = look?.trim()?.lowercase()?.takeIf { it.isNotEmpty() } ?: base.look
-        if (FigureLooks.look(chosenLook) == null)
-            throw PortalException.badRequest("invalid-look", "'$chosenLook' is not a look.")
+        val requested = look?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }
+        val chosenLook = when {
+            requested != null -> FigureLooks.lookFor(chosenFigure, requested)
+                ?: throw PortalException.badRequest("invalid-look", "'$requested' is not a look.")
+            current != null -> FigureLooks.lookFor(chosenFigure, current.look) ?: FigureLooks.defaultLook(chosenFigure)
+            else -> FigureLooks.defaultLook(chosenFigure)
+        }
 
         return FigureChoice(chosenFigure, chosenLook)
     }

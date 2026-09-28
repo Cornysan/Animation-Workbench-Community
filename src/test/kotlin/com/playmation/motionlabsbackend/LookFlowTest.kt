@@ -28,8 +28,9 @@ import kotlin.test.assertTrue
  * Figur und Look eines Clips (looks/FigureLooks.kt).
  *
  * Festgehalten wird, was beim naechsten Handgriff still umfallen koennte:
- * welche drei Looks Lite hat, dass das Portal jeden bekannten Look annimmt
- * (Lite und Pro trennt die Workbench, nicht der Server), und dass ein
+ * dass Lite je Figur nur ihren Standard hat, dass das Portal jeden bekannten
+ * Look annimmt (Lite und Pro trennt die Workbench, nicht der Server), dass
+ * ein Look der anderen Figur zu seinem Gegenstueck wird, und dass ein
  * unbekannter scheitert, bevor irgendetwas gespeichert ist.
  */
 @SpringBootTest
@@ -108,16 +109,68 @@ class LookFlowTest {
         val view = looks()
 
         assertEquals(listOf("default", "female"), view["figures"].map { it["key"].asString() })
+        assertEquals(listOf("classic", "crimson"), view["figures"].map { it["defaultLook"].asString() })
         assertEquals("classic", view["defaultLook"].asString())
 
+        //  Lite: je Figur nur ihr Standard.
         val lite = view["looks"].filter { !it["pro"].asBoolean() }.map { it["key"].asString() }
-        assertEquals(listOf("classic", "mint", "coral"), lite)
-        assertEquals(12, view["looks"].size())
+        assertEquals(listOf("classic", "crimson"), lite)
+        assertEquals(20, view["looks"].size())
+        assertFalse(view["looks"].any { it["key"].asString() == "coral" })
 
         val galaxy = look(view, "galaxy")
         assertTrue(galaxy["pro"].asBoolean())
         assertFalse(galaxy.has("unlocked"))
+        assertEquals("default", galaxy["figure"].asString())
+        assertEquals("nebula", galaxy["twin"].asString())
         assertTrue(galaxy["image"].asString().matches(Regex("/assets/v/[^/]+/looks/galaxy.png")))
+
+        //  Jedes Paar zeigt aufeinander, und jede Figur hat zehn.
+        for (entry in view["looks"]) {
+            val twin = look(view, entry["twin"].asString())
+            assertEquals(entry["key"].asString(), twin["twin"].asString())
+            assertTrue(entry["figure"].asString() != twin["figure"].asString())
+        }
+        assertEquals(10, view["looks"].count { it["figure"].asString() == "female" })
+    }
+
+    /**
+     * Ein Look der anderen Figur scheitert nicht, er wird zu seinem
+     * Gegenstueck - eine aeltere Workbench kennt die Trennung nicht. Ebenso
+     * der ausgemusterte Coral, der in Lite war.
+     */
+    @Test
+    fun `a look of the other figure becomes its twin`() {
+        val token = login("twin-${unique()}")
+
+        upload(token, "Gold on her", figure = "female", look = "gold").andExpect {
+            status { isCreated() }
+            jsonPath("$.look") { value("rosegold") }
+        }
+        upload(token, "Coral on her", figure = "female", look = "coral").andExpect {
+            status { isCreated() }
+            jsonPath("$.look") { value("crimson") }
+        }
+        upload(token, "Coral on him", look = "coral").andExpect {
+            status { isCreated() }
+            jsonPath("$.look") { value("classic") }
+        }
+
+        //  Nur die Figur: sie kommt mit ihrem Standard.
+        val slug = upload(token, "Her default", figure = "female").andExpect {
+            status { isCreated() }
+            jsonPath("$.look") { value("crimson") }
+        }.body()["slug"].asString()
+
+        //  Figurwechsel beim Bearbeiten: der Look geht als Gegenstueck mit.
+        edit(token, slug, """{"title":"Her default","description":"","tags":["walk"],"license":"CC0-1.0","look":"nebula"}""")
+            .andExpect { status { isOk() }; jsonPath("$.look") { value("nebula") } }
+        edit(token, slug, """{"title":"Her default","description":"","tags":["walk"],"license":"CC0-1.0","figure":"default"}""")
+            .andExpect {
+                status { isOk() }
+                jsonPath("$.figure") { value("default") }
+                jsonPath("$.look") { value("galaxy") }
+            }
     }
 
     /**
@@ -141,18 +194,18 @@ class LookFlowTest {
         mvc.get("/api/v1/me/packages") { header("Authorization", "Bearer $token") }
             .andExpect { status { isOk() }; jsonPath("$.length()") { value(0) } }
 
-        val slug = upload(token, "Galaxy walk", figure = "female", look = "galaxy").andExpect {
+        val slug = upload(token, "Nebula walk", figure = "female", look = "nebula").andExpect {
             status { isCreated() }
             jsonPath("$.figure") { value("female") }
-            jsonPath("$.look") { value("galaxy") }
+            jsonPath("$.look") { value("nebula") }
         }.body()["slug"].asString()
 
         mvc.get("/api/v1/packages/$slug").andExpect {
             jsonPath("$.figure") { value("female") }
-            jsonPath("$.look") { value("galaxy") }
+            jsonPath("$.look") { value("nebula") }
         }
         val card = mvc.get("/api/v1/users/$name/packages").andExpect { status { isOk() } }.body()["items"][0]
-        assertEquals("galaxy", card["look"].asString())
+        assertEquals("nebula", card["look"].asString())
         assertEquals("female", card["figure"].asString())
 
         //  Ohne Angabe: der Standard.

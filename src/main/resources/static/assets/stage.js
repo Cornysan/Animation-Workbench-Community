@@ -100,7 +100,7 @@ import {
   Vector3, WebGLRenderer,
 } from './vendor/three.module.js';
 import { measuredRestPose } from './rest-pose.js';
-import { knownLook, lookMaterials } from './figure-looks.js';
+import { lookFor, lookMaterials } from './figure-looks.js';
 
 // Relativ zu diesem Modul, damit das Mannequin dieselbe Build-Version traegt
 // wie das Skript, das es laedt (siehe StaticAssets.kt).
@@ -865,10 +865,11 @@ export class MannequinStage {
 
     /**
      * Wie das Mannequin aussieht (figure-looks.js) - der Look, den der
-     * Ersteller beim Teilen gewaehlt hat. Eine eigene Figur hat keinen, sie
-     * behaelt ihre Materialien. `lookUniforms.time` schreibt [step] fort.
+     * Ersteller beim Teilen gewaehlt hat, bei der anderen Figur sein
+     * Gegenstueck ([lookFor]). Eine eigene Figur hat keinen, sie behaelt ihre
+     * Materialien. `lookUniforms.time` schreibt [step] fort.
      */
-    this.look = this.own ? null : knownLook(options.look);
+    this.look = this.own ? null : lookFor(this.house, options.look);
     this.lookUniforms = { time: { value: 0 } };
     this.lookMats = null;
     this.boneMap = options.boneMap || BONE_MAP;
@@ -1166,7 +1167,7 @@ export class MannequinStage {
   /** Einen anderen Look anziehen - fuer die Auswahl beim Bearbeiten. */
   setLook(key) {
     if (this.own) return;
-    const look = knownLook(key);
+    const look = lookFor(this.house, key);
     if (look === this.look) return;
     this.look = look;
     this.dress();

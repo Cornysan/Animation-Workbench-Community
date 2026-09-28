@@ -270,8 +270,8 @@ export async function mountViewer(box, preview, options = {}) {
   //  Klick auf Male/Female ueber den Clip hinaus (`aw.viewer.house`); seit
   //  jeder Clip seine Figur und seinen Look mitbringt (figure-looks.js), saehe
   //  wer einmal umgeschaltet hat die Wahl des Erstellers nie wieder. Der
-  //  Schalter gilt jetzt fuer diesen Besuch. Der Look bleibt beim Wechsel -
-  //  er passt auf beide Figuren.
+  //  Schalter gilt jetzt fuer diesen Besuch. Beim Wechsel traegt die andere
+  //  Figur das Gegenstueck des Looks (Gold -> Rose Gold, figure-looks.js).
   let house = options.house || 'default';
   const look = options.look;
 
