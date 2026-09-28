@@ -189,7 +189,10 @@ async function downloadWithCharacter(format) {
   const frames = preview.hips.length;
   const dismiss = toast('Putting it together...', { duration: 60_000 });
   try {
-    const response = await fetch(new URL('../models/aw-mannequin.glb', import.meta.url));
+    //  Das Mannequin, das auf der Buehne steht. Beide tragen dasselbe
+    //  Skelett, die abgelesene Bewegung passt auf jedes.
+    const file = stage.house === 'female' ? 'aw-mannequin-f.glb' : 'aw-mannequin.glb';
+    const response = await fetch(new URL('../models/' + file, import.meta.url));
     if (!response.ok) throw new Error('the figure could not be loaded');
     const mannequin = new Uint8Array(await response.arrayBuffer());
 

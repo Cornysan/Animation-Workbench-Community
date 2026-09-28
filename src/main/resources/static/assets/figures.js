@@ -305,3 +305,28 @@ export function rememberFigure(id) {
     /* dann eben nur fuer diesen Clip */
   }
 }
+
+// ── Welches Mannequin des Hauses ──────────────────────────────────────────
+//
+// Eigener Schluessel neben der eigenen Figur: die Wahl gilt auch dort, wo es
+// keine eigenen Figuren gibt (Characters aus), und sie bleibt stehen, wenn
+// jemand kurz auf eine eigene Figur wechselt und wieder zurueck.
+
+const HOUSE_KEY = 'aw.viewer.house';
+
+export function rememberedHouse() {
+  try {
+    return localStorage.getItem(HOUSE_KEY) || 'default';
+  } catch {
+    return 'default';
+  }
+}
+
+export function rememberHouse(house) {
+  try {
+    if (house && house !== 'default') localStorage.setItem(HOUSE_KEY, house);
+    else localStorage.removeItem(HOUSE_KEY);
+  } catch {
+    /* dann eben nur fuer diesen Clip */
+  }
+}

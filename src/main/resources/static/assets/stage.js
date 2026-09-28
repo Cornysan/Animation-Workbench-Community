@@ -103,7 +103,15 @@ import { measuredRestPose } from './rest-pose.js';
 
 // Relativ zu diesem Modul, damit das Mannequin dieselbe Build-Version traegt
 // wie das Skript, das es laedt (siehe StaticAssets.kt).
-const MODEL_URL = new URL('./models/aw-mannequin.glb', import.meta.url).href;
+//
+// Die Figuren des Hauses. `female` ist dasselbe Mannequin mit anderer Haut -
+// gleiches Skelett, gleiche Knochennamen, gleiche Materialien (erzeugt mit
+// `tools/mannequin/female.py`). Alles, was am Mannequin haengt, gilt fuer
+// beide: BONE_MAP, Proportionen, Download.
+export const HOUSE_FIGURES = {
+  default: new URL('./models/aw-mannequin.glb', import.meta.url).href,
+  female: new URL('./models/aw-mannequin-f.glb', import.meta.url).href,
+};
 
 const ACCENT = 0x8e77ff;
 const WARM = 0xfb923c;
@@ -748,17 +756,18 @@ function gridTexture(size = 64) {
   return (groundTextures.grid = texture);
 }
 
-let modelPromise = null;
+const modelPromises = {};
 
-/** Das Modell wird einmal geladen und danach geklont - zwei Buehnen auf einer
- *  Seite sollen nicht zweimal 326 KiB holen. */
-export function loadModel() {
-  if (!modelPromise) {
-    modelPromise = new Promise((resolve, reject) => {
-      new GLTFLoader().load(MODEL_URL, (gltf) => resolve(gltf), undefined, reject);
+/** Jedes Modell wird einmal geladen und danach geklont - zwei Buehnen auf
+ *  einer Seite sollen nicht zweimal 326 KiB holen. */
+export function loadModel(house = 'default') {
+  const url = HOUSE_FIGURES[house] || HOUSE_FIGURES.default;
+  if (!modelPromises[url]) {
+    modelPromises[url] = new Promise((resolve, reject) => {
+      new GLTFLoader().load(url, (gltf) => resolve(gltf), undefined, reject);
     });
   }
-  return modelPromise;
+  return modelPromises[url];
 }
 
 export class MannequinStage {
@@ -820,6 +829,8 @@ export class MannequinStage {
      * nicht. Siehe [targetTPose].
      */
     this.own = !!options.own;
+    /** Welche Figur des Hauses dasteht (`HOUSE_FIGURES`); null bei einer eigenen. */
+    this.house = this.own ? null : (HOUSE_FIGURES[options.house] ? options.house : 'default');
     this.boneMap = options.boneMap || BONE_MAP;
     this.tposeInRest = gltf.userData?.pose === 'tpose';
 
@@ -2249,11 +2260,12 @@ export async function parseFigure(buffer, kind = 'glb', scale = 1) {
  * Aufrufer faellt dann auf das Strichmaennchen zurueck.
  *
  * `options.figure` ist eine eigene Figur: `{ buffer, humanoid, kind, scale }`,
- * alles aus der abgelegten Datei. Ohne sie steht das Mannequin des Hauses da.
+ * alles aus der abgelegten Datei. Ohne sie steht ein Mannequin des Hauses da,
+ * welches, sagt `options.house` (`HOUSE_FIGURES`).
  */
 export async function createMannequinStage(canvas, preview, options = {}) {
   const own = options.figure || null;
-  const gltf = own ? await parseFigure(own.buffer, own.kind, own.scale) : await loadModel();
+  const gltf = own ? await parseFigure(own.buffer, own.kind, own.scale) : await loadModel(options.house);
 
   return new MannequinStage(canvas, preview, gltf, own
     ? { ...options, own: true, boneMap: own.humanoid, unitScale: own.scale || 1,

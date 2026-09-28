@@ -13,7 +13,9 @@
  */
 
 import { createMannequinStage } from './stage.js';
-import { figureForStage, listFigures, rememberFigure, rememberedFigure } from './figures.js';
+import {
+  figureForStage, listFigures, rememberFigure, rememberedFigure, rememberHouse, rememberedHouse,
+} from './figures.js';
 
 const ICONS = {
   mesh: '<path d="M12 3.6 20 8v8l-8 4.4L4 16V8z"/><path d="M12 12 20 8M12 12v8.4M12 12 4 8"/>',
@@ -103,7 +105,7 @@ function rememberedProportions() {
  * the portal", dann Export) und bleiben in diesem Browser.
  */
 /**
- * Die Reihe mit den eigenen Figuren: das Mannequin des Hauses, dann alles, was
+ * Die Reihe mit den Figuren: die zwei Mannequins des Hauses, dann alles, was
  * jemand abgelegt hat, dann ein Plus, das zur Characters-Seite fuehrt.
  *
  * WARUM SIE HIER STEHT und nicht in einem Menue: es ist dieselbe Frage wie die
@@ -123,7 +125,13 @@ export function charactersEnabled() {
   return !!meta && meta.content === 'true';
 }
 
-async function mountFigureRow(row, activeId, remount) {
+/** Die Mannequins des Hauses, in der Reihenfolge der Reihe (`HOUSE_FIGURES`). */
+const HOUSE_CHIPS = [
+  ['default', 'Male', 'The male mannequin the Workbench ships with'],
+  ['female', 'Female', 'The female mannequin the Workbench ships with'],
+];
+
+async function mountFigureRow(row, activeId, house, remount, withOwn) {
   const chip = (label, title, pressed) => {
     const button = document.createElement('button');
     button.type = 'button';
@@ -135,20 +143,26 @@ async function mountFigureRow(row, activeId, remount) {
     return button;
   };
 
-  const stored = await listFigures();
+  //  Die beiden Mannequins stehen immer da - auch ohne eigene Figuren. Beide
+  //  liefert die Workbench mit, und die Frage "traegt die Bewegung auch den
+  //  anderen Koerper" stellt sich jedem, nicht nur wem mit eigener Figur.
+  const stored = withOwn ? await listFigures() : [];
   row.replaceChildren();
 
-  if (stored.length) {
-    const house = chip('Mannequin', 'The figure the Workbench ships with', !activeId);
-    house.addEventListener('click', () => { if (activeId) remount(''); });
-    row.append(house);
-
-    for (const entry of stored) {
-      const one = chip(entry.name, 'Run this clip on ' + entry.name, entry.id === activeId);
-      one.addEventListener('click', () => { if (entry.id !== activeId) remount(entry.id); });
-      row.append(one);
-    }
+  for (const [value, label, title] of HOUSE_CHIPS) {
+    const active = !activeId && house === value;
+    const one = chip(label, title, active);
+    one.addEventListener('click', () => { if (!active) remount('', value); });
+    row.append(one);
   }
+
+  for (const entry of stored) {
+    const one = chip(entry.name, 'Run this clip on ' + entry.name, entry.id === activeId);
+    one.addEventListener('click', () => { if (entry.id !== activeId) remount(entry.id); });
+    row.append(one);
+  }
+
+  if (!withOwn) return;
 
   //  Hinzufuegen und Verwalten stehen auf der Characters-Seite. Hier wird nur
   //  gewaehlt: ein Schalter ist kein Ort, und wer eine Figur loswerden will,
@@ -252,26 +266,30 @@ export async function mountViewer(box, preview, options = {}) {
     if (!own) ownId = '';
   }
 
+  //  Welches Mannequin des Hauses - gilt, solange keine eigene Figur dasteht.
+  let house = rememberedHouse();
+
   if (rig === 'humanoid') {
     try {
       stage = await createMannequinStage(canvas, preview, {
         onFrame, autoplay: options.autoplay, proportions: rememberedProportions(),
-        figure: own, follow: options.follow,
+        figure: own, house, follow: options.follow,
       });
     } catch (error) {
       failure = error;
       console.warn('[viewer] figure unavailable', error);
     }
 
-    //  Die eigene Figur ist gescheitert - noch einmal mit dem Mannequin, bevor
-    //  es das Strichmaennchen wird.
-    if (!stage && own) {
+    //  Die eigene Figur oder das zweite Mannequin ist gescheitert - noch
+    //  einmal mit dem Mannequin, bevor es das Strichmaennchen wird.
+    if (!stage && (own || house !== 'default')) {
       ownId = '';
       own = null;
+      house = 'default';
       try {
         stage = await createMannequinStage(canvas, preview, {
           onFrame, autoplay: options.autoplay, proportions: rememberedProportions(),
-          follow: options.follow,
+          house, follow: options.follow,
         });
       } catch (error) {
         // Kein WebGL, kein Modell, kein Drama: das Strichmaennchen kann das auch.
@@ -375,8 +393,9 @@ export async function mountViewer(box, preview, options = {}) {
    * ohnehin ein Ladevorgang; ihn zu wiederholen ist ehrlicher als einen
    * halben Zustand weiterzureichen.
    */
-  const remount = async (nextId) => {
+  const remount = async (nextId, nextHouse) => {
     rememberFigure(nextId);
+    if (nextHouse) rememberHouse(nextHouse);
     const playing = stage.playing;
     //  Follow bleibt, wie man es gestellt hat - die neue Figur zeigt denselben Clip.
     const follow = stage.cameraFollow;
@@ -443,9 +462,10 @@ export async function mountViewer(box, preview, options = {}) {
     figures.append(ownRow);
 
     wrap.append(figures);
-    //  Ist der Schalter aus, kommt die Reihe gar nicht erst - weder die
-    //  abgelegten Figuren noch das Plus, das auf die Seite fuehren wuerde.
-    if (charactersEnabled()) mountFigureRow(ownRow, ownId, remount);
+    //  Die zwei Mannequins stehen immer in der Reihe. Ist der Schalter aus,
+    //  kommen die abgelegten Figuren und das Plus, das auf die Seite fuehren
+    //  wuerde, gar nicht erst dazu.
+    mountFigureRow(ownRow, ownId, house, remount, charactersEnabled());
   }
 
   document.addEventListener('keydown', onKey);

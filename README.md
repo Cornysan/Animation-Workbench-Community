@@ -102,11 +102,29 @@ sie sich auch jetzt nicht.
 | Datei | |
 |---|---|
 | `static/models/aw-mannequin.glb` | Die Figur, 326 KiB. Erzeugt mit `docs-site/tools/unity-mesh-to-glb.py` im Workbench-Repo - hier liegt nur die Kopie. |
+| `static/models/aw-mannequin-f.glb` | Die weibliche Variante: dasselbe Skelett, dieselben Ecken, andere Form. Erzeugt mit `tools/mannequin/female.py` aus der Datei darueber. |
+| `tools/mannequin/unity_female.py` | Schreibt dieselbe Form als `AW_Female_Mannequin` (Mesh + Prefab, URP und HDRP) neben das Default-Mannequin der Workbench. |
 | `static/assets/stage.js` | Die Buehne: laedt das Modell, rechnet die Vorschau auf seine Knochen um, zeichnet Boden, Licht und Schatten. |
 | `static/assets/card-stage.js` | Dieselbe Buehne auf den Karten des Katalogs - ein Renderer fuer alle. |
 | `static/assets/viewer-ui.js` | Wiedergabe, Zeitleiste und die Sichtschalter drumherum. |
 | `static/assets/viewer.js` | Das Strichmaennchen. Bleibt: als Skelettansicht und als Rueckfall ohne WebGL. |
 | `static/assets/vendor/three.module.js` | three.js r186 plus GLTFLoader und SkeletonUtils, gebuendelt. |
+
+**Zwei Mannequins.** Rechts unten auf der Buehne steht `Male / Female`, auch
+ohne die eigenen Figuren. Die Wahl haelt ueber den Clip hinaus
+(`aw.viewer.house`), und "With character" laedt das Mannequin herunter, das
+gerade dasteht. Beide haben dasselbe Skelett - BONE_MAP, Ruhepose und die
+Umrechnung gelten unveraendert. Katalogkarten und Discord-Bilder zeigen immer
+das Default-Mannequin. Aendert sich das Default-Mannequin, beide neu erzeugen:
+
+```
+python tools/mannequin/female.py src/main/resources/static/models/aw-mannequin.glb src/main/resources/static/models/aw-mannequin-f.glb
+python tools/mannequin/unity_female.py "<Workbench>/Assets/Animation Workbench/Prefabs/Mannequin_URP" src/main/resources/static/models/aw-mannequin.glb src/main/resources/static/models/aw-mannequin-f.glb
+```
+
+(`unity_female.py` ebenso fuer `Mannequin_HDRP`.) Es prueft selbst, dass die
+Ecken des Web-Modells und des Unity-Meshes eins zu eins zusammenpassen, und
+behaelt die GUIDs, wenn die Dateien schon da sind.
 
 **Vier Proportionen derselben Figur.** Rechts unten auf der Buehne steht
 `Default / Tall / Short / Heavy` (Taste `P` geht die Reihe durch). Das ist
