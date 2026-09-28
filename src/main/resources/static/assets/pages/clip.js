@@ -50,12 +50,13 @@ const CLIP_SCRIPT = document.currentScript ? document.currentScript.src : locati
 
   //  AUFRUFE UND WANN, WIE BEI YOUTUBE: "1,234 views  2 weeks ago" oben im
   //  Kasten mit der Beschreibung, dahinter die Schlagworte mit # (showClip).
-  //  Gezaehlt je Besucher und Tag (catalog/ClipCounts.kt); null Aufrufe
-  //  stehen nicht da - ein frischer Clip ist nicht unbeliebt. Dieselbe Zeile
-  //  schreibt der Server ins HTML (PageController, `clipPage`).
-  const views = clip.views === 1 ? "1 view" : clip.views.toLocaleString("en") + " views";
-  document.getElementById("clip-when").textContent =
-    (clip.views > 0 ? views + "  " : "") + formatRelative(clip.createdAt);
+  //  Jedes Oeffnen zaehlt (catalog/ClipCounts.kt), also auch dieses: die Zahl
+  //  kam vor der Meldung unten, deshalb eins dazu. Ohne das hinkte sie einen
+  //  Aufruf hinterher, und wer als Erster kam, las keinen. Dieselbe Zeile
+  //  schreibt der Server ins HTML (PageController, `clipPage`), ohne diesen.
+  const seen = clip.views + 1;
+  const views = seen === 1 ? "1 view" : seen.toLocaleString("en") + " views";
+  document.getElementById("clip-when").textContent = views + "  " + formatRelative(clip.createdAt);
 
   //  DOWNLOADS ALS ZEICHEN MIT ZAHL, vorn in der Aktionsleiste - wie Herz und
   //  Stern daneben, nur ohne Knopf: ablesen, nicht anfassen. Beide Wege
@@ -85,9 +86,9 @@ const CLIP_SCRIPT = document.currentScript ? document.currentScript.src : locati
     }, 2500);
   }
 
-  //  Der Aufruf. Ob er zaehlt, entscheidet der Server (Besucher, Tag, eigener
-  //  Clip); scheitert er, merkt es niemand - eine fehlende Eins ist kein
-  //  Fehler, den jemand beheben koennte.
+  //  Der Aufruf - jedes Mal, auch neu geladen und am eigenen Clip; nur Bots
+  //  laesst der Server weg. Scheitert er, merkt es niemand - eine fehlende
+  //  Eins ist kein Fehler, den jemand beheben koennte.
   ensureCsrf()
     .then(() => api("POST", "/api/v1/packages/" + encodeURIComponent(slug) + "/viewed"))
     .catch(() => {});

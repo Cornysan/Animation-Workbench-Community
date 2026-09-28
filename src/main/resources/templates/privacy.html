@@ -75,11 +75,13 @@
         <td>Art. 6(1)(b) GDPR</td>
       </tr>
       <tr>
-        <td>Views and downloads of a clip: only a number on the clip. So that each visitor counts once a
-          day, the server keeps a checksum of your account or IP address together with the clip in its
-          memory until midnight (UTC). It is never written to disk, and the random value it is made with
-          is discarded at midnight, after which the checksum cannot be traced back to anyone</td>
-        <td>Showing how often a clip is looked at and downloaded, without counting a reload twice</td>
+        <td>Views and downloads of a clip: only a number on the clip. Every opening of a clip page counts
+          as a view, and so does every import in the Animation Workbench; for a view nothing about you is
+          kept at all. So that an FBX or GLB download counts once a day per visitor, the server keeps a
+          checksum of your account or IP address together with the clip in its memory until midnight
+          (UTC). It is never written to disk, and the random value it is made with is discarded at
+          midnight, after which the checksum cannot be traced back to anyone</td>
+        <td>Showing how often a clip is looked at and downloaded</td>
         <td>Art. 6(1)(f) GDPR &ndash; showing members how their clips are received</td>
       </tr>
       <tr>
@@ -194,8 +196,8 @@
 
   <h2>How long</h2>
   <ul>
-    <li><strong>Counting views and downloads:</strong> the checksum until midnight (UTC), in memory only;
-      the numbers themselves as long as the clip.</li>
+    <li><strong>Counting views and downloads:</strong> for downloads, the checksum until midnight (UTC),
+      in memory only; the numbers themselves as long as the clip.</li>
     <li><strong>IP addresses in declarations, reports and takedowns:</strong> replaced by a keyed
       pseudonym after 30 days. The record stays, the address does not. Running this is a scheduled
       job on the server, not a promise for later.</li>

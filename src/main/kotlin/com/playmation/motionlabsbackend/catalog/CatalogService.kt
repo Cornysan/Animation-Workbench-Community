@@ -1065,16 +1065,29 @@ class CatalogService(
      * Er ersetzt den alten Zweischritt aus `download-link` und `taken`. Der
      * alte Zaehler war anonym und damit faelschbar; dieser haengt an einer
      * Zeile je Konto und Paket.
+     *
+     * AUS DER WORKBENCH ist jeder Aufruf ein Import, und jeder Import zaehlt
+     * einen Aufruf und einen Download (Pablo, 2026-09-28) - in Unity gibt es
+     * keine Clip-Seite, die sich selbst melden koennte. Schreibt er keine neue
+     * Quittung (dasselbe Konto noch einmal, der eigene Clip), zaehlt der
+     * Download in [AnimationPackage.repeatTakeCount]. Im Browser holt dieser
+     * Aufruf die .awclip; dort hat die Seite ihren Aufruf schon gemeldet.
      */
     @Transactional
-    fun unlock(slug: String, principal: PortalPrincipal, ip: String): DownloadLink {
+    fun unlock(slug: String, principal: PortalPrincipal, ip: String, fromWorkbench: Boolean = false): DownloadLink {
         rateLimiter.require("download-link", ip, properties.limits.downloadLinksPerHourPerIp, Duration.ofHours(1))
 
         val account = accounts.requireUsable(principal.accountId)
         val (pkg, version) = visible(slug, principal)
 
-        if (unlocks.unlock(account, pkg))
+        val taken = unlocks.unlock(account, pkg)
+        if (taken)
             audit.record(account.id, "package.unlocked", "package", pkg.slug, null, ip)
+
+        if (fromWorkbench) {
+            packages.addView(pkg.id)
+            if (!taken) packages.addRepeatTake(pkg.id)
+        }
 
         return link(pkg, version)
     }

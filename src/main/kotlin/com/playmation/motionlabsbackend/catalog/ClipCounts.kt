@@ -2,6 +2,7 @@ package com.playmation.motionlabsbackend.catalog
 
 import com.playmation.motionlabsbackend.auth.PortalPrincipal
 import com.playmation.motionlabsbackend.auth.portalPrincipal
+import com.playmation.motionlabsbackend.common.RateLimiter
 import com.playmation.motionlabsbackend.common.clientIp
 import jakarta.servlet.http.HttpServletRequest
 import org.springframework.http.HttpHeaders
@@ -17,6 +18,7 @@ import java.nio.ByteBuffer
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.time.Clock
+import java.time.Duration
 import java.time.LocalDate
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -31,26 +33,36 @@ import java.util.concurrent.ConcurrentHashMap
  * meldet die Seite beides selbst, und "Downloads" ist die Summe aus beiden
  * Wegen ([AnimationPackage.downloads]).
  *
- * Die Regeln:
+ * AUFRUFE: JEDES OEFFNEN ZAEHLT - neu laden, zurueckblaettern, der eigene
+ * Clip (Pablo, 2026-09-28: "die views koennen schon ercheatet werden", die
+ * Zahl soll zeigen, dass auf der Seite etwas los ist). Bis dahin zaehlte ein
+ * Besucher einmal am Tag und der Besitzer nie, und wer seinen eigenen Clip
+ * zehnmal neu lud, sah dieselbe 1. Die Workbench meldet sich nicht hier: ein
+ * Import zaehlt beim Freischalten ([CatalogService.unlock]).
  *
- *  1. EINMAL JE BESUCHER, CLIP UND TAG. Neu laden, zurueckblaettern, alle
- *     Formate durchprobieren - das ist ein Aufruf und ein Download, nicht
- *     zehn. Besucher heisst: das Konto, sonst die IP-Adresse.
- *  2. Der eigene Clip zaehlt nicht - wie bei den Uebernahmen.
- *  3. Wer sich als Bot ausgibt, zaehlt nicht. Suchmaschinen fuehren das
- *     Skript der Seite aus; ohne diese Regel waere jeder Crawl ein Aufruf.
+ * DOWNLOADS (FBX/GLB): EINMAL JE BESUCHER, CLIP UND TAG, nicht der eigene.
+ * Alle Formate durchprobieren ist ein Download, nicht drei. Besucher heisst:
+ * das Konto, sonst die IP-Adresse.
  *
- * DATENSCHUTZ: gespeichert wird nur die Zahl. Wer heute schon gezaehlt ist,
- * steht als 64-Bit-Pruefsumme im Speicher, gebildet mit einem Zufallswert,
- * der um Mitternacht (UTC) verworfen wird - danach laesst sich aus keiner
- * Pruefsumme mehr eine Adresse herausrechnen, auch nicht durch Durchprobieren.
- * Ein Neustart vergisst alles; schlimmstenfalls zaehlt jemand an dem Tag
- * zweimal.
+ * Fuer beide: wer sich als Bot ausgibt, zaehlt nicht. Suchmaschinen fuehren
+ * das Skript der Seite aus; ohne diese Regel waere jeder Crawl ein Aufruf.
+ * Und kein Clip steigt um mehr als [VIEWS_PER_MINUTE] Aufrufe in der Minute -
+ * sonst treibt ein Skript die Zahl in einer Nacht in die Millionen. Die
+ * Grenze haengt am Clip, nicht am Besucher: dafuer muss niemand erkannt werden.
+ *
+ * DATENSCHUTZ: gespeichert wird nur die Zahl. Fuer einen Aufruf merkt sich
+ * der Server nichts ueber den Besucher. Wer heute schon einen Download
+ * gezaehlt hat, steht als 64-Bit-Pruefsumme im Speicher, gebildet mit einem
+ * Zufallswert, der um Mitternacht (UTC) verworfen wird - danach laesst sich
+ * aus keiner Pruefsumme mehr eine Adresse herausrechnen, auch nicht durch
+ * Durchprobieren. Ein Neustart vergisst alles; schlimmstenfalls zaehlt jemand
+ * an dem Tag zweimal.
  */
 @Service
 class ClipCounts(
     private val catalog: CatalogService,
     private val packages: AnimationPackageRepository,
+    private val rateLimiter: RateLimiter,
     private val clock: Clock,
 ) {
     enum class Kind { VIEW, DOWNLOAD }
@@ -66,13 +78,18 @@ class ClipCounts(
     @Transactional
     fun count(kind: Kind, slug: String, principal: PortalPrincipal?, ip: String, userAgent: String?): Boolean {
         val (pkg, _) = catalog.visible(slug, principal)
-        if (principal?.accountId == pkg.ownerId) return false
         if (isBot(userAgent)) return false
-        if (!firstToday(kind, pkg.id, principal?.accountId?.toString() ?: ip)) return false
 
         when (kind) {
-            Kind.VIEW -> packages.addView(pkg.id)
-            Kind.DOWNLOAD -> packages.addFileDownload(pkg.id)
+            Kind.VIEW -> {
+                if (!rateLimiter.tryAcquire("view", pkg.id.toString(), VIEWS_PER_MINUTE, Duration.ofMinutes(1))) return false
+                packages.addView(pkg.id)
+            }
+            Kind.DOWNLOAD -> {
+                if (principal?.accountId == pkg.ownerId) return false
+                if (!firstToday(kind, pkg.id, principal?.accountId?.toString() ?: ip)) return false
+                packages.addFileDownload(pkg.id)
+            }
         }
         return true
     }
@@ -103,6 +120,9 @@ class ClipCounts(
         /** Rund 60 Byte je Eintrag - 200 000 sind gut 10 MB. */
         const val MAX_SEEN_PER_DAY = 200_000
 
+        /** Mehr als einmal je Sekunde laedt kein Mensch neu. */
+        const val VIEWS_PER_MINUTE = 60
+
         /**
          * Crawler, Link-Vorschauen, Skripte. "bot" nur als Wortende:
          * Googlebot/, bingbot/, Discordbot/, DuckDuckBot-Https - aber nicht
@@ -125,7 +145,7 @@ class ClipCounts(
 @RequestMapping("/api/v1/packages")
 class ClipCountController(private val counts: ClipCounts) {
 
-    /** Die Clip-Seite wurde geoeffnet (`clip.js`). */
+    /** Die Clip-Seite wurde geoeffnet (`clip.js`) - jedes Mal. */
     @PostMapping("/{slug}/viewed")
     fun viewed(@PathVariable slug: String, authentication: Authentication?, request: HttpServletRequest) =
         report(ClipCounts.Kind.VIEW, slug, authentication, request)

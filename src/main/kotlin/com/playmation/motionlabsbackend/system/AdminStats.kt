@@ -76,6 +76,7 @@ class AdminStatsService(private val jdbc: JdbcTemplate, private val clock: Clock
     data class Activity(
         val views: Long,
         val downloads: Long,
+        /** Als .awclip: die Quittungen plus jeder weitere Import aus der Workbench. */
         val takes: Long,
         val fileDownloads: Long,
         val likes: Long,
@@ -166,7 +167,7 @@ class AdminStatsService(private val jdbc: JdbcTemplate, private val clock: Clock
         val tallies = mutableMapOf<UUID, ClipTally>()
         jdbc.query(
             "select owner_id, license, status, count(*) n, coalesce(sum(view_count), 0) v, " +
-                "coalesce(sum(take_count + file_download_count), 0) d, coalesce(sum(like_count), 0) l " +
+                "coalesce(sum(take_count + repeat_take_count + file_download_count), 0) d, coalesce(sum(like_count), 0) l " +
                 "from animation_package group by owner_id, license, status",
             RowCallbackHandler { rs ->
                 val t = tallies.getOrPut(rs.uuid("owner_id")) { ClipTally() }
@@ -217,7 +218,7 @@ class AdminStatsService(private val jdbc: JdbcTemplate, private val clock: Clock
 
         // ── Summen ueber alles ──────────────────────────────────────────
         val totals = jdbc.queryForMap(
-            "select coalesce(sum(view_count), 0) v, coalesce(sum(take_count), 0) t, " +
+            "select coalesce(sum(view_count), 0) v, coalesce(sum(take_count + repeat_take_count), 0) t, " +
                 "coalesce(sum(file_download_count), 0) f from animation_package"
         )
         val versions = jdbc.queryForMap("select count(*) n, coalesce(sum(size_bytes), 0) s from package_version")
@@ -265,7 +266,7 @@ class AdminStatsService(private val jdbc: JdbcTemplate, private val clock: Clock
 
     /** Die meistgesehenen oeffentlichen Clips - was die Leute tatsaechlich ansehen. */
     private fun topClips(): List<TopClip> = jdbc.query(
-        "select p.slug, p.title, a.display_name, p.view_count, p.take_count + p.file_download_count d, p.like_count " +
+        "select p.slug, p.title, a.display_name, p.view_count, p.take_count + p.repeat_take_count + p.file_download_count d, p.like_count " +
             "from animation_package p join account a on a.id = p.owner_id " +
             "where p.status = 'PUBLISHED' and p.license = ? " +
             "order by p.view_count desc, d desc, p.like_count desc limit 10",

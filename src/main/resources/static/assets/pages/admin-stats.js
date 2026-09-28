@@ -45,7 +45,7 @@
     ["Members", accounts.total, "+" + full(accounts.new7) + " this week · +" + full(accounts.new30) + " in 30 days"],
     ["Active this week", accounts.active7, full(accounts.active30) + " in the last 30 days"],
     ["Public clips", clips.public, full(clips.private) + " private · " + full(clips.new7) + " uploaded this week"],
-    ["Views", activity.views, "clip pages, each visitor once a day"],
+    ["Views", activity.views, "clip pages, every reload, plus Workbench imports"],
     ["Downloads", activity.downloads, full(activity.takes) + " .awclip · " + full(activity.fileDownloads) + " FBX/GLB"],
     ["Workbench", accounts.workbench, "signed in there · " + plural(accounts.sharing, "member") + " sharing"],
   ];

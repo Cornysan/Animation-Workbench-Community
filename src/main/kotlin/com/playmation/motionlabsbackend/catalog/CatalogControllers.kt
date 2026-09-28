@@ -69,7 +69,10 @@ class PackageController(private val catalog: CatalogService) {
      */
     @PostMapping("/packages/{slug}/unlock")
     fun unlock(@PathVariable slug: String, authentication: Authentication?, request: HttpServletRequest) =
-        catalog.unlock(slug, authentication.requirePrincipal(), request.clientIp())
+        catalog.unlock(slug, authentication.requirePrincipal(), request.clientIp(),
+            //  Die Workbench meldet sich mit Bearer-Token, die Seite mit ihrer
+            //  Sitzung - dieselbe Unterscheidung wie in SecurityConfig.
+            fromWorkbench = request.getHeader(HttpHeaders.AUTHORIZATION)?.startsWith("Bearer ") == true)
 
     /** Nur fuer schon freigeschaltete Clips - sonst fuehrt der Weg ueber [unlock]. */
     @PostMapping("/packages/{slug}/download-link")

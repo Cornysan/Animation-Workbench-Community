@@ -1,5 +1,6 @@
 package com.playmation.motionlabsbackend
 
+import com.playmation.motionlabsbackend.catalog.ClipCounts
 import com.playmation.motionlabsbackend.catalog.Declaration
 import com.playmation.motionlabsbackend.catalog.UploadDeclarationRepository
 import com.playmation.motionlabsbackend.format.AwclipHash
@@ -12,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.http.MediaType
+import org.springframework.mock.web.MockHttpSession
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.web.servlet.MockMvc
@@ -682,33 +684,52 @@ class PortalFlowTest {
     }
 
     /**
-     * Der Zaehler haengt an der Quittung, nicht an einem Ruf, den jeder
-     * absetzen kann. Der alte anonyme `/taken` war ehrlich beschriftet, aber
-     * faelschbar - dieser hier kostet ein Konto.
+     * Die Quittung bleibt eine je Konto und nie am eigenen Clip - an ihr
+     * haengen "popular" und die Meilensteine. Unter dem Clip zaehlt aber jeder
+     * Import aus der Workbench einen Aufruf und einen Download (Pablo,
+     * 2026-09-28). Der Browser holt ueber denselben Weg die .awclip; dort
+     * bleibt es bei der Quittung, den Aufruf hat die Seite schon gemeldet.
      */
     @Test
-    fun `the counter follows the receipt, not the file fetch`() {
+    fun `every Workbench import counts, while the receipt stays one per account`() {
         val owner = login("counter-${unique()}")
         val taker = login("taker-${unique()}")
         val slug = uploadOk(owner, awclip(0.73, "Counted walk"))
 
-        fun downloads() = mvc.get("/api/v1/packages/$slug").body()["downloads"].asLong()
+        fun clip() = mvc.get("/api/v1/packages/$slug").body()
+        fun counts() = clip().let { Triple(it["takes"].asLong(), it["downloads"].asLong(), it["views"].asLong()) }
 
-        assertEquals(0L, downloads(), "a fresh clip has not been taken by anyone")
+        assertEquals(Triple(0L, 0L, 0L), counts(), "a fresh clip has not been taken by anyone")
 
-        //  Der Besitzer holt seine eigene Datei - das ist kein Vorgang.
+        //  Der Besitzer holt seinen eigenen Clip in Unity: keine Quittung, aber
+        //  ein Import.
         mvc.get(unlockOk(owner, slug)).andExpect { status { isOk() } }
-        assertEquals(0L, downloads(), "the owner taking their own clip is not a take")
+        assertEquals(Triple(0L, 1L, 1L), counts(), "the owner's import is a download and a view, not a take")
 
         val link = unlockOk(taker, slug)
         mvc.get(link).andExpect { status { isOk() } }
-        assertEquals(1L, downloads(), "taking it into a project is what counts")
+        assertEquals(Triple(1L, 2L, 2L), counts(), "the first import of an account writes the receipt")
 
-        //  Die Datei darf danach beliebig oft kommen, etwa beim erneuten
-        //  Staging nach einem Recompile.
+        //  Die Datei selbst darf beliebig oft kommen - gezaehlt wird der Import.
         mvc.get(link).andExpect { status { isOk() } }
         unlockOk(taker, slug)
-        assertEquals(1L, downloads(), "a second fetch is not a second take")
+        assertEquals(Triple(1L, 3L, 3L), counts(), "importing again counts again, the receipt stays one")
+
+        //  Der Browser: Sitzung statt Bearer-Token.
+        val web = MockHttpSession()
+        mvc.post("/api/v1/dev/login") {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"name":"web-taker-${unique()}"}"""
+            session = web
+            with(csrf())
+        }.andExpect { status { isOk() } }
+        repeat(2) {
+            mvc.post("/api/v1/packages/$slug/unlock") {
+                session = web
+                with(csrf())
+            }.andExpect { status { isOk() } }
+        }
+        assertEquals(Triple(2L, 4L, 3L), counts(), "in the browser the .awclip is the receipt, once, and no view")
     }
 
     private val browser = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36"
@@ -723,12 +744,13 @@ class PortalFlowTest {
         }
 
     /**
-     * Aufrufe und FBX/GLB-Downloads zaehlen ohne Konto - also muss der Server
-     * selbst dafuer sorgen, dass Neuladen, Crawler und der Besitzer die Zahl
-     * nicht machen. "Downloads" ist die Summe mit den .awclip-Quittungen.
+     * Jedes Oeffnen der Seite ist ein Aufruf, auch neu geladen und am eigenen
+     * Clip - nur Crawler und Skripte ohne User-Agent nicht. FBX/GLB zaehlen
+     * weiter einmal je Besucher und Tag. "Downloads" ist die Summe mit den
+     * .awclip-Quittungen.
      */
     @Test
-    fun `views and downloads count each visitor once a day, not bots and not the owner`() {
+    fun `every view counts except bots, FBX and GLB once a day`() {
         val owner = login("counts-${unique()}")
         val slug = uploadOk(owner, awclip(0.8123, "Counted jog"))
 
@@ -746,7 +768,7 @@ class PortalFlowTest {
         unlockOk(login("counts-taker-${unique()}"), slug)
 
         val clip = mvc.get("/api/v1/packages/$slug").andExpect { status { isOk() } }.body()
-        assertEquals(2L, clip["views"].asLong(), "two visitors - not the reload, the crawler, the script or the owner")
+        assertEquals(5L, clip["views"].asLong(), "both loads, the second visitor, the owner and the import - not the crawler or the script")
         assertEquals(1L, clip["takes"].asLong())
         assertEquals(2L, clip["downloads"].asLong(), "one FBX/GLB visitor plus one .awclip take")
 
@@ -758,6 +780,18 @@ class PortalFlowTest {
         val hidden = uploadOk(owner, awclip(0.8124, "Private jog", license = AwclipSchema.LICENSE_PRIVATE))
         beacon(hidden, "viewed", "203.0.113.6").andExpect { status { isNotFound() } }
         beacon("no-such-clip", "downloaded", "203.0.113.6").andExpect { status { isNotFound() } }
+    }
+
+    /** Neu laden darf die Zahl heben, ein Skript darf sie nicht in die Millionen treiben. */
+    @Test
+    fun `a clip gains at most one view a second on average`() {
+        val slug = uploadOk(login("capped-${unique()}"), awclip(0.8125, "Capped jog"))
+
+        repeat(ClipCounts.VIEWS_PER_MINUTE + 5) {
+            beacon(slug, "viewed", "203.0.113.${it % 200 + 1}").andExpect { status { isNoContent() } }
+        }
+        val views = mvc.get("/api/v1/packages/$slug").body()["views"].asLong()
+        assertEquals(ClipCounts.VIEWS_PER_MINUTE.toLong(), views, "the cap is per clip, whoever sends it")
     }
 
     /**

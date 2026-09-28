@@ -86,6 +86,15 @@ class AnimationPackage(
     var fileDownloadCount: Long = 0,
 
     /**
+     * Importe aus der Workbench, die keine neue Quittung schreiben: dasselbe
+     * Konto noch einmal, oder der eigene Clip (V19). Nur fuer die Summe
+     * [downloads] - "popular" und die Meilensteine bleiben bei [takeCount].
+     * Aus demselben Grund nicht `updatable` wie die beiden darueber.
+     */
+    @Column(updatable = false)
+    var repeatTakeCount: Long = 0,
+
+    /**
      * Woher ein Starter-Clip stammt ("Quaternius - Universal Animation
      * Library"), samt Link. Nur bei Clips, die ein Admin eingespielt hat
      * ([StarterClips]) - ein Nutzer kann das Feld nicht setzen, also kann auch
@@ -112,8 +121,11 @@ class AnimationPackage(
 ) {
     fun tagList(): List<String> = tags.split(',').filter { it.isNotEmpty() }
 
-    /** Alle Downloads: als .awclip (Unity oder Browser, je Konto einmal) plus FBX/GLB im Browser. */
-    fun downloads(): Long = takeCount + fileDownloadCount
+    /**
+     * Alle Downloads: die .awclip-Quittungen (Unity oder Browser, je Konto
+     * einmal), jeder weitere Import aus der Workbench, und FBX/GLB im Browser.
+     */
+    fun downloads(): Long = takeCount + repeatTakeCount + fileDownloadCount
 
     companion object {
         fun joinTags(tags: List<String>) = if (tags.isEmpty()) "," else tags.joinToString(",", ",", ",")
@@ -190,6 +202,10 @@ interface AnimationPackageRepository : JpaRepository<AnimationPackage, UUID>, Jp
     @Modifying
     @Query("update animation_package set file_download_count = file_download_count + 1 where id = :id", nativeQuery = true)
     fun addFileDownload(@Param("id") id: UUID): Int
+
+    @Modifying
+    @Query("update animation_package set repeat_take_count = repeat_take_count + 1 where id = :id", nativeQuery = true)
+    fun addRepeatTake(@Param("id") id: UUID): Int
 
     fun findByOwnerIdOrderByCreatedAtDesc(ownerId: UUID): List<AnimationPackage>
 

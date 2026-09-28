@@ -69,7 +69,8 @@ function save(bytes, fileName, type) {
  * FBX und GLB entstehen hier im Browser - der Server erfaehrt von ihnen nur,
  * was diese Meldung sagt. Er zaehlt je Besucher, Clip und Tag einmal, egal
  * welches Format (catalog/ClipCounts.kt). Die .awclip meldet sich nicht: sie
- * zaehlt schon beim Freischalten (`/unlock`), je Konto einmal.
+ * zaehlt schon beim Freischalten (`/unlock`), aus dem Browser je Konto
+ * einmal, aus der Workbench bei jedem Import.
  */
 function counted() {
   ensureCsrf()
