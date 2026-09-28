@@ -1,7 +1,8 @@
 """Weibliche Variante des AW-Mannequins.
 
-Dasselbe Skelett und dieselben Knochen, nur die Haut aendert ihre Form. Damit
-bleibt alles, was am Mannequin haengt (BONE_MAP, Ruhepose, FBX-Export),
+Dasselbe Skelett und dieselben Knochen, nur die Haut aendert ihre Form - und
+an der Schulterkappe, wie stark sie an welchem Knochen haengt (siehe unten).
+Damit bleibt alles, was am Mannequin haengt (BONE_MAP, Ruhepose, FBX-Export),
 ohne Aenderung gueltig.
 
 Eine Brust gibt es nur mit BUST > 0. Dann wird der Brustmuskel des Originals
@@ -47,7 +48,12 @@ SHOULDER_SLOPE = 0.06
 SHOULDER = 0.14     # Kappe und Pfanne zum Drehpunkt, siehe unten
 SHOULDER_ROUND = 40     # Glaettschritte um den Drehpunkt, siehe unten
 SHOULDER_ROUND_R = 0.20 # bis wohin, vom Drehpunkt aus
+SOCKET_IN, SOCKET_OUT = 0.03, 0.09  # Rumpf unter der Kappe bleibt, siehe unten
 BACK = 0.86         # Tiefe des Brustkorbs, Mitte bis oben
+BACK_REAR = 0.76    # dazu nur hinten: zwischen den Schulterblaettern
+NAPE = 0.86         # und am Nacken
+CAP_SMOOTH = 20     # Glaettschritte der Kappengewichte, siehe unten
+CAP_R = 0.14        # bis wohin, vom Drehpunkt aus
 ARM_SLIM = 1.2      # Verstaerkung der Armkurve
 
 # Glaetten: Brustkorb nach dem Verfeinern, und das Feld "vorn" (siehe dort)
@@ -324,23 +330,39 @@ sx_t = curve([(-0.12, 1.12), (0.00, 1.16), (0.06, 1.15), (0.10, 1.10), (0.14, 0.
 sy_t = curve([(-0.12, 1.00), (0.08, 1.00), (0.14, 0.92), (0.22, 0.84), (0.33, 0.88),
               (0.45, BACK), (0.58, BACK - 0.02), (0.65, 0.86), (0.70, 0.96), (0.95, 0.96)], h)
 
-# SCHULTERGELENK: um den Drehpunkt des Oberarms bleibt der Rumpf, wie er ist.
-# Das Skelett ist das des Originals, der Arm dreht also um denselben Punkt -
-# wird der Brustkorb dort schmaler oder tiefer, steht die Schulterkappe bei
-# haengendem Arm frei neben dem Koerper (in Unity gut zu sehen). Schmaler
-# werden darf er erst ein Stueck vom Gelenk weg - und das Stueck muss bis
-# vorn auf die Brust reichen: innen laeuft die Kappe in eine Spitze aus, die
-# dort anliegt. Mit 0,07..0,14 stand sie bei haengendem Arm in der Luft und
-# sah von oben wie eine abgebrochene Schulter aus (Pablo, 2026-09-28).
+# SCHULTERGELENK: wo die Schulterkappe auf dem Rumpf liegt, bleibt der Rumpf,
+# wie er ist. Das Skelett ist das des Originals, der Arm dreht also um
+# denselben Punkt - wird der Brustkorb dort schmaler oder tiefer, steht die
+# Kappe bei haengendem Arm frei neben dem Koerper (in Unity gut zu sehen).
+# Innen laeuft sie in eine Spitze aus, die vorn auf der Brust anliegt.
+#
+# GEMESSEN AM ABSTAND ZUR KAPPE, NICHT ZUM DREHPUNKT. Eine Kugel um den
+# Drehpunkt, gross genug fuer die Spitze (0,10..0,26), deckte auch den oberen
+# Ruecken und den Nacken zu: dort blieb der Mann stehen, mit Buckel und
+# breitem Trapez (Pablo, 2026-09-28). Mit 0,07..0,14 war der Nacken frei, aber
+# die Spitze stand in der Luft und sah von oben wie abgebrochen aus.
 ax_abs = np.abs(x)
 ARM_PIVOT = np.array([0.197, 0.0885, 0.541])   # |x|, y, h von DEF-upper_arm
 to_pivot = np.sqrt((ax_abs - ARM_PIVOT[0]) ** 2 + (y - ARM_PIVOT[1]) ** 2 + (h - ARM_PIVOT[2]) ** 2)
-socket = 1 - smoothstep(0.10, 0.26, to_pivot)
+UPPER_ARM = np.array([n.split('.')[0] == 'upper_arm' for n in names])
+cap_pts = skin.P[((skin.W * UPPER_ARM[skin.J]).sum(1) > 0.3) & ~is_chest & (to_pivot < 0.16)]
+to_cap = np.concatenate([np.sqrt(((skin.P[a:a + 512, None] - cap_pts[None]) ** 2).sum(-1)).min(1)
+                         for a in range(0, len(x), 512)])
+socket = 1 - smoothstep(SOCKET_IN, SOCKET_OUT, to_cap)
 sx_t = sx_t + (1 - sx_t) * socket
 sy_t = sy_t + (1 - sy_t) * socket
 
+# Ruecken: BACK nimmt Brust und Ruecken gleich weit zurueck, der Mann traegt
+# aber hinten mehr - zwischen den Schulterblaettern stand der Ruecken fast
+# doppelt so weit hinter der Achse wie die Brust davor, von der Seite ein
+# Buckel bis in den Nacken. Unter der Kappe bleibt er (socket).
+sb_t = curve([(0.30, 1.0), (0.40, 1.0), (0.48, BACK_REAR), (0.60, BACK_REAR), (0.66, NAPE),
+              (0.70, 1.0), (0.95, 1.0)], h)
+sb_t = 1 + (sb_t - 1) * smoothstep(Y_AXIS, Y_AXIS + 0.06, y)
+sb_t = sb_t + (1 - sb_t) * socket
+
 tx = x * sx_t
-ty = Y_AXIS + (y - Y_AXIS) * sy_t
+ty = Y_AXIS + (y - Y_AXIS) * sy_t * sb_t
 th = h.copy()
 # Kopf: ein wenig kleiner, um den Halsansatz
 HEAD_H = 0.66
@@ -477,6 +499,75 @@ N1 = np.where(ring[:, None], N1, unit(N1 * (1 - region) + welded_normals(P1, ski
 assert np.abs(P1).max() <= 1.0, np.abs(P1).max()
 move = np.linalg.norm(P1 - skin.P0, axis=1)
 print(f'moved: max {move.max():.4f}  mean {move.mean():.4f}')
+
+
+# --- Gewichte an der Kappe --------------------------------------------------
+# Der innere Rand der Kappe haengt zum Teil am Schluesselbein, damit er bei
+# haengendem Arm auf der Brust liegen bleibt. Im Original springt das
+# Verhaeltnis aber von Ecke zu Ecke (0,15 neben 0,64): dreht der Oberarm um
+# die eigene Achse - Faeuste hoch, Bizeps zeigen -, klappt der Rand ueber sich
+# selbst, eine dunkle Knautschfalte an der Schulter (Pablo, 2026-09-28, auf
+# der Webseite). Das Default-Mannequin hat sie genauso.
+#
+# Geglaettet ueber die Kappe bleibt der Rand am Schluesselbein, nur der
+# Uebergang wird gleichmaessig. Gemessen ueber 960 Posen aus 24 Clips (Bone-
+# Matrizen der Buehne, in Python nachgeskinnt): vorher standen in jeder Pose
+# Dreiecke der Kappe gegen ihre eigene Normale, danach in keiner. 10 Schritte
+# halbieren das nur.
+def cap_weights(s):
+    """Das Verhaeltnis Schluesselbein : Oberarm auf der Kappe glaetten. Was
+    beide zusammen tragen, bleibt; andere Knochen bleiben, wie sie sind."""
+    piece = pieces(s)
+    _, inv = weld(s.P0)
+    for side, sx in (('L', -1), ('R', 1)):
+        ish, iup = names.index('shoulder.' + side), names.index('upper_arm.' + side)
+        ws = (s.W * (s.J == ish)).sum(1)
+        wu = (s.W * (s.J == iup)).sum(1)
+        cap = np.zeros(len(s.P), bool)
+        for pc in np.unique(piece[wu > 0.5]):
+            if pc >= 0 and (piece == pc).sum() < 400:     # die Oberarmschale, nicht der Rumpf
+                cap |= piece == pc
+        pivot = np.array([ARM_PIVOT[0] * sx, ARM_PIVOT[1], -ARM_PIVOT[2]])
+        near = cap & (np.linalg.norm(s.P0 - pivot, axis=1) < CAP_R)
+        both = ws + wu
+        ratio = np.where(both > 0, ws / np.maximum(both, 1e-12), 0)
+
+        # Auf der verschweissten Kappe, nur ueber ihre eigenen Kanten - sonst
+        # liefe das Schluesselbein ueber die Naht in den Rumpf.
+        v = np.zeros(inv.max() + 1)
+        n = np.zeros_like(v)
+        np.add.at(v, inv[cap], ratio[cap])
+        np.add.at(n, inv[cap], 1)
+        v /= np.maximum(n, 1)
+        T = s.T[0][cap[s.T[0]].all(1)]
+        e = inv[np.vstack([T[:, [0, 1]], T[:, [1, 2]], T[:, [2, 0]]])]
+        e = np.vstack([e, e[:, ::-1]])
+        e = e[e[:, 0] != e[:, 1]]
+        deg = np.bincount(e[:, 0], minlength=len(v)).astype(float)
+        free = np.zeros(len(v), bool)
+        free[inv[near]] = True
+        free &= deg > 0
+        for _ in range(CAP_SMOOTH):
+            acc = np.zeros_like(v)
+            np.add.at(acc, e[:, 0], v[e[:, 1]])
+            v = np.where(free, 0.5 * v + 0.5 * acc / np.maximum(deg, 1), v)
+        ratio = v[inv]
+
+        for i in np.where(near & (both > 0))[0]:
+            for j, w in ((ish, ratio[i] * both[i]), (iup, (1 - ratio[i]) * both[i])):
+                slot = np.where((s.J[i] == j) & (s.W[i] > 0))[0]
+                if not len(slot):
+                    slot = np.where(s.W[i] == 0)[0]
+                    if w < 1e-3 or not len(slot):
+                        continue
+                    s.J[i, slot[0]] = j
+                s.W[i, slot[0]] = w
+            # Unity erwartet das schwerste Gewicht vorn
+            order = np.argsort(-s.W[i], kind='stable')
+            s.J[i], s.W[i] = s.J[i][order], s.W[i][order] / s.W[i].sum()
+
+
+cap_weights(skin)
 
 
 # --- Schreiben --------------------------------------------------------------

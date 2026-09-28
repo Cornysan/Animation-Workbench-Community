@@ -8,7 +8,8 @@
 Schreibt in den Ordner:
 
     AW_Female_Mannequin_Mesh.mesh   Kopie des Default-Meshes mit neuer Form:
-                                    Ecken, Dreiecke und Grenzen neu
+                                    Ecken, Dreiecke und Grenzen neu, an der
+                                    Schulterkappe auch die Gewichte
     AW_Female_Mannequin.prefab      Kopie des Default-Prefabs, das auf das neue
                                     Mesh zeigt; Avatar, Controller, Materialien
                                     und Skelett sind dieselben
@@ -138,9 +139,11 @@ if off > 1:
 for prim, sub in zip(prims0, unity_subs):
     if not np.array_equal(g0.acc(prim['indices']).reshape(-1, 3)[:, ::-1].ravel(), sub):
         raise SystemExit('web triangles do not match this mesh')
-jf = gf.acc(attrsf['JOINTS_0']).astype(np.uint32)
-if not np.array_equal(np.where(weights > 0, joints, 0), np.where(weights > 0, jf[:count], 0)):
+j0 = g0.acc(attrs0['JOINTS_0']).astype(np.uint32)
+if not np.array_equal(np.where(weights > 0, joints, 0), np.where(weights > 0, j0, 0)):
     raise SystemExit('web bones do not match this mesh')
+jf = gf.acc(attrsf['JOINTS_0']).astype(np.uint32)
+w0, wf = g0.acc(attrs0['WEIGHTS_0']), gf.acc(attrsf['WEIGHTS_0'])
 
 total = len(qf)
 extra = total - count
@@ -184,12 +187,17 @@ if has_tan:
     t = unit(t - new_nrm * np.sum(t * new_nrm, axis=1, keepdims=True))
     write(2, np.column_stack([t, tan[rows, 3]]).astype('<f4'))
 
-# Gewichte: die alten Ecken behalten die von Unity (float), die neuen nehmen
-# die des Web-Modells (8 Bit), wieder auf 1 gebracht.
-wf = gf.acc(attrsf['WEIGHTS_0'])[count:].astype(np.float64) / 255.0
-wf /= np.maximum(wf.sum(1, keepdims=True), 1e-12)
-new_weights = np.vstack([weights, wf]).astype('<f4')
-new_joints = np.vstack([joints, jf[count:]]).astype('<u4')
+# Gewichte: die alten Ecken behalten die von Unity (float). Die neuen, und
+# alte, deren Gewichte female.py geaendert hat (die Schulterkappe), nehmen die
+# des Web-Modells (8 Bit), wieder auf 1 gebracht.
+reweighted = np.concatenate([(wf[:count] != w0).any(1) | (jf[:count] != j0).any(1), np.ones(extra, bool)])
+w_web = wf.astype(np.float64) / 255.0
+w_web /= np.maximum(w_web.sum(1, keepdims=True), 1e-12)
+new_weights = np.vstack([weights, np.zeros((extra, 4), weights.dtype)]).astype('<f4')
+new_joints = np.vstack([joints, np.zeros((extra, 4), joints.dtype)]).astype('<u4')
+new_weights[reweighted] = w_web[reweighted]
+new_joints[reweighted] = jf[reweighted]
+print(f'weights: {reweighted[:count].sum()} vertices from the web model')
 write(12, new_weights)
 write(13, new_joints)
 
