@@ -109,14 +109,15 @@ class LookFlowTest {
         val view = looks()
 
         assertEquals(listOf("default", "female"), view["figures"].map { it["key"].asString() })
-        assertEquals(listOf("classic", "crimson"), view["figures"].map { it["defaultLook"].asString() })
+        assertEquals(listOf("classic", "classic"), view["figures"].map { it["defaultLook"].asString() })
         assertEquals("classic", view["defaultLook"].asString())
 
-        //  Lite: je Figur nur ihr Standard.
+        //  Lite: nur Classic, fuer beide Figuren.
         val lite = view["looks"].filter { !it["pro"].asBoolean() }.map { it["key"].asString() }
-        assertEquals(listOf("classic", "crimson"), lite)
-        assertEquals(20, view["looks"].size())
-        assertFalse(view["looks"].any { it["key"].asString() == "coral" })
+        assertEquals(listOf("classic"), lite)
+        assertEquals(18, view["looks"].size())
+        for (gone in listOf("coral", "crimson", "noir"))
+            assertFalse(view["looks"].any { it["key"].asString() == gone }, gone)
 
         val galaxy = look(view, "galaxy")
         assertTrue(galaxy["pro"].asBoolean())
@@ -125,19 +126,26 @@ class LookFlowTest {
         assertEquals("nebula", galaxy["twin"].asString())
         assertTrue(galaxy["image"].asString().matches(Regex("/assets/v/[^/]+/looks/galaxy.png")))
 
+        //  Gemeinsam: keine eigene Figur, ein Bild je Figur.
+        val graphite = look(view, "graphite")
+        assertTrue(graphite["figure"].isNull)
+        assertEquals("graphite", graphite["twin"].asString())
+        assertTrue(graphite["images"]["female"].asString().endsWith("/looks/graphite-female.png"))
+        assertTrue(graphite["images"]["default"].asString().endsWith("/looks/graphite.png"))
+
         //  Jedes Paar zeigt aufeinander, und jede Figur hat zehn.
         for (entry in view["looks"]) {
             val twin = look(view, entry["twin"].asString())
             assertEquals(entry["key"].asString(), twin["twin"].asString())
-            assertTrue(entry["figure"].asString() != twin["figure"].asString())
         }
-        assertEquals(10, view["looks"].count { it["figure"].asString() == "female" })
+        for (figure in listOf("default", "female"))
+            assertEquals(10, view["looks"].count { look -> look["figures"].any { it.asString() == figure } })
     }
 
     /**
      * Ein Look der anderen Figur scheitert nicht, er wird zu seinem
      * Gegenstueck - eine aeltere Workbench kennt die Trennung nicht. Ebenso
-     * der ausgemusterte Coral, der in Lite war.
+     * die ausgemusterten: Coral (war in Lite), Crimson und Noir.
      */
     @Test
     fun `a look of the other figure becomes its twin`() {
@@ -147,11 +155,19 @@ class LookFlowTest {
             status { isCreated() }
             jsonPath("$.look") { value("rosegold") }
         }
+        upload(token, "Graphite on her", figure = "female", look = "graphite").andExpect {
+            status { isCreated() }
+            jsonPath("$.look") { value("graphite") }
+        }
         upload(token, "Coral on her", figure = "female", look = "coral").andExpect {
             status { isCreated() }
-            jsonPath("$.look") { value("crimson") }
+            jsonPath("$.look") { value("classic") }
         }
-        upload(token, "Coral on him", look = "coral").andExpect {
+        upload(token, "Noir on her", figure = "female", look = "noir").andExpect {
+            status { isCreated() }
+            jsonPath("$.look") { value("graphite") }
+        }
+        upload(token, "Crimson on him", look = "crimson").andExpect {
             status { isCreated() }
             jsonPath("$.look") { value("classic") }
         }
@@ -159,7 +175,7 @@ class LookFlowTest {
         //  Nur die Figur: sie kommt mit ihrem Standard.
         val slug = upload(token, "Her default", figure = "female").andExpect {
             status { isCreated() }
-            jsonPath("$.look") { value("crimson") }
+            jsonPath("$.look") { value("classic") }
         }.body()["slug"].asString()
 
         //  Figurwechsel beim Bearbeiten: der Look geht als Gegenstueck mit.

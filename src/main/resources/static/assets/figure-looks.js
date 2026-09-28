@@ -17,9 +17,10 @@
  *
  * ── Jede Figur hat ihre eigenen Looks ───────────────────────────────────
  *
- * Seit 2026-09-29 gehoert jeder Look genau EINER Figur, und jeder hat ein
- * Gegenstueck bei der anderen ([LOOK_INFO]): Gold beim Mann, Rose Gold bei
- * der Frau, Classic und Crimson als Standard. Wer auf der Clip-Seite die
+ * Seit 2026-09-29 hat jede Figur zehn Looks: Classic (Standard) und
+ * Graphite tragen beide gleich, die anderen acht gehoeren EINER Figur und
+ * haben ein Gegenstueck bei der anderen ([LOOK_INFO]): Gold beim Mann, Rose
+ * Gold bei der Frau. Wer auf der Clip-Seite die
  * Figur wechselt, sieht das Gegenstueck statt eines Looks, der nicht zu ihr
  * gehoert - [lookFor] ist die EINE Stelle, die das entscheidet.
  *
@@ -265,12 +266,12 @@ const ROSE_GOLD = 0xf4bfae;
 
 /**
  * Jeder Look baut ZWEI Materialien: `shell` fuer die grossen Schalen, `seams`
- * fuer die Ringe an jedem Gelenk. Erst die zehn des Mannes, dann die zehn der
- * Frau, jeweils in derselben Reihenfolge - das Gegenstueck steht an derselben
- * Stelle ([LOOK_INFO]).
+ * fuer die Ringe an jedem Gelenk. Erst die zwei gemeinsamen, dann die acht
+ * des Mannes, dann die acht der Frau in derselben Reihenfolge - das
+ * Gegenstueck steht an derselben Stelle ([LOOK_INFO]).
  */
 export const FIGURE_LOOKS = {
-  // ── Mann ──────────────────────────────────────────────────────────────────
+  // ── Beide ─────────────────────────────────────────────────────────────────
 
   classic: flat(
     { color: 0xe9e6f2, roughness: 0.55 },
@@ -279,6 +280,8 @@ export const FIGURE_LOOKS = {
   graphite: flat(
     { color: 0x3b3e46, roughness: 0.6 },
     { color: WARM, emissive: 0x5a2a08, roughness: 0.4 }),
+
+  // ── Mann ──────────────────────────────────────────────────────────────────
 
   mint: flat(
     { color: 0xb6ead6, roughness: 0.55 },
@@ -345,19 +348,6 @@ export const FIGURE_LOOKS = {
   }),
 
   // ── Frau ──────────────────────────────────────────────────────────────────
-
-  //  Ihr Standard: glaenzendes Rot, schwarze Ringe.
-  crimson: flat(
-    { color: 0xc0172a, roughness: 0.32 },
-    { color: 0x121114, roughness: 0.3 }),
-
-  //  Schwarzlack mit roségoldenen Ringen.
-  noir: () => ({
-    shell: new MeshStandardMaterial({ color: 0x111015, roughness: 0.2 }),
-    seams: new MeshStandardMaterial({
-      color: ROSE_GOLD, metalness: 1, roughness: 0.3, envMap: studioTexture(),
-    }),
-  }),
 
   //  Zartes Rosa, tiefrosa Ringe.
   blush: flat(
@@ -442,8 +432,11 @@ export const LOOK_KEYS = Object.keys(FIGURE_LOOKS);
 
 export const DEFAULT_LOOK = 'classic';
 
-/** Der Standard je Figur - der einzige Look, den Lite traegt. */
-export const DEFAULT_LOOKS = { default: 'classic', female: 'crimson' };
+/** Die Figuren des Hauses (`HOUSE_FIGURES` in stage.js). */
+const FIGURES = ['default', 'female'];
+
+/** Was beide Figuren tragen, gleich aussehend - Classic ist der Standard und der einzige Look in Lite. */
+const SHARED = ['classic', 'graphite'];
 
 /**
  * Die Paare: links der Look des Mannes, rechts sein Gegenstueck bei der Frau.
@@ -451,8 +444,6 @@ export const DEFAULT_LOOKS = { default: 'classic', female: 'crimson' };
  * (`AWMannequinLooks.cs`).
  */
 const PAIRS = [
-  ['classic', 'crimson'],
-  ['graphite', 'noir'],
   ['mint', 'blush'],
   ['ocean', 'sunset'],
   ['marble', 'rosequartz'],
@@ -463,26 +454,34 @@ const PAIRS = [
   ['hologram', 'aurora'],
 ];
 
-/** Je Look: welcher Figur er gehoert und welcher ihm bei der anderen entspricht. */
-export const LOOK_INFO = Object.fromEntries(PAIRS.flatMap(([male, female]) => [
-  [male, { figure: 'default', twin: female }],
-  [female, { figure: 'female', twin: male }],
-]));
-
-/** Looks, die es nicht mehr gibt, und was ein Clip mit ihnen je Figur traegt. */
-const RETIRED = { coral: { default: 'classic', female: 'crimson' } };
+/**
+ * Je Look: welche Figur ihn tragen kann (null = beide) und welcher ihm bei
+ * der anderen entspricht.
+ */
+export const LOOK_INFO = Object.fromEntries([
+  ...SHARED.map((key) => [key, { figure: null, twin: key }]),
+  ...PAIRS.flatMap(([male, female]) => [
+    [male, { figure: 'default', twin: female }],
+    [female, { figure: 'female', twin: male }],
+  ]),
+]);
 
 /**
- * Der Look, den `figure` fuer `key` traegt: der Look selbst, wenn er ihr
- * gehoert, sonst sein Gegenstueck - und der Standard der Figur fuer einen
- * Schluessel, den es nicht (mehr) gibt.
+ * Looks, die es nicht mehr gibt, und woraus sie wurden: Coral, und die
+ * eigenen Fassungen der Frau von Classic und Graphite (2026-09-29).
+ */
+const RETIRED = { coral: 'classic', crimson: 'classic', noir: 'graphite' };
+
+/**
+ * Der Look, den `figure` fuer `key` traegt: der Look selbst, wenn sie ihn
+ * tragen kann, sonst sein Gegenstueck - und Classic fuer einen Schluessel,
+ * den es nicht (mehr) gibt.
  */
 export function lookFor(figure, key) {
-  const fig = DEFAULT_LOOKS[figure] ? figure : 'default';
-  if (RETIRED[key]) return RETIRED[key][fig];
-  const info = LOOK_INFO[key];
-  if (!info) return DEFAULT_LOOKS[fig];
-  return info.figure === fig ? key : info.twin;
+  const fig = FIGURES.includes(figure) ? figure : 'default';
+  const info = LOOK_INFO[RETIRED[key] || key];
+  if (!info) return DEFAULT_LOOK;
+  return info.figure === null || info.figure === fig ? RETIRED[key] || key : info.twin;
 }
 
 /**

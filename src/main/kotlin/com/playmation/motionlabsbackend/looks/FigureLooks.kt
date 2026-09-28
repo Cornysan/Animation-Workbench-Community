@@ -13,13 +13,14 @@ import org.springframework.web.bind.annotation.RestController
  *
  * Der Ersteller waehlt beides beim Teilen (in der Workbench) und kann es
  * spaeter aendern. Die Figur ist frei; in Animation Workbench Lite traegt
- * sie ihren Standard-Look, alle anderen kommen mit Pro ([Look.pro]).
+ * sie Classic, alle anderen Looks kommen mit Pro ([Look.pro]).
  *
  * ── Jede Figur hat ihre eigenen Looks ───────────────────────────────────
  *
- * Seit 2026-09-29 gehoert jeder Look genau einer Figur, und jeder hat bei
- * der anderen ein Gegenstueck ([Look.twin]): Gold und Rose Gold, Galaxy und
- * Nebula, Classic und Crimson als Standard. Kommt ein Look zur falschen
+ * Seit 2026-09-29 hat jede Figur zehn Looks: zwei gemeinsame (Classic als
+ * Standard, Graphite) und acht eigene, jeder davon mit einem Gegenstueck
+ * bei der anderen ([Look.twin]): Gold und Rose Gold, Galaxy und Nebula.
+ * Kommt ein Look zur falschen
  * Figur - eine aeltere Workbench, ein Figurwechsel beim Bearbeiten -, traegt
  * der Clip das Gegenstueck ([FigureLooks.lookFor]), statt dass die Anfrage
  * scheitert.
@@ -43,31 +44,38 @@ object FigureLooks {
     const val DEFAULT_FIGURE = "default"
     const val FEMALE_FIGURE = "female"
 
-    /** Der Standard des Mannes - und der eines Clips, der gar nichts angibt. */
+    /** Der Standard beider Figuren - und der einzige Look in Lite. */
     const val DEFAULT_LOOK = "classic"
 
     /** [defaultLook] = was die Figur ohne Wahl traegt, und das Einzige in Lite. */
-    data class Figure(val key: String, val label: String, val defaultLook: String)
+    data class Figure(val key: String, val label: String, val defaultLook: String = DEFAULT_LOOK)
 
     /** Die Figuren des Hauses - dieselben Schluessel wie `HOUSE_FIGURES` in stage.js. */
     val FIGURES = listOf(
-        Figure(DEFAULT_FIGURE, "Male", DEFAULT_LOOK),
-        Figure(FEMALE_FIGURE, "Female", "crimson"),
+        Figure(DEFAULT_FIGURE, "Male"),
+        Figure(FEMALE_FIGURE, "Female"),
     )
 
     /**
-     * [figure] = wem der Look gehoert, [twin] = sein Gegenstueck bei der
-     * anderen Figur. [pro] = nur mit Animation Workbench Pro waehlbar.
+     * [figures] = wer ihn tragen kann: beide (Classic, Graphite) oder eine.
+     * [twin] = das Gegenstueck bei der anderen Figur; ein gemeinsamer Look ist
+     * sein eigenes. [pro] = nur mit Animation Workbench Pro waehlbar.
      */
-    data class Look(val key: String, val label: String, val figure: String, val twin: String, val pro: Boolean)
+    data class Look(val key: String, val label: String, val figures: List<String>, val twin: String, val pro: Boolean) {
+        val shared: Boolean get() = figures.size > 1
+    }
+
+    /**
+     * Was beide tragen, gleich aussehend (Pablo, 2026-09-29: die eigene
+     * Fassung der Frau - Crimson, Noir - fiel wieder weg).
+     */
+    private val SHARED = listOf("classic" to "Classic", "graphite" to "Graphite")
 
     /**
      * Die Paare, links der Mann, rechts die Frau. Dieselbe Tabelle steht in
      * figure-looks.js (`PAIRS`) und in der Workbench (AWMannequinLooks.cs).
      */
     private val PAIRS = listOf(
-        ("classic" to "Classic") to ("crimson" to "Crimson"),
-        ("graphite" to "Graphite") to ("noir" to "Noir"),
         ("mint" to "Mint") to ("blush" to "Blush"),
         ("ocean" to "Ocean") to ("sunset" to "Sunset"),
         ("marble" to "Marble") to ("rosequartz" to "Rose Quartz"),
@@ -78,35 +86,41 @@ object FigureLooks {
         ("hologram" to "Hologram") to ("aurora" to "Aurora"),
     )
 
-    /** Erst die zehn des Mannes, dann die zehn der Frau - das Gegenstueck steht an derselben Stelle. */
+    /**
+     * Erst die gemeinsamen, dann die acht des Mannes, dann die acht der Frau.
+     * Je Figur gelesen ([looksOf]) steht das Gegenstueck an derselben Stelle.
+     */
     val LOOKS: List<Look> =
-        PAIRS.map { (male, female) -> entry(male, DEFAULT_FIGURE, female.first) } +
-            PAIRS.map { (male, female) -> entry(female, FEMALE_FIGURE, male.first) }
-
-    private fun entry(look: Pair<String, String>, figure: String, twin: String) =
-        Look(look.first, look.second, figure, twin, pro = look.first != defaultLook(figure))
+        SHARED.map { (key, label) ->
+            Look(key, label, listOf(DEFAULT_FIGURE, FEMALE_FIGURE), key, pro = key != DEFAULT_LOOK)
+        } +
+            PAIRS.map { (male, female) -> Look(male.first, male.second, listOf(DEFAULT_FIGURE), female.first, pro = true) } +
+            PAIRS.map { (male, female) -> Look(female.first, female.second, listOf(FEMALE_FIGURE), male.first, pro = true) }
 
     /**
-     * Looks, die es nicht mehr gibt, und was ein Clip mit ihnen je Figur
-     * traegt. Eine aeltere Workbench kann sie noch schicken - Coral war in
-     * Lite -, und das soll nicht scheitern.
+     * Looks, die es nicht mehr gibt, und woraus sie wurden. Eine aeltere
+     * Workbench kann sie noch schicken - Coral war in Lite -, und das soll
+     * nicht scheitern.
      */
-    private val RETIRED = mapOf("coral" to mapOf(DEFAULT_FIGURE to DEFAULT_LOOK, FEMALE_FIGURE to "crimson"))
+    private val RETIRED = mapOf("coral" to DEFAULT_LOOK, "crimson" to DEFAULT_LOOK, "noir" to "graphite")
 
     fun figure(key: String): Figure? = FIGURES.firstOrNull { it.key == key }
     fun look(key: String): Look? = LOOKS.firstOrNull { it.key == key }
 
     fun defaultLook(figure: String): String = figure(figure)?.defaultLook ?: DEFAULT_LOOK
 
+    /** Die Looks einer Figur in der Reihenfolge der Auswahl. */
+    fun looksOf(figure: String): List<Look> = LOOKS.filter { figure in it.figures }
+
     /**
-     * Der Look, den [figure] fuer [key] traegt: der Look selbst, wenn er ihr
-     * gehoert, sonst sein Gegenstueck; fuer einen ausgemusterten sein Ersatz.
-     * null = einen solchen Look gab es nie.
+     * Der Look, den [figure] fuer [key] traegt: der Look selbst, wenn sie ihn
+     * tragen kann, sonst sein Gegenstueck; fuer einen ausgemusterten sein
+     * Ersatz. null = einen solchen Look gab es nie.
      */
     fun lookFor(figure: String, key: String): String? {
-        RETIRED[key]?.let { return it[figure] ?: defaultLook(figure) }
+        RETIRED[key]?.let { return lookFor(figure, it) }
         val look = look(key) ?: return null
-        return if (look.figure == figure) look.key else look.twin
+        return if (figure in look.figures) look.key else look.twin
     }
 }
 
@@ -121,8 +135,13 @@ data class FigureView(
 data class LookView(
     val key: String,
     val label: String,
-    /** Wem der Look gehoert - die Auswahl zeigt je Figur nur ihre. */
-    val figure: String,
+    /**
+     * Wem der Look gehoert - die Auswahl zeigt je Figur nur ihre. null = beiden
+     * (Classic, Graphite); so liest es auch eine Workbench, die [figures] nicht kennt.
+     */
+    val figure: String?,
+    /** Wer ihn tragen kann. */
+    val figures: List<String>,
     /** Das Gegenstueck bei der anderen Figur - fuer den Figurwechsel in der Auswahl. */
     val twin: String,
     /** Nur mit Pro waehlbar - gesperrt wird in der Workbench, siehe [FigureLooks]. */
@@ -132,8 +151,14 @@ data class LookView(
      * mit dem Build im Pfad (`/assets/v/<commit>/looks/galaxy.png`): aendert
      * sich ein Look, holt Unity das neue Bild, ohne dass jemand einen Cache
      * leeren muss. Gerendert mit der Buehne, liegt unter `static/assets/looks/`.
+     * Bei einem gemeinsamen Look das Bild des Mannes.
      */
     val image: String = "",
+    /**
+     * Das Bildchen je Figur, die ihn tragen kann - bei einem gemeinsamen Look
+     * zeigt die Auswahl so auf der Frau auch die Frau (`classic-female.png`).
+     */
+    val images: Map<String, String> = emptyMap(),
 )
 
 data class LooksView(
@@ -153,9 +178,25 @@ class LookService(private val build: BuildStamp) {
     fun looks(): LooksView = LooksView(
         figures = FigureLooks.FIGURES.map { FigureView(it.key, it.label, it.defaultLook) },
         looks = FigureLooks.LOOKS.map { look ->
-            LookView(look.key, look.label, look.figure, look.twin, look.pro, "${build.assets}/looks/${look.key}.png")
+            val images = look.figures.associateWith { imageOf(look, it) }
+            LookView(
+                key = look.key,
+                label = look.label,
+                figure = if (look.shared) null else look.figures.single(),
+                figures = look.figures,
+                twin = look.twin,
+                pro = look.pro,
+                image = images.getValue(look.figures.first()),
+                images = images,
+            )
         },
     )
+
+    /** Ein gemeinsamer Look hat ein Bild je Figur; das der Frau heisst `<key>-female.png`. */
+    private fun imageOf(look: FigureLooks.Look, figure: String): String {
+        val suffix = if (look.shared && figure != FigureLooks.DEFAULT_FIGURE) "-$figure" else ""
+        return "${build.assets}/looks/${look.key}$suffix.png"
+    }
 
     /**
      * Was ein Clip nach einer Wahl traegt. `null` heisst "nicht angegeben" und
