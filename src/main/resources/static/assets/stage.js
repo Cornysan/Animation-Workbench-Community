@@ -497,6 +497,36 @@ function solvePreview(preview) {
   return { rotations, positions, floorY, frames, count };
 }
 
+/** So viele Bilder misst [MannequinStage.measureFloor] hoechstens aus - auf
+ *  einer Katalogseite tut das jede Karte. */
+const FLOOR_SAMPLES = 30;
+
+/** Wie nah die tiefsten Punkte zweier Bilder beieinander liegen muessen, um als
+ *  dieselbe Standhoehe zu zaehlen (Meter). */
+const FLOOR_WINDOW = 0.015;
+
+/** Wie weit die Fussspitze unter die flache Sohle kippen darf, bevor sie selbst
+ *  als Boden gilt - in Knoechelhoehen (beim Mannequin gut 10 cm). */
+const TIPTOE = 1.2;
+
+/**
+ * Die Hoehe, auf der die meisten Werte liegen: das Fenster der Breite `width`
+ * mit den meisten Werten - bei Gleichstand das tiefste -, davon der Median.
+ */
+function restingLevel(values, width) {
+  const v = [...values].sort((a, b) => a - b);
+  let best = 0;
+  let bestCount = 0;
+  for (let i = 0, j = 0; i < v.length; i++) {
+    while (j < v.length && v[j] <= v[i] + width) j++;
+    if (j - i > bestCount) {
+      bestCount = j - i;
+      best = i;
+    }
+  }
+  return v[best + ((bestCount - 1) >> 1)];
+}
+
 /** Kantenlaenge des Lichtscheins unter der Figur. */
 const GROUND_SIZE = 6.4;
 
@@ -1755,34 +1785,131 @@ export class MannequinStage {
   }
 
   /**
-   * Wie tief die Figur im tiefsten Bild des Clips reicht - an der FIGUR
-   * gemessen, nicht am Skelett. Der tiefste Knochen ist der Zeh, die Sohle
-   * liegt darunter, und um wie viel haengt am Modell. Einmal gemessen, mit der
-   * Pose, in der die Quelle am tiefsten steht.
+   * Wo der Boden liegt - an der FIGUR gemessen, nicht am Skelett. Der
+   * tiefste Knochen ist der Zeh, die Sohle liegt darunter, und um wie viel
+   * haengt am Modell.
+   *
+   * DIE HOEHE, AUF DER DIE FIGUR STEHT, NICHT IHR TIEFSTER PUNKT. Bis
+   * 2026-09-28 lag der Boden dort, wo die Figur im tiefsten Bild des Clips
+   * hinreicht. "Celebrate, Fist Pump" hebt kurz die Ferse, der ganze Fuss
+   * kippt auf die Spitze, und die liegt dann 6-7 cm unter der Sohle im
+   * Stand - die Figur stand den Rest des Clips genau so weit in der Luft.
+   * Unity misst nicht: die Vorschau ist mit dem Boden auf 0 gebacken, die
+   * Huefte steht auf ihrer Hoehe, und in diesen Bildern sinkt die Spitze
+   * kurz ein. So ist es jetzt hier auch.
+   *
+   * Der tiefste Punkt der Haut allein taugt dafuer nicht: bei manchen Gesten
+   * kippt der Fuss den ganzen Clip ueber hin und her, und die Unterkante
+   * wandert um bis zu 9 cm ("Stop, Hold It"). Stabil ist der Knoechel des
+   * tieferen Fusses - steht der flach, liegt die Sohle um so viel darunter,
+   * wie der Knoechel in der Bindepose ueber der Sohle steht. Hebt sich die
+   * Ferse, steigt er, statt wie die Zehenspitze zu sinken.
+   *
+   * Je Bild also: der Knoechel darf den FUSS ueberstimmen - liegt die
+   * Fussspitze tiefer als die flache Sohle waere, gilt die Sohle -, aber nie
+   * den Rest der Figur. Liegt ein Knie, ein Schienbein, ein Ruecken tiefer,
+   * dann kniet oder liegt die Figur, und der Boden ist dort. (Ohne diese
+   * Grenze versank ein Clip mit hochgezogenen Fuessen bis zum Knie.)
+   *
+   * Ueber alle Bilder dann das Fenster von [FLOOR_WINDOW], in dem die meisten
+   * liegen, davon der Median ([restingLevel]). Ein Sprung steht vorher und
+   * nachher, eine Geste steht fast immer.
    */
   measureFloor() {
-    let lowest = 0;
-    let lowestY = Infinity;
-    this.solved.positions.forEach((frame, f) => {
-      for (const p of frame) {
-        if (p.y < lowestY) { lowestY = p.y; lowest = f; }
+    const at = new Vector3();
+    const probes = this.floorProbes();
+    const lowOf = (picked, skin) => {
+      let low = Infinity;
+      const pos = skin.geometry.attributes.position;
+      for (const i of picked) {
+        at.fromBufferAttribute(pos, i);
+        skin.applyBoneTransform(i, at);
+        at.applyMatrix4(skin.matrixWorld);
+        if (at.y < low) low = at.y;
       }
-    });
+      return low;
+    };
+    const skinLow = () => {
+      let foot = Infinity;
+      let body = Infinity;
+      for (const probe of probes) {
+        foot = Math.min(foot, lowOf(probe.foot, probe.skin));
+        body = Math.min(body, lowOf(probe.body, probe.skin));
+      }
+      return { foot, body };
+    };
+    const ankles = this.tracks
+      .filter((t) => t.srcName === 'LeftFoot' || t.srcName === 'RightFoot')
+      .map((t) => this.bones[t.bone]);
+    const ankleLow = () => Math.min(...ankles.map((b) => b.getWorldPosition(at).y));
 
-    this.applyFrame(lowest);
+    //  Wie hoch der Knoechel ueber der Sohle steht - in der Bindepose, in der
+    //  die Figur flach steht.
+    this.bones.forEach((b, i) => b.quaternion.copy(this.bindLocal[i]));
     this.scene.updateMatrixWorld(true);
+    const bind = skinLow();
+    const ankleHeight = ankles.length ? ankleLow() - Math.min(bind.foot, bind.body) : NaN;
 
-    const union = new Box3();
-    let any = false;
-    for (const skin of this.skins) {
-      skin.computeBoundingBox();
-      if (!skin.boundingBox) continue;
-      union.union(new Box3().copy(skin.boundingBox).applyMatrix4(skin.matrixWorld));
-      any = true;
+    const frames = this.solved.frames;
+    const samples = Math.min(frames, FLOOR_SAMPLES);
+    const floors = [];
+    for (let k = 0; k < samples; k++) {
+      const f = samples > 1 ? Math.round((k * (frames - 1)) / (samples - 1)) : 0;
+      this.applyFrame(f);
+      this.scene.updateMatrixWorld(true);
+      const { foot, body } = skinLow();
+      //  Eine gehobene Ferse bringt die Spitze bis gut 9 cm unter die flache
+      //  Sohle. Steht der Fuss steiler - Spitze senkrecht unter dem Knoechel,
+      //  Spitzentanz -, steht die Figur wirklich auf der Spitze.
+      const flat = Number.isFinite(ankleHeight) ? ankleLow() - ankleHeight : -Infinity;
+      const sole = flat - foot <= ankleHeight * TIPTOE ? Math.max(foot, flat) : foot;
+      const floor = Math.min(body, sole);
+      if (Number.isFinite(floor)) floors.push(floor);
     }
 
-    if (!any) return this.solved.floorY * this.scale;
-    return union.min.y;
+    if (!floors.length) return this.solved.floorY * this.scale;
+    return restingLevel(floors, FLOOR_WINDOW);
+  }
+
+  /**
+   * Die Ecken, an denen [measureFloor] misst, getrennt nach Fuss und Rest:
+   * alle, die Fuss oder Zehen bewegen - dort liegt fast immer der tiefste
+   * Punkt -, und von den uebrigen jede achte, fuer eine Figur, die liegt oder
+   * kniet. Alle Ecken in allen gemessenen Bildern waren 120 ms je Buehne, und
+   * eine Katalogseite baut 24 davon.
+   *
+   * Die zwei Haeute des Mannequins (Schale und Ringe) teilen sich eine
+   * Eckenliste; die wird nur einmal gemessen.
+   */
+  floorProbes() {
+    if (this.probes) return this.probes;
+    //  Der Fuss mit allem darunter: die Zehen haben beim Mannequin keine
+    //  eigene Spur, und ohne sie zaehlte die Zehenspitze zum "Rest".
+    const feet = new Set();
+    for (const t of this.tracks) {
+      if (t.srcName !== 'LeftFoot' && t.srcName !== 'RightFoot') continue;
+      this.bones[t.bone].traverse((node) => { if (node.isBone) feet.add(node); });
+    }
+    const seen = new Set();
+    this.probes = [];
+    for (const skin of this.skins) {
+      const { position, skinIndex, skinWeight } = skin.geometry.attributes;
+      if (!position || !skinIndex || !skinWeight || seen.has(position)) continue;
+      seen.add(position);
+      const bones = skin.skeleton.bones;
+      const foot = [];
+      const body = [];
+      for (let i = 0; i < position.count; i++) {
+        let onFoot = false;
+        for (let k = 0; k < 4 && !onFoot; k++) {
+          onFoot = skinWeight.getComponent(i, k) > 0 && feet.has(bones[skinIndex.getComponent(i, k)]);
+        }
+        if (onFoot) foot.push(i);
+        else if (i % 8 === 0) body.push(i);
+      }
+      this.probes.push({ skin, foot, body });
+    }
+    return this.probes;
   }
 
   /**
