@@ -7,6 +7,7 @@ import com.playmation.motionlabsbackend.common.PortalException
 import com.playmation.motionlabsbackend.profile.AchievementService
 import com.playmation.motionlabsbackend.profile.ProfileService
 import com.playmation.motionlabsbackend.profile.TierCheck
+import com.playmation.motionlabsbackend.web.BuildStamp
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.Authentication
 import org.springframework.stereotype.Service
@@ -93,6 +94,13 @@ data class LookView(
     val task: String? = null,
     val progress: Long? = null,
     val goal: Long? = null,
+    /**
+     * Das Bildchen fuer die Auswahl in der Workbench, relativ zum Portal und
+     * mit dem Build im Pfad (`/assets/v/<commit>/looks/galaxy.png`): aendert
+     * sich ein Look, holt Unity das neue Bild, ohne dass jemand einen Cache
+     * leeren muss. Gerendert mit der Buehne, liegt unter `static/assets/looks/`.
+     */
+    val image: String = "",
 )
 
 data class LooksView(
@@ -110,6 +118,7 @@ class LookService(
     private val accounts: AccountRepository,
     private val profiles: ProfileService,
     private val achievements: AchievementService,
+    private val build: BuildStamp,
 ) {
     /** Alle Figuren und Looks, und welche davon [principal] tragen darf. */
     @Transactional(readOnly = true)
@@ -127,6 +136,7 @@ class LookService(
                     task = check?.task,
                     progress = check?.progress,
                     goal = check?.goal,
+                    image = "${build.assets}/looks/${look.key}.png",
                 )
             },
         )

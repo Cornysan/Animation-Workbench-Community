@@ -118,6 +118,7 @@ class LookFlowTest {
         assertEquals("Share 5 clips", galaxy["task"].asString())
         assertEquals(0, galaxy["progress"].asLong())
         assertEquals(5, galaxy["goal"].asLong())
+        assertTrue(galaxy["image"].asString().matches(Regex("/assets/v/[^/]+/looks/galaxy.png")))
     }
 
     /**
