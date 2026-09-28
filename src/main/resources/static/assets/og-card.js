@@ -103,16 +103,19 @@ function blank() {
  * damit die Zwischenposen blass werden koennen, ohne den Boden mitzunehmen.
  *
  * `shiftX` schiebt die Figur um so viele Bildpunkte nach rechts (die Seite
- * braucht links Platz fuer Text), `zoom` holt sie naeher heran.
+ * braucht links Platz fuer Text), `zoom` holt sie naeher heran. `figure` und
+ * `look` sind die des Clips (figure-looks.js) - das Bild zeigt ihn so, wie
+ * ihn alle auf der Seite sehen.
  */
-async function paintStage(ctx, preview, { shiftX = 0, zoom = 1 } = {}) {
-  const gltf = await loadModel();
+async function paintStage(ctx, preview, { shiftX = 0, zoom = 1, figure, look } = {}) {
+  const gltf = await loadModel(figure);
   const renderer = sharedRenderer();
   //  Die Buehne leiht sich den Renderer, wie eine Karte im Katalog - dann
   //  oeffnet sie keinen eigenen Kontext und startet keine Schleife.
   const holder = document.createElement('canvas');
   const stage = new MannequinStage(holder, preview, gltf, {
     surface: { renderer, fit() {} }, interactive: false, autoplay: false, theme: 'dark',
+    house: figure, look,
   });
 
   try {
@@ -207,9 +210,9 @@ function toPng(canvas) {
  * Das Bild eines Clips: die Figur in der Mitte, das Logo klein unten links.
  * Kein Text - Titel und Beschreibung setzt Discord ohnehin daneben.
  */
-export async function renderClipCard(preview) {
+export async function renderClipCard(preview, dress = {}) {
   const { canvas, ctx } = blank();
-  await paintStage(ctx, preview);
+  await paintStage(ctx, preview, dress);
 
   const mark = await logo();
   const h = 30;
@@ -291,9 +294,20 @@ export async function fetchPreview(slug) {
   return response.json();
 }
 
-/** Rendern und hochladen, in einem - fuer die Seite des Besitzers und die Admin-Liste. */
-export async function refreshClipCard(slug, preview) {
-  const blob = await renderClipCard(preview || await fetchPreview(slug));
+/** Figur und Look eines Clips, wie der Ersteller sie gewaehlt hat. */
+async function fetchDress(slug) {
+  const response = await fetch('/api/v1/packages/' + encodeURIComponent(slug), { credentials: 'same-origin' });
+  if (!response.ok) return {};
+  const clip = await response.json();
+  return { figure: clip.figure, look: clip.look };
+}
+
+/**
+ * Rendern und hochladen, in einem - fuer die Seite des Besitzers und die
+ * Admin-Liste. Ohne `dress` holt es sich Figur und Look des Clips selbst.
+ */
+export async function refreshClipCard(slug, preview, dress) {
+  const blob = await renderClipCard(preview || await fetchPreview(slug), dress || await fetchDress(slug));
   await uploadCard('/api/v1/packages/' + encodeURIComponent(slug) + '/card', blob);
   return blob;
 }

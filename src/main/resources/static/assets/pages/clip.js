@@ -78,7 +78,7 @@ const CLIP_SCRIPT = document.currentScript ? document.currentScript.src : locati
     setTimeout(async () => {
       try {
         const { refreshClipCard } = await import(new URL("../og-card.js", CLIP_SCRIPT).href);
-        await refreshClipCard(slug);
+        await refreshClipCard(slug, null, { figure: clip.figure, look: clip.look });
       } catch (error) {
         console.warn("[clip] preview image not rendered", error);
       }

@@ -26,7 +26,8 @@ import java.time.Instant
 import java.util.UUID
 
 /** Der Deckel einer Sammlungskarte: der erste Clip darin, als Bewegung. */
-data class CollectionCover(val slug: String, val rig: String)
+/** Der Clip auf dem Deckel - mit Figur und Look, wie seine eigene Karte ([FigureLooks]). */
+data class CollectionCover(val slug: String, val rig: String, val figure: String, val look: String)
 
 data class CollectionSummary(
     val slug: String,
@@ -412,7 +413,7 @@ class CollectionService(
 
         val cover = visibleItems.firstOrNull()?.let { pkg ->
             val version = pkg.currentVersionId?.let { catalog.versionOf(it) }
-            CollectionCover(pkg.slug, version?.rig ?: AwclipSchema.RIG_HUMANOID)
+            CollectionCover(pkg.slug, version?.rig ?: AwclipSchema.RIG_HUMANOID, pkg.figure, pkg.look)
                 .takeIf { version?.previewBlobKey != null }
         }
 

@@ -41,7 +41,7 @@
        `clipPage?.…`: th:each laeuft VOR th:if, ein th:if daneben schuetzt nicht. -->
   <div id="clip" class="clip-layout" th:classappend="${clipPage == null} ? 'hidden'">
     <section class="clip-main">
-      <div class="viewer" id="viewer" th:attr="data-rig=${clipRig}"></div>
+      <div class="viewer" id="viewer" th:attr="data-rig=${clipRig},data-figure=${clipFigure},data-look=${clipLook}"></div>
 
       <h1 id="title" th:text="${clipTitle}"></h1>
       <div class="clip-byline">

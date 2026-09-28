@@ -13,9 +13,7 @@
  */
 
 import { createMannequinStage } from './stage.js';
-import {
-  figureForStage, listFigures, rememberFigure, rememberedFigure, rememberHouse, rememberedHouse,
-} from './figures.js';
+import { figureForStage, listFigures, rememberFigure, rememberedFigure } from './figures.js';
 
 const ICONS = {
   mesh: '<path d="M12 3.6 20 8v8l-8 4.4L4 16V8z"/><path d="M12 12 20 8M12 12v8.4M12 12 4 8"/>',
@@ -267,13 +265,21 @@ export async function mountViewer(box, preview, options = {}) {
   }
 
   //  Welches Mannequin des Hauses - gilt, solange keine eigene Figur dasteht.
-  let house = rememberedHouse();
+  //
+  //  DIE WAHL DES ERSTELLERS, NICHT DIE GEMERKTE. Bis 2026-09-28 hielt ein
+  //  Klick auf Male/Female ueber den Clip hinaus (`aw.viewer.house`); seit
+  //  jeder Clip seine Figur und seinen Look mitbringt (figure-looks.js), saehe
+  //  wer einmal umgeschaltet hat die Wahl des Erstellers nie wieder. Der
+  //  Schalter gilt jetzt fuer diesen Besuch. Der Look bleibt beim Wechsel -
+  //  er passt auf beide Figuren.
+  let house = options.house || 'default';
+  const look = options.look;
 
   if (rig === 'humanoid') {
     try {
       stage = await createMannequinStage(canvas, preview, {
         onFrame, autoplay: options.autoplay, proportions: rememberedProportions(),
-        figure: own, house, follow: options.follow,
+        figure: own, house, look, follow: options.follow,
       });
     } catch (error) {
       failure = error;
@@ -289,7 +295,7 @@ export async function mountViewer(box, preview, options = {}) {
       try {
         stage = await createMannequinStage(canvas, preview, {
           onFrame, autoplay: options.autoplay, proportions: rememberedProportions(),
-          house, follow: options.follow,
+          house, look, follow: options.follow,
         });
       } catch (error) {
         // Kein WebGL, kein Modell, kein Drama: das Strichmaennchen kann das auch.
@@ -395,12 +401,13 @@ export async function mountViewer(box, preview, options = {}) {
    */
   const remount = async (nextId, nextHouse) => {
     rememberFigure(nextId);
-    if (nextHouse) rememberHouse(nextHouse);
     const playing = stage.playing;
     //  Follow bleibt, wie man es gestellt hat - die neue Figur zeigt denselben Clip.
     const follow = stage.cameraFollow;
     destroy();
-    await mountViewer(box, preview, { ...options, figureId: nextId, autoplay: playing, follow });
+    await mountViewer(box, preview, {
+      ...options, figureId: nextId, house: nextHouse || house, autoplay: playing, follow,
+    });
   };
 
   if (mode === 'mannequin') {

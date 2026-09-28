@@ -22,7 +22,8 @@ import java.time.Instant
 import java.util.UUID
 
 /** Der Deckel einer Pack-Karte: der erste Clip darin, als Bewegung. */
-data class PackCover(val slug: String, val rig: String)
+/** Der Clip auf dem Deckel - mit Figur und Look, wie seine eigene Karte ([FigureLooks]). */
+data class PackCover(val slug: String, val rig: String, val figure: String, val look: String)
 
 /**
  * Ein Pack, wie ihn eine Karte zeigt. Alles ausser Titel und Beschreibung
@@ -209,7 +210,7 @@ class PackService(
     private fun summarize(pack: ClipPack, clips: List<Pair<AnimationPackage, PackageVersion>>,
                           owner: Account?, principal: PortalPrincipal?): PackSummary {
         val cover = clips.firstOrNull { it.second.previewBlobKey != null }
-            ?.let { (pkg, version) -> PackCover(pkg.slug, version.rig) }
+            ?.let { (pkg, version) -> PackCover(pkg.slug, version.rig, pkg.figure, pkg.look) }
 
         val tags = clips.flatMap { it.first.tagList() }.groupingBy { it }.eachCount().entries
             .sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key })

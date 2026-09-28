@@ -348,8 +348,12 @@ class CardPreview {
  * der Aufrufer nimmt dann das Strichmaennchen.
  */
 export async function mountCardStage(canvas, preview, options = {}) {
-  const gltf = await loadModel();
+  //  Figur und Look, die der Ersteller gewaehlt hat (figure-looks.js) - jede
+  //  Karte zeigt den Clip so, wie ihn alle sehen.
+  const gltf = await loadModel(options.figure);
   const stage = new MannequinStage(canvas, thinPreview(preview), gltf, {
+    house: options.figure,
+    look: options.look,
     surface: sharedSurface(),
     interactive: false,
     autoplay: options.autoplay,

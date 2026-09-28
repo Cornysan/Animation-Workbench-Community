@@ -13,6 +13,7 @@ import com.playmation.motionlabsbackend.collection.CollectionService
 import com.playmation.motionlabsbackend.collection.CollectionVisibility
 import com.playmation.motionlabsbackend.config.PortalProperties
 import com.playmation.motionlabsbackend.format.AwclipSchema
+import com.playmation.motionlabsbackend.looks.FigureLooks
 import com.playmation.motionlabsbackend.profile.ProfileService
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -263,6 +264,12 @@ class PageController(
         //  nicht durch - dann steht `humanoid`, und die Vorschau merkt selbst,
         //  dass sich das nicht umrechnen laesst.
         model.addAttribute("clipRig", clip?.rig ?: AwclipSchema.RIG_HUMANOID)
+
+        //  Und wie der Ersteller ihn zeigt (looks/FigureLooks.kt) - aus
+        //  demselben Grund. Ein privater Clip steht hier im Standard; sehen
+        //  kann ihn ohnehin nur sein Besitzer.
+        model.addAttribute("clipFigure", clip?.figure ?: FigureLooks.DEFAULT_FIGURE)
+        model.addAttribute("clipLook", clip?.look ?: FigureLooks.DEFAULT_LOOK)
 
         //  Fuer die Vorab-Anfrage der Vorschau im Kopf der Seite (clip.html):
         //  nur wenn der Clip hier auch sichtbar ist, sonst holte sie eine 404.

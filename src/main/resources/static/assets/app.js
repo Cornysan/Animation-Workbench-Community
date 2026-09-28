@@ -418,7 +418,9 @@ const AW = (() => {
         const stage = canvas.dataset.rig === "generic" ? null : await cardStage();
         if (stage) {
           try {
-            viewer = await stage.mountCardStage(canvas, preview, { autoplay: !stillPreviews });
+            viewer = await stage.mountCardStage(canvas, preview, {
+              autoplay: !stillPreviews, figure: canvas.dataset.figure, look: canvas.dataset.look,
+            });
           } catch (error) {
             //  Eine Vorschau, die sich nicht auf die Figur umrechnen laesst,
             //  bekommt ihr Strichmaennchen. Die Konsole bekommt eine Zeile,
@@ -1063,6 +1065,8 @@ const AW = (() => {
   function clipCard(item, observer, options = {}) {
     const canvas = el("canvas", {
       "data-slug": item.slug, "data-rig": item.rig || "humanoid", width: 560, height: 420,
+      //  Wie der Ersteller den Clip zeigt - figure-looks.js.
+      "data-figure": item.figure || "default", "data-look": item.look || "classic",
     });
     if (item.hasPreview && observer) {
       observer.observe(canvas);
@@ -1200,7 +1204,10 @@ const AW = (() => {
    */
   function collectionCard(item, observer) {
     const cover = item.cover
-      ? el("canvas", { "data-slug": item.cover.slug, "data-rig": item.cover.rig || "humanoid", width: 560, height: 420 })
+      ? el("canvas", {
+        "data-slug": item.cover.slug, "data-rig": item.cover.rig || "humanoid", width: 560, height: 420,
+        "data-figure": item.cover.figure || "default", "data-look": item.cover.look || "classic",
+      })
       : el("div", { class: "viewer-empty" }, "Empty");
 
     if (item.cover && observer) observer.observe(cover);
@@ -1240,7 +1247,10 @@ const AW = (() => {
    */
   function packCard(item, observer) {
     const cover = item.cover
-      ? el("canvas", { "data-slug": item.cover.slug, "data-rig": item.cover.rig || "humanoid", width: 560, height: 420 })
+      ? el("canvas", {
+        "data-slug": item.cover.slug, "data-rig": item.cover.rig || "humanoid", width: 560, height: 420,
+        "data-figure": item.cover.figure || "default", "data-look": item.cover.look || "classic",
+      })
       : el("div", { class: "viewer-empty" }, "No preview");
     if (item.cover && observer) {
       observer.observe(cover);

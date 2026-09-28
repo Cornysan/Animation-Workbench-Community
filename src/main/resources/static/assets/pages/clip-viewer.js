@@ -47,7 +47,11 @@ function message(text) {
     //  Wer weniger Bewegung eingestellt hat, bekommt die Figur stehend; der
     //  Knopf zum Abspielen ist einen Klick entfernt. Die Karten tun das schon.
     const calm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const viewer = await mountViewer(box, preview, { rig: box.dataset.rig, autoplay: !calm });
+    //  Figur und Look stehen ebenso im Markup: so, wie der Ersteller den
+    //  Clip zeigt (figure-looks.js).
+    const viewer = await mountViewer(box, preview, {
+      rig: box.dataset.rig, autoplay: !calm, house: box.dataset.figure, look: box.dataset.look,
+    });
 
     //  WEITERSAGEN, DASS DIE BUEHNE STEHT. Die Ausgabe als .glb "mit Figur"
     //  schreibt die Pose dieser Buehne heraus, Bild fuer Bild - sie braucht
