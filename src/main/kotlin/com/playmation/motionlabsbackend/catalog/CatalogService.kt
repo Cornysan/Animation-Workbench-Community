@@ -202,7 +202,7 @@ class CatalogService(
      * @param notifyFollowers false, wenn der Clip Teil eines Packs wird: dann
      *   kommt EINE Nachricht fuer den Pack ([PackService.create]) statt einer je Clip.
      * @param figure / look wie der Clip auftritt; null behaelt, was er traegt
-     *   (bzw. den Standard). Ein gesperrter Look scheitert, BEVOR etwas
+     *   (bzw. den Standard). Ein unbekannter scheitert, BEVOR etwas
      *   gespeichert ist - siehe [LookService.choose].
      */
     @Transactional
@@ -277,7 +277,7 @@ class CatalogService(
             pkg
         }
 
-        val choice = looks.choose(principal, figure, look, existing?.let { FigureChoice(it.figure, it.look) })
+        val choice = looks.choose(figure, look, existing?.let { FigureChoice(it.figure, it.look) })
 
         //  Die Datei darf zehn tragen, geteilt werden hoechstens fuenf
         //  ([AwclipSchema.MAX_SHARED_TAGS]). Eine neue Fassung eines Clips, der
@@ -674,7 +674,7 @@ class CatalogService(
         val sameMotion =
             if (goingPublic) checkNotAlreadyThere(version.contentHash, pkg.ownerId, except = pkg.id) else emptyList()
 
-        val choice = looks.choose(principal, input.figure, input.look, FigureChoice(pkg.figure, pkg.look))
+        val choice = looks.choose(input.figure, input.look, FigureChoice(pkg.figure, pkg.look))
 
         val fileChanges = buildList {
             if (title != pkg.title) add("title")

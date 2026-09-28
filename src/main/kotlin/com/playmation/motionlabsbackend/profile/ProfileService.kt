@@ -324,10 +324,6 @@ class ProfileService(
         joinedAt = account.createdAt,
     )
 
-    /** Die Zahlen eines Kontos, das es noch nicht gibt - alles null, heute beigetreten. */
-    fun emptyStats(): ProfileStats =
-        ProfileStats(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, joinedAt = clock.instant())
-
     private fun collectionCount(ownerId: UUID): Long =
         collections.getIfAvailable()?.countFor(ownerId) ?: 0L
 

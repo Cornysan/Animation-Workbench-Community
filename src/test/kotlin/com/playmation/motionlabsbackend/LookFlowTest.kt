@@ -27,10 +27,10 @@ import kotlin.test.assertTrue
 /**
  * Figur und Look eines Clips (looks/FigureLooks.kt).
  *
- * Was hier festgehalten wird, sind die zwei Regeln, die beim naechsten
- * Handgriff still umfallen koennten: ein gesperrter Look scheitert, bevor
- * irgendetwas gespeichert ist - und ein Look, den ein Clip schon traegt,
- * bleibt erlaubt, auch wenn die Stufe dahinter verloren ist.
+ * Festgehalten wird, was beim naechsten Handgriff still umfallen koennte:
+ * welche drei Looks Lite hat, dass das Portal jeden bekannten Look annimmt
+ * (Lite und Pro trennt die Workbench, nicht der Server), und dass ein
+ * unbekannter scheitert, bevor irgendetwas gespeichert ist.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -102,38 +102,37 @@ class LookFlowTest {
 
     // ── Tests ───────────────────────────────────────────────────────────
 
-    /** Die Auswahl zeigt auch ohne Konto alles, was es gibt - und was es braucht. */
+    /** Die Auswahl zeigt auch ohne Konto alles, was es gibt - und was Pro ist. */
     @Test
-    fun `the looks are public and say what unlocks them`() {
+    fun `the looks are public and say which are pro`() {
         val view = looks()
 
         assertEquals(listOf("default", "female"), view["figures"].map { it["key"].asString() })
         assertEquals("classic", view["defaultLook"].asString())
-        assertTrue(look(view, "classic")["unlocked"].asBoolean())
-        assertTrue(look(view, "coral")["unlocked"].asBoolean())
+
+        val lite = view["looks"].filter { !it["pro"].asBoolean() }.map { it["key"].asString() }
+        assertEquals(listOf("classic", "mint", "coral"), lite)
+        assertEquals(12, view["looks"].size())
 
         val galaxy = look(view, "galaxy")
-        assertFalse(galaxy["unlocked"].asBoolean())
-        assertEquals("Contributor", galaxy["achievement"].asString())
-        assertEquals("Share 5 clips", galaxy["task"].asString())
-        assertEquals(0, galaxy["progress"].asLong())
-        assertEquals(5, galaxy["goal"].asLong())
+        assertTrue(galaxy["pro"].asBoolean())
+        assertFalse(galaxy.has("unlocked"))
         assertTrue(galaxy["image"].asString().matches(Regex("/assets/v/[^/]+/looks/galaxy.png")))
     }
 
     /**
-     * Ein gesperrter Look scheitert beim Hochladen, und zwar ganz: kein Clip
-     * bleibt zurueck. Ein freier steht danach am Clip, an der Karte und auf
-     * der Clip-Seite.
+     * Das Portal kennt keine Lizenz: jeder bekannte Look geht durch, auch
+     * ein Pro-Look ohne jede Vorgeschichte. Ein unbekannter scheitert, und
+     * zwar ganz - kein Clip bleibt zurueck.
      */
     @Test
-    fun `a locked look is refused at upload, a free one sticks`() {
+    fun `any known look is taken at upload, an unknown one is refused`() {
         val name = "looker-${unique()}"
         val token = login(name)
 
-        upload(token, "Too early", look = "galaxy").andExpect {
+        upload(token, "Velvet walk", look = "velvet").andExpect {
             status { isBadRequest() }
-            jsonPath("$.error.code") { value("look-locked") }
+            jsonPath("$.error.code") { value("invalid-look") }
         }
         upload(token, "Nobody", figure = "robot").andExpect {
             status { isBadRequest() }
@@ -142,18 +141,18 @@ class LookFlowTest {
         mvc.get("/api/v1/me/packages") { header("Authorization", "Bearer $token") }
             .andExpect { status { isOk() }; jsonPath("$.length()") { value(0) } }
 
-        val slug = upload(token, "Mint walk", figure = "female", look = "mint").andExpect {
+        val slug = upload(token, "Galaxy walk", figure = "female", look = "galaxy").andExpect {
             status { isCreated() }
             jsonPath("$.figure") { value("female") }
-            jsonPath("$.look") { value("mint") }
+            jsonPath("$.look") { value("galaxy") }
         }.body()["slug"].asString()
 
         mvc.get("/api/v1/packages/$slug").andExpect {
             jsonPath("$.figure") { value("female") }
-            jsonPath("$.look") { value("mint") }
+            jsonPath("$.look") { value("galaxy") }
         }
         val card = mvc.get("/api/v1/users/$name/packages").andExpect { status { isOk() } }.body()["items"][0]
-        assertEquals("mint", card["look"].asString())
+        assertEquals("galaxy", card["look"].asString())
         assertEquals("female", card["figure"].asString())
 
         //  Ohne Angabe: der Standard.
@@ -164,17 +163,11 @@ class LookFlowTest {
         }
     }
 
-    /**
-     * Der erste geteilte Clip schaltet Ocean frei. Ein Wechsel des Looks
-     * nimmt dem Clip sein Vorschaubild - es zeigte die alte Figur.
-     */
+    /** Ein Wechsel des Looks nimmt dem Clip sein Vorschaubild - es zeigte die alte Figur. */
     @Test
-    fun `sharing unlocks a look, and changing it drops the old preview card`() {
-        val token = login("unlocker-${unique()}")
+    fun `changing the look drops the old preview card`() {
+        val token = login("changer-${unique()}")
         val slug = upload(token, "First share").andExpect { status { isCreated() } }.body()["slug"].asString()
-
-        assertTrue(look(looks(token), "ocean")["unlocked"].asBoolean())
-        assertEquals(1, look(looks(token), "galaxy")["progress"].asLong())
 
         mvc.put("/api/v1/packages/$slug/card") {
             contentType = MediaType.IMAGE_PNG
@@ -196,36 +189,8 @@ class LookFlowTest {
         //  Eine aeltere Workbench schickt keinen Look - dann bleibt er.
         edit(token, slug, """{"title":"First share, renamed","description":"","tags":["walk"],"license":"CC0-1.0"}""")
             .andExpect { status { isOk() }; jsonPath("$.look") { value("ocean") } }
-    }
 
-    /**
-     * Wer unter die Stufe faellt, behaelt, was er gewaehlt hat. Ein Clip auf
-     * privat zaehlt nicht mehr als geteilt - Ocean waere jetzt gesperrt, der
-     * Clip darf ihn trotzdem behalten, nur kein neuer.
-     */
-    @Test
-    fun `a look already worn survives losing the tier behind it`() {
-        val token = login("keeper-${unique()}")
-        val slug = upload(token, "Kept look").andExpect { status { isCreated() } }.body()["slug"].asString()
-        edit(token, slug, """{"title":"Kept look","description":"","tags":["walk"],"license":"CC0-1.0","look":"ocean"}""")
-            .andExpect { status { isOk() } }
-
-        edit(token, slug, """{"title":"Kept look","description":"","tags":["walk"],"license":"ARR","look":"ocean"}""")
-            .andExpect { status { isOk() }; jsonPath("$.look") { value("ocean") } }
-        assertFalse(look(looks(token), "ocean")["unlocked"].asBoolean())
-
-        edit(token, slug, """{"title":"Kept look, renamed","description":"","tags":["walk"],"license":"ARR","look":"ocean"}""")
-            .andExpect { status { isOk() }; jsonPath("$.look") { value("ocean") } }
-        edit(token, slug, """{"title":"Kept look","description":"","tags":["walk"],"license":"ARR","look":"sunset"}""")
-            .andExpect { status { isBadRequest() }; jsonPath("$.error.code") { value("look-locked") } }
-    }
-
-    /** Admins waehlen frei - fuer Starter-Clips und zum Ansehen. */
-    @Test
-    fun `an admin may wear any look`() {
-        val admin = login("admin")
-        assertTrue(look(looks(admin), "galaxy")["unlocked"].asBoolean())
-        val detail = upload(admin, "Admin galaxy ${unique()}", look = "galaxy").andExpect { status { isCreated() } }.body()
-        assertEquals("galaxy", detail["look"].asString())
+        edit(token, slug, """{"title":"First share","description":"","tags":["walk"],"license":"CC0-1.0","look":"velvet"}""")
+            .andExpect { status { isBadRequest() }; jsonPath("$.error.code") { value("invalid-look") } }
     }
 }

@@ -26,18 +26,6 @@ data class AchievementView(
 )
 
 /**
- * Eine Stufe, an der etwas haengt: [task] sagt, was zu tun ist ("Share 5
- * clips"), [progress] und [goal] wie weit es ist.
- */
-data class TierCheck(
-    val achievement: String,
-    val task: String,
-    val progress: Long,
-    val goal: Long,
-    val met: Boolean,
-)
-
-/**
  * Was eine Auszeichnung braucht, um sich auszurechnen - alles vorhandene Zahlen.
  *
  * Die Haelfte davon sagt, was die Clips dieses Kontos ausgeloest haben; die
@@ -94,35 +82,28 @@ class AchievementService(
         val thresholds: List<Long>,
         val describe: (Long) -> String,
         val value: (ProfileStats) -> Long,
-        /** Was als Naechstes zu tun ist, in der Befehlsform - fuer gesperrte Looks. */
-        val task: (Long) -> String,
     )
 
     private val families = listOf(
         Family("clips", "Contributor", "share", listOf(1, 5, 25, 100),
             { goal -> if (goal == 1L) "Shared a clip with the community." else "Shared $goal clips with the community." },
-            { it.clips },
-            { goal -> if (goal == 1L) "Share a clip" else "Share $goal clips" }),
+            { it.clips }),
 
         Family("likes", "Well liked", "heart", listOf(10, 100, 1000),
             { goal -> "Received $goal hearts across all clips." },
-            { it.likesReceived },
-            { goal -> "Get $goal hearts on your clips" }),
+            { it.likesReceived }),
 
         Family("unlocks", "In use", "download", listOf(10, 100, 1000),
             { goal -> "Clips from this account were unlocked $goal times." },
-            { it.unlocksEarned },
-            { goal -> "Have your clips taken $goal times" }),
+            { it.unlocksEarned }),
 
         Family("saves", "Kept", "star", listOf(10, 100, 1000),
             { goal -> "Clips from this account were saved to a collection $goal times." },
-            { it.saves },
-            { goal -> "Have your clips saved to collections $goal times" }),
+            { it.saves }),
 
         Family("collections", "Curator", "folder", listOf(1, 5, 20),
             { goal -> if (goal == 1L) "Published a collection." else "Published $goal collections." },
-            { it.collections },
-            { goal -> if (goal == 1L) "Publish a collection" else "Publish $goal collections" }),
+            { it.collections }),
 
         //  NICHT "under other people's clips", wie es hier zuerst stand:
         //  gezaehlt wird jeder sichtbare Kommentar dieses Kontos, auch der
@@ -131,13 +112,11 @@ class AchievementService(
         //  haette Konten eine bereits erreichte Stufe gekostet.
         Family("comments", "In the conversation", "comment", listOf(10, 100),
             { goal -> "Left $goal comments in the community." },
-            { it.comments },
-            { goal -> "Leave $goal comments" }),
+            { it.comments }),
 
         Family("followers", "Followed", "users", listOf(1, 10, 100),
             { goal -> if (goal == 1L) "Someone follows this account." else "$goal people follow this account." },
-            { it.followers },
-            { goal -> if (goal == 1L) "Get a follower" else "Get $goal followers" }),
+            { it.followers }),
 
         //  Dasselbe Zeichen wie "Well liked" und "In use", weil es dieselbe
         //  Sache in der anderen Richtung ist: gegeben statt bekommen. Ein
@@ -145,13 +124,11 @@ class AchievementService(
         //  behaupten, den es nicht gibt.
         Family("supporter", "Supporter", "heart", listOf(10, 100, 1000),
             { goal -> "Gave $goal hearts to other people's clips." },
-            { it.likesGiven },
-            { goal -> "Give $goal hearts to other people's clips" }),
+            { it.likesGiven }),
 
         Family("collector", "Collector", "download", listOf(10, 100, 500),
             { goal -> "Unlocked $goal clips from the community." },
-            { it.unlocksUsed },
-            { goal -> "Take $goal clips from the community" }),
+            { it.unlocksUsed }),
 
         //  Die einzige Familie, deren Zahl von selbst waechst - und die
         //  einzige, die nicht in [ProfileStats] steht: aus dem Beitritt und
@@ -160,8 +137,7 @@ class AchievementService(
         //  ueberall: das zweite Jahr ist dasselbe wie das erste, nur laenger.
         Family("veteran", "Still here", "clock", listOf(365, 730, 1095),
             { goal -> if (goal == 365L) "One year with the community." else "${goal / 365} years with the community." },
-            { Duration.between(it.joinedAt, clock.instant()).toDays().coerceAtLeast(0) },
-            { goal -> if (goal == 365L) "Stay a year" else "Stay ${goal / 365} years" }),
+            { Duration.between(it.joinedAt, clock.instant()).toDays().coerceAtLeast(0) }),
     )
 
     /**
@@ -194,23 +170,6 @@ class AchievementService(
         }
 
         return result + beta(stats)
-    }
-
-    /**
-     * Ob dieses Konto Stufe [tier] der Auszeichnung [key] erreicht hat - und
-     * wenn nicht, wie weit es ist. Fuer die Looks (`looks/FigureLooks.kt`),
-     * die an Auszeichnungen haengen statt an eigenen Zaehlern: was hier
-     * gilt, gilt dort, ohne dass eine Schwelle zweimal steht.
-     */
-    fun check(stats: ProfileStats, key: String, tier: Int): TierCheck? {
-        if (key == "beta") {
-            val view = beta(stats)
-            return TierCheck(view.name, view.description, view.progress, 1, view.earned)
-        }
-        val family = families.firstOrNull { it.key == key } ?: return null
-        val goal = family.thresholds.getOrNull(tier - 1) ?: return null
-        val value = family.value(stats)
-        return TierCheck(family.name, family.task(goal), value, goal, value >= goal)
     }
 
     /**

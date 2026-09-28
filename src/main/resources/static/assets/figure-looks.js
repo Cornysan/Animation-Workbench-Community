@@ -17,7 +17,7 @@
  *
  * ── Wer was entscheidet ──────────────────────────────────────────────────
  *
- * WELCHE Looks es gibt und wer sie tragen darf, entscheidet der Server
+ * WELCHE Looks es gibt und welche davon Pro sind, sagt der Server
  * (`FigureLooks.kt`). Hier steht nur, wie sie AUSSEHEN. Ein Schluessel, den
  * diese Datei nicht kennt, zeigt `classic` - eine neue Seite mit altem Skript
  * im Cache soll keine leere Figur zeigen.
@@ -267,8 +267,7 @@ export const FIGURE_LOOKS = {
     seams: new MeshStandardMaterial({ color: 0x000000, emissive: 0xe879f9, emissiveIntensity: 1.2 }),
   }),
 
-  //  Durchscheinend, Kanten hell, Linien laufen nach oben. Nur fuer die, die
-  //  in der geschlossenen Beta dabei waren (FigureLooks.kt).
+  //  Durchscheinend, Kanten hell, Linien laufen nach oben.
   hologram: (u) => ({
     shell: shaded('hologram', {
       color: 0x000000, roughness: 0.4, transparent: true, depthWrite: true,
