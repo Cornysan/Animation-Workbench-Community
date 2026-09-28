@@ -100,6 +100,7 @@ import {
   Vector3, WebGLRenderer,
 } from './vendor/three.module.js';
 import { measuredRestPose } from './rest-pose.js';
+import { knownLook, lookMaterials } from './figure-looks.js';
 
 // Relativ zu diesem Modul, damit das Mannequin dieselbe Build-Version traegt
 // wie das Skript, das es laedt (siehe StaticAssets.kt).
@@ -861,6 +862,15 @@ export class MannequinStage {
     this.own = !!options.own;
     /** Welche Figur des Hauses dasteht (`HOUSE_FIGURES`); null bei einer eigenen. */
     this.house = this.own ? null : (HOUSE_FIGURES[options.house] ? options.house : 'default');
+
+    /**
+     * Wie das Mannequin aussieht (figure-looks.js) - der Look, den der
+     * Ersteller beim Teilen gewaehlt hat. Eine eigene Figur hat keinen, sie
+     * behaelt ihre Materialien. `lookUniforms.time` schreibt [step] fort.
+     */
+    this.look = this.own ? null : knownLook(options.look);
+    this.lookUniforms = { time: { value: 0 } };
+    this.lookMats = null;
     this.boneMap = options.boneMap || BONE_MAP;
     this.tposeInRest = gltf.userData?.pose === 'tpose';
 
@@ -1107,14 +1117,10 @@ export class MannequinStage {
         node.frustumCulled = false; // die Haut ist quantisiert, ihr eigener Kasten luegt
 
         //  Die eigene Figur behaelt ihre Materialien. Das Mannequin bekommt
-        //  seine zwei: es ist unser Schaustueck, und es soll auf jeder Seite
-        //  gleich aussehen.
-        if (!this.own) {
-          const seam = node.material.name === SEAMS;
-          node.material = seam
-            ? new MeshStandardMaterial({ color: ACCENT, emissive: 0x2b1f6b, roughness: 0.38 })
-            : new MeshStandardMaterial({ color: 0xe9e6f2, roughness: 0.55 });
-        }
+        //  die zwei seines Looks ([dress]) - welches Teil welches, steht nur
+        //  im Namen des geladenen Materials, und der ist nach dem ersten
+        //  Anziehen weg.
+        if (!this.own) node.userData.awSeam = node.material.name === SEAMS;
 
         if (node.isSkinnedMesh) this.skins.push(node);
         if (!this.skinned) this.skinned = node;
@@ -1134,7 +1140,37 @@ export class MannequinStage {
     }
     this.figure.add(model);
     this.model = model;
+    if (!this.own) this.dress();
     this.scene.updateMatrixWorld(true);
+  }
+
+  /**
+   * Das Mannequin in seinen Look kleiden.
+   *
+   * Freigegeben werden nur die Materialien, die WIR angezogen haben. Die aus
+   * der Datei teilt sich jede Buehne der Seite (`cloneSkinned` klont
+   * Knochen, nicht Materialien) - siehe [dispose].
+   */
+  dress() {
+    const made = lookMaterials(this.look, this.lookUniforms);
+    this.model.traverse((node) => {
+      if (node.isMesh || node.isSkinnedMesh) node.material = node.userData.awSeam ? made.seams : made.shell;
+    });
+    if (this.lookMats) {
+      this.lookMats.shell.dispose();
+      this.lookMats.seams.dispose();
+    }
+    this.lookMats = made;
+  }
+
+  /** Einen anderen Look anziehen - fuer die Auswahl beim Bearbeiten. */
+  setLook(key) {
+    if (this.own) return;
+    const look = knownLook(key);
+    if (look === this.look) return;
+    this.look = look;
+    this.dress();
+    this.drawnKey = null;
   }
 
   /**
@@ -2301,6 +2337,7 @@ export class MannequinStage {
       if (this.time > this.duration) this.time %= this.duration;
     }
     this.last = timestamp;
+    this.lookUniforms.time.value = timestamp / 1000;
 
     const frame = Math.min(this.solved.frames - 1, Math.round(this.time * this.fps));
     this.placeCamera(this.applyFrame(frame));
