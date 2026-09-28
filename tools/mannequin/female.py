@@ -32,9 +32,9 @@ names = [g.j['nodes'][n]['name'].replace('DEF-', '') for n in g.j['skins'][0]['j
 
 # Wie weit die Brust vor dem Brustkorb steht, in Mesh-Einheiten (~0.93 m).
 # 0 = keine, Brustkorb wie beim Original; 0.036 war die kleine Fassung,
-# 0.054 die erste. Seit 2026-09-28 mit Brust - ohne las sich die Figur als
-# schmaler Mann.
-BUST = 0.07
+# 0.054 die erste, 0.07 stand einen Abend lang drin. Pablo, 2026-09-28:
+# wieder weg - auf dem groben Netz wird sie nicht rund genug.
+BUST = 0.0
 BUST_X = 0.074      # Mitte jeder Seite, seitlich
 BUST_R = 0.078      # Breite jeder Seite
 BUST_LOWER = 1.5    # Unterseite: kleiner = runder, mit schaerferer Falte
@@ -45,6 +45,8 @@ HEAD_SCALE = 0.93   # Kopf um den Halsansatz
 NECK = 0.10         # Hals schlanker um seine Achse
 SHOULDER_SLOPE = 0.06
 SHOULDER = 0.14     # Kappe und Pfanne zum Drehpunkt, siehe unten
+SHOULDER_ROUND = 40     # Glaettschritte um den Drehpunkt, siehe unten
+SHOULDER_ROUND_R = 0.20 # bis wohin, vom Drehpunkt aus
 BACK = 0.86         # Tiefe des Brustkorbs, Mitte bis oben
 ARM_SLIM = 1.2      # Verstaerkung der Armkurve
 
@@ -433,6 +435,20 @@ for sx in (-1, 1):
 P1 = np.stack([nx, ny, -nh], 1)
 tris = skin.tris
 
+# SCHULTER RUNDER: Kappe und Pfanne sind grobe Schalen mit flachem Deckel und
+# harten Kanten. Geglaettet wird nur die Schale (die Ringe bleiben, wie sie
+# sind), und nur um den Drehpunkt - Kappe und Pfanne sind getrennte Teile,
+# das Glaetten zieht sie also nicht ineinander. Die Zone reicht bis an den
+# Hals, sonst bleiben Beulen auf dem Nacken stehen; mehr als 40 Schritte
+# bringen nichts mehr und kerben die Kappe seitlich ein.
+round_zone = np.zeros(len(P1))
+for sx in (-1, 1):
+    d = np.linalg.norm(P1 - np.array([ARM_PIVOT[0] * sx, ARM_PIVOT[1], -ARM_PIVOT[2]]), axis=1)
+    round_zone = np.maximum(round_zone, 1 - smoothstep(SHOULDER_ROUND_R * 0.6, SHOULDER_ROUND_R, d))
+round_zone *= ~ring
+if SHOULDER_ROUND:
+    P1 = taubin(P1, skin.T[0], round_zone, iters=SHOULDER_ROUND)
+
 
 # --- Normalen ---------------------------------------------------------------
 def vertex_normals(P, T):
@@ -451,7 +467,8 @@ def unit(v):
 # Ueberall: die Aenderung der Flaechennormalen auf die gezeichneten uebertragen.
 N1 = unit(N0 + vertex_normals(P1, tris) - vertex_normals(skin.P0, tris))
 # Brust: neue Form, dafuer gibt es nichts Gezeichnetes - glatt ueber die Naht.
-region = np.clip(np.maximum(chest, bust * 3), 0, 1)[:, None]
+# Schulter: die harten Kanten stehen auch in den gezeichneten Normalen.
+region = np.clip(np.maximum(np.maximum(chest, bust * 3), round_zone), 0, 1)[:, None]
 N1 = np.where(ring[:, None], N1, unit(N1 * (1 - region) + welded_normals(P1, skin.T[0]) * region))
 
 assert np.abs(P1).max() <= 1.0, np.abs(P1).max()
