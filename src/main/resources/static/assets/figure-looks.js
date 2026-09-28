@@ -23,6 +23,11 @@
  * im Cache soll keine leere Figur zeigen.
  *
  * Eigene Figuren tragen keinen Look: sie behalten ihre Materialien.
+ *
+ * Die Workbench zeigt dieselben Looks in ihrer Vorschau beim Teilen und
+ * rechnet sie dafuer nach: die Farben in `Characters/AWMannequinLooks.cs`,
+ * die Muster (Sunset, Marble, Neon, Galaxy, Hologram) in
+ * `Shaders/AWMannequinLook.shader`. Aendert sich hier ein Look, dort mitziehen.
  */
 
 import { CanvasTexture, MeshStandardMaterial, SRGBColorSpace } from './vendor/three.module.js';
