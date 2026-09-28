@@ -32,8 +32,25 @@ names = [g.j['nodes'][n]['name'].replace('DEF-', '') for n in g.j['skins'][0]['j
 
 # Wie weit die Brust vor dem Brustkorb steht, in Mesh-Einheiten (~0.93 m).
 # 0 = keine, Brustkorb wie beim Original; 0.036 war die kleine Fassung,
-# 0.054 die erste.
-BUST = 0.0
+# 0.054 die erste. Seit 2026-09-28 mit Brust - ohne las sich die Figur als
+# schmaler Mann.
+BUST = 0.07
+BUST_X = 0.074      # Mitte jeder Seite, seitlich
+BUST_R = 0.078      # Breite jeder Seite
+BUST_LOWER = 1.5    # Unterseite: kleiner = runder, mit schaerferer Falte
+BUST_UNDER = 0.06   # wie weit der Brustkorb darunter zuruecktritt
+
+# Ohne Mass, alles Faktoren auf das Original
+HEAD_SCALE = 0.93   # Kopf um den Halsansatz
+NECK = 0.10         # Hals schlanker um seine Achse
+SHOULDER_SLOPE = 0.06
+SHOULDER = 0.14     # Kappe und Pfanne zum Drehpunkt, siehe unten
+BACK = 0.86         # Tiefe des Brustkorbs, Mitte bis oben
+ARM_SLIM = 1.2      # Verstaerkung der Armkurve
+
+# Glaetten: Brustkorb nach dem Verfeinern, und das Feld "vorn" (siehe dort)
+CHEST_SMOOTH = 40
+FRONT_SMOOTH = 15
 
 
 def smoothstep(a, b, t):
@@ -250,7 +267,7 @@ if BUST > 0:
     added = skin.subdivide(sel_chest) + skin.subdivide(sel_bust)
     wa, wl, wh, wt, ring = masks(skin)
     is_chest = chest_piece(skin)
-    skin.P = taubin(skin.P, skin.tris, chest_mask(skin.P, wt, is_chest), iters=12)
+    skin.P = taubin(skin.P, skin.tris, chest_mask(skin.P, wt, is_chest), iters=CHEST_SMOOTH)
     print(f'subdivided: +{added} verts -> {len(skin.P)}')
 chest = chest_mask(skin.P, wt, is_chest) * (BUST > 0)
 
@@ -269,6 +286,27 @@ def welded_normals(P, T):
     return vn / np.maximum(np.linalg.norm(vn, axis=1, keepdims=True), 1e-12)
 
 
+def smooth_field(f, P, T, iters):
+    """Ein Wert je Ecke, ueber die Nachbarn gemittelt - auf der verschweissten Flaeche."""
+    if iters <= 0:
+        return f
+    first, inv = weld(P)
+    v = np.zeros(inv.max() + 1)
+    n = np.zeros_like(v)
+    np.add.at(v, inv, f)
+    np.add.at(n, inv, 1)
+    v /= np.maximum(n, 1)
+    e = inv[np.vstack([T[:, [0, 1]], T[:, [1, 2]], T[:, [2, 0]]])]
+    e = np.vstack([e, e[:, ::-1]])
+    e = e[e[:, 0] != e[:, 1]]
+    deg = np.bincount(e[:, 0], minlength=len(v)).astype(float)
+    for _ in range(iters):
+        acc = np.zeros_like(v)
+        np.add.at(acc, e[:, 0], v[e[:, 1]])
+        v = np.where(deg > 0, 0.5 * v + 0.5 * acc / np.maximum(deg, 1), v)
+    return v[inv]
+
+
 # "Vorn" nach der geglaetteten Flaeche, nicht nach den gezeichneten Normalen -
 # die knicken an den alten Kanten und legen dort eine Falte in die Brust.
 Nsm = welded_normals(skin.P, skin.T[0])
@@ -282,7 +320,7 @@ sx_t = curve([(-0.12, 1.12), (0.00, 1.16), (0.06, 1.15), (0.10, 1.10), (0.14, 0.
               (0.38, 0.83), (0.42, 0.85), (0.46, 0.87), (0.54, 0.86),
               (0.62, 0.84), (0.66, 0.84), (0.70, 0.96), (0.95, 0.96)], h)
 sy_t = curve([(-0.12, 1.00), (0.08, 1.00), (0.14, 0.92), (0.22, 0.84), (0.33, 0.88),
-              (0.45, 0.90), (0.58, 0.88), (0.65, 0.86), (0.70, 0.96), (0.95, 0.96)], h)
+              (0.45, BACK), (0.58, BACK - 0.02), (0.65, 0.86), (0.70, 0.96), (0.95, 0.96)], h)
 
 # SCHULTERGELENK: um den Drehpunkt des Oberarms bleibt der Rumpf, wie er ist.
 # Das Skelett ist das des Originals, der Arm dreht also um denselben Punkt -
@@ -301,23 +339,34 @@ ty = Y_AXIS + (y - Y_AXIS) * sy_t
 th = h.copy()
 # Kopf: ein wenig kleiner, um den Halsansatz
 HEAD_H = 0.66
-th += smoothstep(0.64, 0.70, h) * (HEAD_H + (h - HEAD_H) * 0.96 - h)
+th += smoothstep(0.64, 0.70, h) * (HEAD_H + (h - HEAD_H) * HEAD_SCALE - h)
 
 # Schultern: der Nacken faellt flacher ab - nur zwischen Hals und Gelenk
-slope = 0.040 * smoothstep(0.50, 0.64, h) * smoothstep(0.05, 0.15, ax_abs) * (1 - socket)
+slope = SHOULDER_SLOPE * smoothstep(0.50, 0.64, h) * smoothstep(0.05, 0.15, ax_abs) * (1 - socket)
 th -= slope
+
+# Hals: schlanker um seine Achse, Kopf und Schultern bleiben
+neck = smoothstep(0.575, 0.605, h) * smoothstep(0.665, 0.635, h) * smoothstep(0.11, 0.07, ax_abs)
+band = (h > 0.60) & (h < 0.66) & (ax_abs < 0.07)
+neck_y = np.median(y[band]) if band.any() else Y_AXIS
+tx *= 1 - NECK * neck
+ty = neck_y + (ty - neck_y) * (1 - NECK * neck)
 
 # Brust: zwei Huegel vorn, oben flach auslaufend, unten rund, leicht nach aussen
 front = smoothstep(-0.1, 0.55, -Nsm[:, 1]) * smoothstep(0.0, -0.05, y) * is_chest
+# Die Flaechenrichtung ist auf dem groben Netz fleckig, und jeder Fleck wurde
+# eine Beule ueber der Brust. Das Feld selbst glaetten, nicht die Form.
+front = smooth_field(front, skin.P, skin.T[0], FRONT_SMOOTH)
 bust = np.zeros_like(x)
 side = np.zeros_like(x)
 for sx in (-1, 1):
-    bx, bh = 0.070 * sx, 0.422
+    bx, bh = BUST_X * sx, 0.422
     dh = h - bh
     rh = np.where(dh > 0, 0.11, 0.068)
-    u = np.sqrt(((x - bx) / 0.070) ** 2 + (dh / rh) ** 2)
-    b = bump(u) ** 0.9
-    side = np.where(b > bust, (x - bx) / 0.070, side)
+    u = np.sqrt(((x - bx) / BUST_R) ** 2 + (dh / rh) ** 2)
+    # Oben lang und weich auslaufend, unten runder mit deutlicher Falte.
+    b = np.where(dh > 0, bump(u) ** 0.9, np.clip(1 - u * u, 0, 1) ** BUST_LOWER)
+    side = np.where(b > bust, (x - bx) / BUST_R, side)
     bust = np.maximum(bust, b)
 bust *= front * (BUST > 0)
 ty -= BUST * bust
@@ -328,7 +377,7 @@ th -= BUST * 0.14 * bust
 # sonst sticht es durch.
 under = (smoothstep(0.26, 0.33, h) * smoothstep(0.39, 0.345, h)
          * smoothstep(0.17, 0.10, ax_abs) * smoothstep(0.0, -0.04, y))
-ty += BUST * 0.22 * under
+ty += BUST * BUST_UNDER * under
 
 # Gesaess: nach hinten. NUR NACH LAGE, nicht nach Normale und nicht nach
 # Hautgewicht - das Beckenteil hat unten eine nach innen gebogene Kante, und
@@ -361,8 +410,8 @@ ly = leg_y + (ly - leg_y) * (1 - 0.05 * foot)
 # der dort unveraendert bleibt (siehe socket) -, dann deutlich duenner.
 ARM_H = 0.541
 arm_y = np.interp(ax_abs, [0.197, 0.4796, 0.76], [0.0885, 0.0933, 0.0885])
-ra = curve([(0.10, 0.97), (0.20, 0.93), (0.27, 0.83), (0.34, 0.78), (0.47, 0.81),
-            (0.60, 0.79), (0.74, 0.81), (0.80, 0.92), (1.0, 0.95)], ax_abs)
+ra = 1 - ARM_SLIM * (1 - curve([(0.10, 0.97), (0.20, 0.90), (0.27, 0.79), (0.34, 0.76), (0.47, 0.80),
+            (0.60, 0.79), (0.74, 0.81), (0.80, 0.92), (1.0, 0.95)], ax_abs))
 ah = ARM_H + (h - ARM_H) * ra
 ay = arm_y + (y - arm_y) * ra
 
@@ -371,6 +420,15 @@ nx = wt * tx + wl * lx + wa * x
 ny = wt * ty + wl * ly + wa * ay
 nh = wt * th + wl * h + wa * ah
 ny += 0.026 * glute
+
+# SCHULTER: Kappe (haengt am Oberarm) und Pfanne (Rumpf) GEMEINSAM zum
+# Drehpunkt ziehen. Der Arm dreht um diesen Punkt - was um ihn herum
+# gleichmaessig kleiner wird, passt in jeder Armhaltung weiter ineinander.
+for sx in (-1, 1):
+    pv = np.array([ARM_PIVOT[0] * sx, ARM_PIVOT[1], ARM_PIVOT[2]])
+    d = np.sqrt((nx - pv[0]) ** 2 + (ny - pv[1]) ** 2 + (nh - pv[2]) ** 2)
+    k = 1 - SHOULDER * (1 - smoothstep(0.09, 0.17, d)) * (np.sign(x) == sx)
+    nx, ny, nh = pv[0] + (nx - pv[0]) * k, pv[1] + (ny - pv[1]) * k, pv[2] + (nh - pv[2]) * k
 
 P1 = np.stack([nx, ny, -nh], 1)
 tris = skin.tris
