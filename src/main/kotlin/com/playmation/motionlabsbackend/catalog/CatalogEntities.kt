@@ -102,6 +102,13 @@ class AnimationPackage(
      */
     var packId: UUID? = null,
     var packPosition: Int? = null,
+
+    /**
+     * Figur und Look, in denen der Clip auftritt (V18,
+     * `looks/FigureLooks.kt`) - fuer alle gleich, vom Ersteller gewaehlt.
+     */
+    var figure: String = "default",
+    var look: String = "classic",
 ) {
     fun tagList(): List<String> = tags.split(',').filter { it.isNotEmpty() }
 

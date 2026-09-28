@@ -91,12 +91,15 @@ class PackageController(private val catalog: CatalogService) {
         @RequestParam("restPose", required = false) restPose: String?,
         /** false, wenn der Clip gleich in einen Pack kommt - siehe [CatalogService.upload]. */
         @RequestParam("notifyFollowers", required = false, defaultValue = "true") notifyFollowers: Boolean,
+        /** Wie der Clip auftritt - siehe `looks/FigureLooks.kt`. Fehlt es, der Standard. */
+        @RequestParam("figure", required = false) figure: String?,
+        @RequestParam("look", required = false) look: String?,
         authentication: Authentication?,
         request: HttpServletRequest,
     ): ResponseEntity<PackageDetail> =
         ResponseEntity.status(HttpStatus.CREATED).body(
             catalog.upload(authentication.requirePrincipal(), file.bytes, declarationText, declarationVersion,
-                declarationAccepted, request.clientIp(), null, restPose, notifyFollowers)
+                declarationAccepted, request.clientIp(), null, restPose, notifyFollowers, figure, look)
         )
 
     @PostMapping("/packages/{slug}/versions", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
@@ -107,12 +110,14 @@ class PackageController(private val catalog: CatalogService) {
         @RequestParam("declarationVersion", required = false) declarationVersion: Int?,
         @RequestParam("declarationAccepted", required = false, defaultValue = "false") declarationAccepted: Boolean,
         @RequestParam("restPose", required = false) restPose: String?,
+        @RequestParam("figure", required = false) figure: String?,
+        @RequestParam("look", required = false) look: String?,
         authentication: Authentication?,
         request: HttpServletRequest,
     ): ResponseEntity<PackageDetail> =
         ResponseEntity.status(HttpStatus.CREATED).body(
             catalog.upload(authentication.requirePrincipal(), file.bytes, declarationText, declarationVersion,
-                declarationAccepted, request.clientIp(), slug, restPose)
+                declarationAccepted, request.clientIp(), slug, restPose, figure = figure, look = look)
         )
 
     /** Titel, Beschreibung, Schlagworte, Sichtbarkeit - nur der Besitzer. */

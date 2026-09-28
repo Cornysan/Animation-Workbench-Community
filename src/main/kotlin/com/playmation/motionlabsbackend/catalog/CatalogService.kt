@@ -17,6 +17,9 @@ import com.playmation.motionlabsbackend.format.AwclipReader
 import com.playmation.motionlabsbackend.format.AwclipSchema
 import com.playmation.motionlabsbackend.format.RestPose
 import com.playmation.motionlabsbackend.format.StrictJson
+import com.playmation.motionlabsbackend.looks.FigureChoice
+import com.playmation.motionlabsbackend.looks.FigureLooks
+import com.playmation.motionlabsbackend.looks.LookService
 import com.playmation.motionlabsbackend.notification.NotificationKind
 import com.playmation.motionlabsbackend.notification.NotificationLinks
 import com.playmation.motionlabsbackend.notification.Notifier
@@ -91,6 +94,9 @@ data class PackageSummary(
     val isOwner: Boolean = false,
     /** Der Pack, in dem der Clip liegt - die Karte fuehrt dorthin. */
     val pack: PackRef? = null,
+    /** Figur und Look, in denen die Karte den Clip zeigt ([FigureLooks]). */
+    val figure: String = FigureLooks.DEFAULT_FIGURE,
+    val look: String = FigureLooks.DEFAULT_LOOK,
 )
 
 /** Titel und Adresse eines Packs, wie sie an einem seiner Clips stehen. */
@@ -138,6 +144,9 @@ data class PackageDetail(
      * rendert es die Seite des Besitzers (clip.js, og-card.js).
      */
     val hasCard: Boolean = false,
+    /** Figur und Look, in denen alle den Clip sehen ([FigureLooks]). */
+    val figure: String = FigureLooks.DEFAULT_FIGURE,
+    val look: String = FigureLooks.DEFAULT_LOOK,
 )
 
 /** Die Herkunft eines Starter-Clips, wie die Clip-Seite sie nennt. */
@@ -174,6 +183,8 @@ class CatalogService(
     private val overview: CatalogOverviewService,
     /** Nur fuer die Zeile "in diesem Pack" an Karte und Clip-Seite. */
     private val clipPacks: ClipPackRepository,
+    /** Figur und Look, die der Ersteller waehlt - und ob er sie tragen darf. */
+    private val looks: LookService,
     private val properties: PortalProperties,
     private val clock: Clock,
 ) {
@@ -190,6 +201,9 @@ class CatalogService(
      *   siehe [RestPose]. Sie landet in der Vorschau, nicht in der Datei.
      * @param notifyFollowers false, wenn der Clip Teil eines Packs wird: dann
      *   kommt EINE Nachricht fuer den Pack ([PackService.create]) statt einer je Clip.
+     * @param figure / look wie der Clip auftritt; null behaelt, was er traegt
+     *   (bzw. den Standard). Ein gesperrter Look scheitert, BEVOR etwas
+     *   gespeichert ist - siehe [LookService.choose].
      */
     @Transactional
     fun upload(
@@ -202,6 +216,8 @@ class CatalogService(
         targetSlug: String?,
         restPose: String? = null,
         notifyFollowers: Boolean = true,
+        figure: String? = null,
+        look: String? = null,
     ): PackageDetail {
         if (!settings.uploadsEnabled()) throw PortalException.unavailable("Uploads are paused right now.")
 
@@ -261,6 +277,8 @@ class CatalogService(
             pkg
         }
 
+        val choice = looks.choose(principal, figure, look, existing?.let { FigureChoice(it.figure, it.look) })
+
         //  Die Datei darf zehn tragen, geteilt werden hoechstens fuenf
         //  ([AwclipSchema.MAX_SHARED_TAGS]). Eine neue Fassung eines Clips, der
         //  schon mehr hatte, darf sie behalten, aber keine dazunehmen.
@@ -286,6 +304,8 @@ class CatalogService(
         pkg.tags = AnimationPackage.joinTags(manifest.tags)
         pkg.license = manifest.license
         pkg.status = PackageStatus.PUBLISHED
+        pkg.figure = choice.figure
+        pkg.look = choice.look
         pkg.updatedAt = now
         packages.save(pkg)
 
@@ -580,6 +600,9 @@ class CatalogService(
         val declarationAccepted: Boolean = false,
         val declarationText: String? = null,
         val declarationVersion: Int? = null,
+        /** Figur und Look; null laesst sie, wie sie sind (aeltere Workbench). */
+        val figure: String? = null,
+        val look: String? = null,
     )
 
     /**
@@ -651,18 +674,33 @@ class CatalogService(
         val sameMotion =
             if (goingPublic) checkNotAlreadyThere(version.contentHash, pkg.ownerId, except = pkg.id) else emptyList()
 
-        val changes = buildList {
+        val choice = looks.choose(principal, input.figure, input.look, FigureChoice(pkg.figure, pkg.look))
+
+        val fileChanges = buildList {
             if (title != pkg.title) add("title")
             if (description != pkg.description) add("description")
             if (tags != pkg.tagList()) add("tags")
             if (license != pkg.license) add("license ${pkg.license}->$license")
         }
+        val changes = fileChanges + buildList {
+            if (choice.figure != pkg.figure) add("figure ${pkg.figure}->${choice.figure}")
+            if (choice.look != pkg.look) add("look ${pkg.look}->${choice.look}")
+        }
         if (changes.isEmpty()) return detail(pkg, version, principal)
 
         val now = clock.instant()
-        val rewritten = rewriteManifest(version, title, description, tags, license)
-        version.blobKey = blobs.put(rewritten)
-        version.sizeBytes = rewritten.size.toLong()
+
+        //  Figur und Look stehen nicht in der Datei - nur umschreiben, was drinsteht.
+        if (fileChanges.isNotEmpty()) {
+            val rewritten = rewriteManifest(version, title, description, tags, license)
+            version.blobKey = blobs.put(rewritten)
+            version.sizeBytes = rewritten.size.toLong()
+        }
+
+        //  Das Vorschaubild fuer Discord & Co. zeigt die alte Figur. Weg damit:
+        //  die Seite des Besitzers rendert es beim naechsten Besuch neu, bis
+        //  dahin steht das Bild der Seite da (web/PreviewCards.kt).
+        if (choice != FigureChoice(pkg.figure, pkg.look)) version.cardBlobKey = null
         versions.save(version)
 
         if (goingPublic) {
@@ -684,6 +722,8 @@ class CatalogService(
         pkg.description = description
         pkg.tags = AnimationPackage.joinTags(tags)
         pkg.license = license
+        pkg.figure = choice.figure
+        pkg.look = choice.look
         pkg.updatedAt = now
         packages.save(pkg)
 
@@ -920,7 +960,8 @@ class CatalogService(
                 pkg.saveCount, pkg.commentCount, pkg.id in likedByMe, pkg.id in savedByMe,
                 pkg.id in unlockedByMe, version.previewBlobKey != null, pkg.createdAt,
                 isOwner = principal?.accountId == pkg.ownerId,
-                pack = pkg.packId?.let(packRefs::get))
+                pack = pkg.packId?.let(packRefs::get),
+                figure = pkg.figure, look = pkg.look)
         }
     }
 
@@ -1154,6 +1195,8 @@ class CatalogService(
             takes = pkg.takeCount,
             views = pkg.viewCount,
             hasCard = version.cardBlobKey != null,
+            figure = pkg.figure,
+            look = pkg.look,
         )
     }
 

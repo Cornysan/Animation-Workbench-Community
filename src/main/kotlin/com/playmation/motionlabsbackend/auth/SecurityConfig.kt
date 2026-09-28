@@ -87,6 +87,7 @@ class SecurityConfig {
                 //  Schlagworte kommen nur mit Anmeldung dazu (TagService).
                 authorize(HttpMethod.GET, "/api/v1/tags", permitAll)
                 authorize(HttpMethod.GET, "/api/v1/tags/suggest", permitAll)
+                authorize(HttpMethod.GET, "/api/v1/looks", permitAll)
                 authorize(HttpMethod.GET, "/api/v1/packages", permitAll)
                 authorize(HttpMethod.GET, "/api/v1/packages/*", permitAll)
                 authorize(HttpMethod.GET, "/api/v1/packages/*/preview", permitAll)
