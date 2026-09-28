@@ -8,8 +8,8 @@
 Schreibt in den Ordner:
 
     AW_Female_Mannequin_Mesh.mesh   Kopie des Default-Meshes mit neuer Form:
-                                    Ecken, Dreiecke und Grenzen neu, an der
-                                    Schulterkappe auch die Gewichte
+                                    Ecken, Dreiecke und Grenzen neu, Gewichte
+                                    nur, wo female.py sie aendert
     AW_Female_Mannequin.prefab      Kopie des Default-Prefabs, das auf das neue
                                     Mesh zeigt; Avatar, Controller, Materialien
                                     und Skelett sind dieselben
@@ -188,8 +188,9 @@ if has_tan:
     write(2, np.column_stack([t, tan[rows, 3]]).astype('<f4'))
 
 # Gewichte: die alten Ecken behalten die von Unity (float). Die neuen, und
-# alte, deren Gewichte female.py geaendert hat (die Schulterkappe), nehmen die
-# des Web-Modells (8 Bit), wieder auf 1 gebracht.
+# alte, deren Gewichte female.py geaendert hat, nehmen die des Web-Modells
+# (8 Bit), wieder auf 1 gebracht. Die Kappen glaettet default_caps.py schon im
+# Default-Mesh - die kommen hier als Unitys eigene Werte mit.
 reweighted = np.concatenate([(wf[:count] != w0).any(1) | (jf[:count] != j0).any(1), np.ones(extra, bool)])
 w_web = wf.astype(np.float64) / 255.0
 w_web /= np.maximum(w_web.sum(1, keepdims=True), 1e-12)

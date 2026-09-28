@@ -1,9 +1,9 @@
 """Weibliche Variante des AW-Mannequins.
 
-Dasselbe Skelett und dieselben Knochen, nur die Haut aendert ihre Form - und
-an der Schulterkappe, wie stark sie an welchem Knochen haengt (siehe unten).
-Damit bleibt alles, was am Mannequin haengt (BONE_MAP, Ruhepose, FBX-Export),
-ohne Aenderung gueltig.
+Dasselbe Skelett und dieselben Knochen, nur die Haut aendert ihre Form. Damit
+bleibt alles, was am Mannequin haengt (BONE_MAP, Ruhepose, FBX-Export),
+ohne Aenderung gueltig. Auch die Gewichte kommen unveraendert mit - an den
+Schulterkappen schon geglaettet (default_caps.py).
 
 Eine Brust gibt es nur mit BUST > 0. Dann wird der Brustmuskel des Originals
 geglaettet und der Brustkorb feiner unterteilt: das Original traegt dort zwei
@@ -52,8 +52,6 @@ SOCKET_IN, SOCKET_OUT = 0.03, 0.09  # Rumpf unter der Kappe bleibt, siehe unten
 BACK = 0.86         # Tiefe des Brustkorbs, Mitte bis oben
 BACK_REAR = 0.76    # dazu nur hinten: zwischen den Schulterblaettern
 NAPE = 0.86         # und am Nacken
-CAP_SMOOTH = 20     # Glaettschritte der Kappengewichte, siehe unten
-CAP_R = 0.14        # bis wohin, vom Drehpunkt aus
 ARM_SLIM = 1.2      # Verstaerkung der Armkurve
 
 # Glaetten: Brustkorb nach dem Verfeinern, und das Feld "vorn" (siehe dort)
@@ -499,75 +497,6 @@ N1 = np.where(ring[:, None], N1, unit(N1 * (1 - region) + welded_normals(P1, ski
 assert np.abs(P1).max() <= 1.0, np.abs(P1).max()
 move = np.linalg.norm(P1 - skin.P0, axis=1)
 print(f'moved: max {move.max():.4f}  mean {move.mean():.4f}')
-
-
-# --- Gewichte an der Kappe --------------------------------------------------
-# Der innere Rand der Kappe haengt zum Teil am Schluesselbein, damit er bei
-# haengendem Arm auf der Brust liegen bleibt. Im Original springt das
-# Verhaeltnis aber von Ecke zu Ecke (0,15 neben 0,64): dreht der Oberarm um
-# die eigene Achse - Faeuste hoch, Bizeps zeigen -, klappt der Rand ueber sich
-# selbst, eine dunkle Knautschfalte an der Schulter (Pablo, 2026-09-28, auf
-# der Webseite). Das Default-Mannequin hat sie genauso.
-#
-# Geglaettet ueber die Kappe bleibt der Rand am Schluesselbein, nur der
-# Uebergang wird gleichmaessig. Gemessen ueber 960 Posen aus 24 Clips (Bone-
-# Matrizen der Buehne, in Python nachgeskinnt): vorher standen in jeder Pose
-# Dreiecke der Kappe gegen ihre eigene Normale, danach in keiner. 10 Schritte
-# halbieren das nur.
-def cap_weights(s):
-    """Das Verhaeltnis Schluesselbein : Oberarm auf der Kappe glaetten. Was
-    beide zusammen tragen, bleibt; andere Knochen bleiben, wie sie sind."""
-    piece = pieces(s)
-    _, inv = weld(s.P0)
-    for side, sx in (('L', -1), ('R', 1)):
-        ish, iup = names.index('shoulder.' + side), names.index('upper_arm.' + side)
-        ws = (s.W * (s.J == ish)).sum(1)
-        wu = (s.W * (s.J == iup)).sum(1)
-        cap = np.zeros(len(s.P), bool)
-        for pc in np.unique(piece[wu > 0.5]):
-            if pc >= 0 and (piece == pc).sum() < 400:     # die Oberarmschale, nicht der Rumpf
-                cap |= piece == pc
-        pivot = np.array([ARM_PIVOT[0] * sx, ARM_PIVOT[1], -ARM_PIVOT[2]])
-        near = cap & (np.linalg.norm(s.P0 - pivot, axis=1) < CAP_R)
-        both = ws + wu
-        ratio = np.where(both > 0, ws / np.maximum(both, 1e-12), 0)
-
-        # Auf der verschweissten Kappe, nur ueber ihre eigenen Kanten - sonst
-        # liefe das Schluesselbein ueber die Naht in den Rumpf.
-        v = np.zeros(inv.max() + 1)
-        n = np.zeros_like(v)
-        np.add.at(v, inv[cap], ratio[cap])
-        np.add.at(n, inv[cap], 1)
-        v /= np.maximum(n, 1)
-        T = s.T[0][cap[s.T[0]].all(1)]
-        e = inv[np.vstack([T[:, [0, 1]], T[:, [1, 2]], T[:, [2, 0]]])]
-        e = np.vstack([e, e[:, ::-1]])
-        e = e[e[:, 0] != e[:, 1]]
-        deg = np.bincount(e[:, 0], minlength=len(v)).astype(float)
-        free = np.zeros(len(v), bool)
-        free[inv[near]] = True
-        free &= deg > 0
-        for _ in range(CAP_SMOOTH):
-            acc = np.zeros_like(v)
-            np.add.at(acc, e[:, 0], v[e[:, 1]])
-            v = np.where(free, 0.5 * v + 0.5 * acc / np.maximum(deg, 1), v)
-        ratio = v[inv]
-
-        for i in np.where(near & (both > 0))[0]:
-            for j, w in ((ish, ratio[i] * both[i]), (iup, (1 - ratio[i]) * both[i])):
-                slot = np.where((s.J[i] == j) & (s.W[i] > 0))[0]
-                if not len(slot):
-                    slot = np.where(s.W[i] == 0)[0]
-                    if w < 1e-3 or not len(slot):
-                        continue
-                    s.J[i, slot[0]] = j
-                s.W[i, slot[0]] = w
-            # Unity erwartet das schwerste Gewicht vorn
-            order = np.argsort(-s.W[i], kind='stable')
-            s.J[i], s.W[i] = s.J[i][order], s.W[i][order] / s.W[i].sum()
-
-
-cap_weights(skin)
 
 
 # --- Schreiben --------------------------------------------------------------
