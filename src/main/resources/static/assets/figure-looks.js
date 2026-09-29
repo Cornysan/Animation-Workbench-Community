@@ -435,7 +435,7 @@ export const DEFAULT_LOOK = 'classic';
 /** Die Figuren des Hauses (`HOUSE_FIGURES` in stage.js). */
 const FIGURES = ['default', 'female'];
 
-/** Was beide Figuren tragen, gleich aussehend - Classic ist der Standard und der einzige Look in Lite. */
+/** Was beide Figuren tragen, gleich aussehend - Classic ist der Standard. */
 const SHARED = ['classic', 'graphite'];
 
 /**

@@ -112,9 +112,9 @@ class LookFlowTest {
         assertEquals(listOf("classic", "classic"), view["figures"].map { it["defaultLook"].asString() })
         assertEquals("classic", view["defaultLook"].asString())
 
-        //  Lite: nur Classic, fuer beide Figuren.
+        //  Lite: die zwei gemeinsamen und je Figur einer - Mint beim Mann, Blush bei der Frau.
         val lite = view["looks"].filter { !it["pro"].asBoolean() }.map { it["key"].asString() }
-        assertEquals(listOf("classic"), lite)
+        assertEquals(listOf("classic", "graphite", "mint", "blush"), lite)
         assertEquals(18, view["looks"].size())
         for (gone in listOf("coral", "crimson", "noir"))
             assertFalse(view["looks"].any { it["key"].asString() == gone }, gone)

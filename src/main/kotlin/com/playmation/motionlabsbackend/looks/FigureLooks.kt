@@ -13,7 +13,8 @@ import org.springframework.web.bind.annotation.RestController
  *
  * Der Ersteller waehlt beides beim Teilen (in der Workbench) und kann es
  * spaeter aendern. Die Figur ist frei; in Animation Workbench Lite traegt
- * sie Classic, alle anderen Looks kommen mit Pro ([Look.pro]).
+ * sie Classic, Graphite und Mint bzw. Blush ([LITE_LOOKS]), alle anderen
+ * Looks kommen mit Pro ([Look.pro]).
  *
  * ── Jede Figur hat ihre eigenen Looks ───────────────────────────────────
  *
@@ -44,10 +45,17 @@ object FigureLooks {
     const val DEFAULT_FIGURE = "default"
     const val FEMALE_FIGURE = "female"
 
-    /** Der Standard beider Figuren - und der einzige Look in Lite. */
+    /** Der Standard beider Figuren. */
     const val DEFAULT_LOOK = "classic"
 
-    /** [defaultLook] = was die Figur ohne Wahl traegt, und das Einzige in Lite. */
+    /**
+     * Die Looks in Lite: die zwei gemeinsamen und je Figur ein eigener, Mint
+     * beim Mann, Blush bei der Frau. Dieselbe Liste steht in der Workbench
+     * (`AWMannequinLooks._liteLooks`) - dort wird sie gezogen, hier nur gemeldet.
+     */
+    val LITE_LOOKS = setOf(DEFAULT_LOOK, "graphite", "mint", "blush")
+
+    /** [defaultLook] = was die Figur ohne Wahl traegt. */
     data class Figure(val key: String, val label: String, val defaultLook: String = DEFAULT_LOOK)
 
     /** Die Figuren des Hauses - dieselben Schluessel wie `HOUSE_FIGURES` in stage.js. */
@@ -92,10 +100,10 @@ object FigureLooks {
      */
     val LOOKS: List<Look> =
         SHARED.map { (key, label) ->
-            Look(key, label, listOf(DEFAULT_FIGURE, FEMALE_FIGURE), key, pro = key != DEFAULT_LOOK)
+            Look(key, label, listOf(DEFAULT_FIGURE, FEMALE_FIGURE), key, pro = key !in LITE_LOOKS)
         } +
-            PAIRS.map { (male, female) -> Look(male.first, male.second, listOf(DEFAULT_FIGURE), female.first, pro = true) } +
-            PAIRS.map { (male, female) -> Look(female.first, female.second, listOf(FEMALE_FIGURE), male.first, pro = true) }
+            PAIRS.map { (male, female) -> Look(male.first, male.second, listOf(DEFAULT_FIGURE), female.first, pro = male.first !in LITE_LOOKS) } +
+            PAIRS.map { (male, female) -> Look(female.first, female.second, listOf(FEMALE_FIGURE), male.first, pro = female.first !in LITE_LOOKS) }
 
     /**
      * Looks, die es nicht mehr gibt, und woraus sie wurden. Eine aeltere
@@ -127,7 +135,7 @@ object FigureLooks {
 data class FigureView(
     val key: String,
     val label: String,
-    /** Was die Figur ohne Wahl traegt - und das Einzige in Lite. */
+    /** Was die Figur ohne Wahl traegt. */
     val defaultLook: String,
 )
 
