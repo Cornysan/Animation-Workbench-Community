@@ -21,8 +21,7 @@
 <main id="main">
   <div th:replace="~{fragments/shell :: paused}"></div>
   <h1>Your account</h1>
-  <p class="lead">Only you see this page: your messages, what each of your clips is doing, and the
-    account itself. What everyone else sees is your profile.</p>
+  <p class="lead">Only you see this page.</p>
 
   <!-- Was hier alles liegt, auf einen Blick - die Seite ist lang geworden. -->
   <nav class="page-sections" aria-label="On this page">
@@ -40,9 +39,7 @@
   <div id="notification-list"></div>
 
   <h2 id="clips-title">Your clips</h2>
-  <p class="muted small">Every clip of yours, whatever state it is in - withdrawn and hidden ones
-    included, which is why they are here and not on your profile. New ones come from the
-    <a href="/share.html">Animation Workbench</a>: right-click a clip &rarr; <em>Share with the Community</em>.</p>
+  <p class="muted small">All of them, withdrawn and hidden ones included.</p>
   <table class="list" id="clips"><thead><tr><th>Title</th><th>Status</th><th>Version</th><th>Views</th><th>Downloads</th><th></th></tr></thead><tbody></tbody></table>
 
   <!--
@@ -54,8 +51,7 @@
   <th:block th:if="${signIns != null}">
     <h2 id="sign-ins">Ways to sign in</h2>
     <p class="muted small">Any of these gets you into this account. Your name and picture come from
-      the one marked <em>Profile</em> - at first the one you signed up with. <em>Use for profile</em>
-      takes them from another one instead; you confirm it there once, so the name and picture are fresh.</p>
+      the one marked <em>Profile</em>.</p>
     <ul class="signin-list">
       <li class="signin-row" th:each="row : ${signIns}" th:attr="data-provider=${row.provider},data-label=${row.label}">
         <th:block th:replace="~{fragments/signin :: icon(${row.provider})}"></th:block>
@@ -75,7 +71,7 @@
   </th:block>
 
   <h2>Workbench sign-ins</h2>
-  <p class="muted small">Signed in on a computer you no longer use? End every Workbench sign-in of this account.</p>
+  <p class="muted small">Signed in on a computer you no longer use?</p>
   <button id="revoke" class="danger">Sign out all Workbench installations</button>
 
   <!--
@@ -84,16 +80,12 @@
     stehen.
   -->
   <h2 id="your-data">Your data</h2>
-  <p class="muted small">One ZIP file with everything the portal keeps about your account: your profile
-    and sign-ins, your clips as the <code>.awclip</code> files you uploaded, your packs, collections,
-    comments, likes and follows, and your notifications - in JSON, readable by people and programs.</p>
+  <p class="muted small">One ZIP file with everything the portal keeps about you.</p>
   <a class="button" id="export" href="/api/v1/me/export" download>Download your data</a>
 
   <h2 id="close-account">Closing your account</h2>
-  <p class="muted small">Closing it takes your name, your profile, your collections and your likes
-    with it, and withdraws your clips from the catalogue. Comments stay without your name so the
-    conversations under other people's clips stay readable, and copies of your clips that others
-    already took remain theirs.</p>
+  <!-- Was verschwindet und was bleibt, sagt der Bestaetigungsdialog (me.js) -
+       bis 2026-10-02 stand es hier ein zweites Mal. -->
   <button id="delete-account" class="danger">Close my account</button>
 
   </main>

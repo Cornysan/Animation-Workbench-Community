@@ -2064,7 +2064,6 @@ dialog.sheet form > p:last-of-type { margin-bottom: 20px; }
 /* Die Zahl auf dem Stapel sitzt, wo beim Clip die Dauer steht. */
 .card-count { display: inline-flex; align-items: center; gap: 5px; color: var(--on-stage-ink); }
 .card-count .icon { width: 14px; height: 14px; }
-.card-kind { color: var(--text-faint); font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
 
 /* Ein Clip aus einem Pack sagt es unten links auf dem Bild - und fuehrt hin.
    Er liegt ueber der Flaeche, die der Titel abdeckt, sonst waere er nicht zu

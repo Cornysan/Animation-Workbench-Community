@@ -53,7 +53,8 @@
 
   // ── Schlagworte ──────────────────────────────────────────────────────
   //  Ein Suchfeld beantwortet nur Fragen, die jemand schon hat. Wer neu ist,
-  //  hat keine - er will sehen, was da ist.
+  //  hat keine - er will sehen, was da ist. Ohne Zahl an den Schlagworten
+  //  (bis 2026-10-02 „emote 16"): sie sagt beim Stoebern nichts.
   api("GET", "/api/v1/overview").then((overview) => {
     if (!overview.tags.length) return;
     tagBar.hidden = false;
@@ -65,7 +66,7 @@
       ...overview.tags.map((entry) => el("a", {
         class: "tag" + (entry.tag === activeTag ? " active" : ""),
         href: linkTo({ tag: entry.tag }),
-      }, entry.tag, el("span", { class: "tag-count" }, entry.count))),
+      }, entry.tag)),
     );
   }).catch(() => { /* Die Leiste ist Zugabe - ohne sie funktioniert der Katalog. */ });
 
@@ -96,18 +97,11 @@
   if (activeTag) filters.push(["Tag: " + activeTag, linkTo({ tag: null })]);
   if (activeAuthor) filters.push(["By " + activeAuthor, linkTo({ author: null })]);
 
-  //  Packs und Clips getrennt gezaehlt - eine Zahl hiesse sonst mal Karten,
-  //  mal Clips.
-  const counted = (n, one, many) => (n === 1 ? "1 " + one : n.toLocaleString() + " " + many);
-  const tally = [
-    page.packs ? counted(page.packs, "pack", "packs") : null,
-    page.clips || !page.packs ? counted(page.clips, "clip", "clips") : null,
-  ].filter(Boolean).join(" \u00b7 ");
-
+  //  Ohne Zaehlzeile daneben (bis 2026-10-02 „1 pack · 2 clips"): die Wand
+  //  zeigt, was da ist.
   state.replaceChildren(
     ...filters.map(([label, href]) => el("a", { class: "chip removable", href, title: "Remove this filter" },
       label, el("span", { class: "chip-x" }, "×"))),
-    el("span", { class: "faint small" }, tally),
   );
 
   if (page.items.length === 0) {

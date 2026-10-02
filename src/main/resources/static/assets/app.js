@@ -1277,7 +1277,7 @@ const AW = (() => {
           href: "/pack.html?k=" + encodeURIComponent(item.slug),
           title: item.title,
         }, item.title),
-        el("div", { class: "card-meta" }, author, el("span", { class: "card-kind" }, "Pack"))));
+        el("div", { class: "card-meta" }, author)));
   }
 
   /**

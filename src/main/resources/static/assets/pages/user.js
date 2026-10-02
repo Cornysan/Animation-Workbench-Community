@@ -222,9 +222,7 @@
       //  Eintrag in der Navigation dieselbe Person an zwei Adressen gezeigt
       //  haette. Was dort liegt, steht dabei, sonst ist es ein Link ins Dunkle.
       el("p", { class: "faint small dialog-aside" },
-        el("a", { href: "/me.html" }, "Notifications, clip statuses and your account"),
-        " - messages, what each of your clips is doing (including withdrawn ones), " +
-        "Workbench sign-ins, and closing the account."),
+        el("a", { href: "/me.html" }, "Notifications, clip statuses and your account")),
 
       error,
       el("div", { class: "dialog-actions" },
@@ -349,7 +347,7 @@
     const page = await api("GET", "/api/v1/catalog?owner=" + encodeURIComponent(profile.handle) + "&size=48");
     if (!page.items.length) {
       return empty(profile.isMe
-        ? "You have not shared a clip yet. In the Workbench: right-click a clip, Share with the Community."
+        ? "You have not shared a clip yet."
         : profile.displayName + " has not shared a clip yet.",
         profile.isMe ? el("a", { class: "button", href: "/share.html" }, "How to share") : null);
     }

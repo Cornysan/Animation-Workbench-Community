@@ -362,11 +362,10 @@ const CLIP_SCRIPT = document.currentScript ? document.currentScript.src : locati
       //  Was der Wechsel bedeutet, steht erst da, wenn jemand wechselt.
       const toPublic = el("div", { hidden: true },
         el("p", { class: "muted small" },
-          "Public is for good: anyone may use and change it without crediting you, and copies people take " +
-          "stay theirs even if you make it private again."),
+          "Copies people take stay theirs, even if you make it private again."),
         el("label", { class: "check" }, declared, declarationLine));
       const toPrivate = el("p", { class: "muted small", hidden: true },
-        "It leaves the community, your profile and other people's collections. Copies people already took stay theirs.");
+        "Copies people already took stay theirs.");
       const sync = () => {
         toPublic.hidden = wasPublic || !publicChoice.checked;
         toPrivate.hidden = !wasPublic || !privateChoice.checked;
