@@ -93,6 +93,13 @@ class MessageFlowTest {
 
     // ── Tests ───────────────────────────────────────────────────────────
 
+    /** Die Workbench zeigt ihr Postfach nur, wenn der Server es sagt. */
+    @Test
+    fun `the status says direct messages are there`() {
+        val status = mvc.get("/api/v1/status").andExpect { status { isOk() } }.body()
+        assertTrue(status["directMessages"].asBoolean())
+    }
+
     @Test
     fun `a first message is a request that stays small until it is answered`() {
         val alice = "alice" + unique()
@@ -276,6 +283,41 @@ class MessageFlowTest {
             .andExpect { status { isOk() } }
         assertTrue(mvc.get("/api/v1/admin/cases") { header("Authorization", "Bearer $adminToken") }
             .andExpect { status { isOk() } }.body().any { it["message"].asString().contains("Something nasty") })
+    }
+
+    /**
+     * Fuenfzig je Seite, aelteste zuerst - und `before=` mit dem Zeitstempel
+     * der obersten holt den Rest. Web und Workbench reichen dafuer den
+     * Zeitstempel so zurueck, wie der Server ihn geschickt hat.
+     */
+    @Test
+    fun `older messages come page by page`() {
+        val alice = "alice" + unique()
+        val bob = "bob" + unique()
+        val aliceToken = login(alice)
+        val bobToken = login(bob)
+
+        val conversation = sendTo(aliceToken, bob, "m0")
+            .andExpect { status { isCreated() } }.body()["conversationId"].asString()
+        send(bobToken, conversation, "m1").andExpect { status { isCreated() } }
+        for (i in 2 until 55) {
+            val token = if (i % 2 == 0) aliceToken else bobToken
+            send(token, conversation, "m$i").andExpect { status { isCreated() } }
+        }
+
+        val latest = open(aliceToken, conversation).andExpect { status { isOk() } }.body()
+        assertTrue(latest["hasMore"].asBoolean())
+        assertEquals(50, latest["messages"].size())
+        assertEquals("m54", latest["messages"][49]["body"].asString())
+
+        val oldest = latest["messages"][0]
+        val older = mvc.get("/api/v1/me/conversations/$conversation") {
+            param("before", oldest["createdAt"].asString())
+            header("Authorization", "Bearer $aliceToken")
+        }.andExpect { status { isOk() } }.body()
+
+        assertFalse(older["hasMore"].asBoolean())
+        assertEquals(listOf("m0", "m1", "m2", "m3", "m4"), older["messages"].map { it["body"].asString() })
     }
 
     @Test

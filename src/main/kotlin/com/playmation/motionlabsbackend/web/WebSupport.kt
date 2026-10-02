@@ -74,6 +74,12 @@ class StatusController(
          * [com.playmation.motionlabsbackend.showcase.ShowcaseService]).
          */
         val discordShowcase: Boolean,
+        /**
+         * Ob dieser Server Direktnachrichten kann (Schema 23, `messages/`).
+         * Die Workbench zeigt ihr Postfach nur dann - so kann sie es schon
+         * mitbringen, bevor der Server ausgerollt ist, ohne ins Leere zu fragen.
+         */
+        val directMessages: Boolean,
     )
 
     data class BuildInfo(val number: String, val commit: String, val time: String)
@@ -89,6 +95,7 @@ class StatusController(
         build = BuildInfo(build.number, build.commit, build.time),
         restPoseWanted = true,
         discordShowcase = portal.showcase.discordWebhookUrl.isNotBlank() && settings.uploadsEnabled(),
+        directMessages = true,
     )
 
     /**
