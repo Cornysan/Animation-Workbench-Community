@@ -6,6 +6,7 @@ import com.playmation.motionlabsbackend.auth.SignInProvider
 import com.playmation.motionlabsbackend.auth.SignInProviders
 import com.playmation.motionlabsbackend.auth.portalPrincipal
 import com.playmation.motionlabsbackend.config.PortalProperties
+import com.playmation.motionlabsbackend.messages.ConversationRepository
 import com.playmation.motionlabsbackend.moderation.NotificationRepository
 import com.playmation.motionlabsbackend.system.SystemSettingsService
 import org.springframework.security.core.Authentication
@@ -30,6 +31,7 @@ import org.springframework.stereotype.Component
 class ShellModel(
     private val accounts: AccountService,
     private val notifications: NotificationRepository,
+    private val conversations: ConversationRepository,
     private val settings: SystemSettingsService,
     private val portal: PortalProperties,
     private val build: BuildStamp,
@@ -58,6 +60,8 @@ class ShellModel(
         val unreadLabel: String,
         /** Das eigene Profilbild, sonst null - dann bleibt der Buchstabe. */
         val avatar: String? = null,
+        /** Gespraeche mit Neuem - die Zahl am Briefsymbol (MessageService). */
+        val unreadMessages: Long = 0,
     )
 
     fun user(authentication: Authentication?): ShellUser? {
@@ -74,6 +78,7 @@ class ShellModel(
             unread = unread,
             unreadLabel = "$unread new",
             avatar = account.avatarPath(),
+            unreadMessages = conversations.countUnread(account.id),
         )
     }
 

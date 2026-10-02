@@ -9,6 +9,7 @@ import com.playmation.motionlabsbackend.common.PortalException
 import com.playmation.motionlabsbackend.common.RateLimiter
 import com.playmation.motionlabsbackend.common.withoutInvisible
 import com.playmation.motionlabsbackend.config.PortalProperties
+import com.playmation.motionlabsbackend.messages.BlockService
 import com.playmation.motionlabsbackend.notification.NotificationKind
 import com.playmation.motionlabsbackend.notification.NotificationLinks
 import com.playmation.motionlabsbackend.notification.Notifier
@@ -56,6 +57,7 @@ class CommentService(
     private val accountRepository: AccountRepository,
     private val accounts: AccountService,
     private val notifier: Notifier,
+    private val blocks: BlockService,
     private val rateLimiter: RateLimiter,
     private val audit: AuditService,
     private val properties: PortalProperties,
@@ -84,6 +86,11 @@ class CommentService(
 
         val text = clean(body)
         val (pkg, _) = catalog.visible(slug, principal)
+
+        //  Wer blockiert ist, schreibt nicht unter die Clips dessen, der
+        //  blockiert hat - und umgekehrt (BlockService).
+        if (blocks.between(author.id, pkg.ownerId))
+            throw PortalException.forbidden("You cannot comment on this clip.")
 
         val now = clock.instant()
         val saved = comments.save(

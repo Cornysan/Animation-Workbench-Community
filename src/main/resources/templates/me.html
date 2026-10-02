@@ -29,6 +29,7 @@
     <a href="#notifications">Notifications</a>
     <a href="#clips-title">Your clips</a>
     <a href="#sign-ins" th:if="${signIns != null}">Ways to sign in</a>
+    <a href="#blocked">Blocked</a>
     <a href="#your-data">Your data</a>
     <a href="#close-account">Closing your account</a>
   </nav>
@@ -69,6 +70,13 @@
       </li>
     </ul>
   </th:block>
+
+  <!--
+    Wen man blockiert hat - der einzige Ort, an dem man eine Sperre wiederfindet,
+    ohne das Gespraech oder das Profil zu suchen. Aufheben geht hier.
+  -->
+  <h2 id="blocked">Blocked</h2>
+  <div id="blocked-list"></div>
 
   <h2>Workbench sign-ins</h2>
   <p class="muted small">Signed in on a computer you no longer use?</p>

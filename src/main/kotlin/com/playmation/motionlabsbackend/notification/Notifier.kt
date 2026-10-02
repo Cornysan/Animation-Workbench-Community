@@ -4,6 +4,7 @@ import com.playmation.motionlabsbackend.account.Account
 import com.playmation.motionlabsbackend.account.AccountRepository
 import com.playmation.motionlabsbackend.account.AccountStatus
 import com.playmation.motionlabsbackend.account.avatarPath
+import com.playmation.motionlabsbackend.messages.BlockService
 import com.playmation.motionlabsbackend.moderation.Notification
 import com.playmation.motionlabsbackend.moderation.NotificationRepository
 import org.springframework.stereotype.Service
@@ -61,11 +62,14 @@ data class NotificationView(
  *  3. Der Name steht nicht im Text. Er kommt beim Lesen aus dem Konto - ein
  *     geschlossenes Konto heisst danach ueberall "Deleted user", und
  *     [forgetActor] raeumt seine Nachrichten bei anderen ganz ab.
+ *  4. Nichts zwischen zwei Konten, von denen eins das andere blockiert hat
+ *     (BlockService) - in beide Richtungen.
  */
 @Service
 class Notifier(
     private val notifications: NotificationRepository,
     private val accounts: AccountRepository,
+    private val blocks: BlockService,
     private val clock: Clock,
 ) {
     /** Eine Nachricht ohne Absender - Moderation, Meilensteine. */
@@ -85,6 +89,7 @@ class Notifier(
      */
     fun fromActor(to: UUID, actor: Account, text: String, kind: String, link: String? = null, once: Boolean = false): Boolean {
         if (to == actor.id) return false
+        if (blocks.between(to, actor.id)) return false
 
         val message = text.take(1000)
         if (once) {
@@ -103,7 +108,8 @@ class Notifier(
     fun fromActorToMany(recipients: Collection<UUID>, actor: Account, text: String, kind: String, link: String?) {
         val now = clock.instant()
         val message = text.take(1000)
-        notifications.saveAll(recipients.filter { it != actor.id }.distinct().map {
+        val blocked = blocks.blockedEitherWay(actor.id, recipients)
+        notifications.saveAll(recipients.filter { it != actor.id && it !in blocked }.distinct().map {
             Notification(accountId = it, message = message, createdAt = now, kind = kind, actorId = actor.id, link = link)
         })
     }

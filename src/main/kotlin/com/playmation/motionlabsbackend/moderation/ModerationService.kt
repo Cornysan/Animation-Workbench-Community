@@ -19,13 +19,18 @@ import com.playmation.motionlabsbackend.common.PortalException
 import com.playmation.motionlabsbackend.common.RateLimiter
 import com.playmation.motionlabsbackend.config.PortalProperties
 import com.playmation.motionlabsbackend.format.AwclipSchema
+import com.playmation.motionlabsbackend.messages.ConversationRepository
+import com.playmation.motionlabsbackend.messages.DirectMessageRepository
 import com.playmation.motionlabsbackend.system.AlertService
 import com.playmation.motionlabsbackend.system.AuditService
+import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 /**
@@ -45,6 +50,8 @@ class ModerationService(
     private val comments: PackageCommentRepository,
     private val commentService: CommentService,
     private val takedowns: TakedownRequestRepository,
+    private val conversations: ConversationRepository,
+    private val directMessages: DirectMessageRepository,
     private val actions: ModerationActionRepository,
     private val notifications: NotificationRepository,
     private val accountRepository: AccountRepository,
@@ -164,7 +171,7 @@ class ModerationService(
 
         if (target.id == reporter.id)
             throw PortalException.badRequest("own-account", "You cannot report your own account.")
-        if (reports.existsByAccountIdAndReporterIdAndStatus(target.id, reporter.id, CaseStatus.OPEN))
+        if (reports.existsByAccountIdAndReporterIdAndStatusAndMessageIdIsNull(target.id, reporter.id, CaseStatus.OPEN))
             throw PortalException.conflict("already-reported", "You already reported this account.")
 
         val report = reports.save(
@@ -179,6 +186,71 @@ class ModerationService(
             "Report on an account: ${target.displayName}",
             "Category: $category\nProfile: ${profileUrl(target)}\nStrikes so far: ${target.strikes}\n" +
                 "Nothing was hidden - decide by hand.\nMessage: ${report.message}"
+        )
+
+        return report.id
+    }
+
+    /**
+     * Eine DIREKTNACHRICHT melden - nur wer sie bekommen hat, kann das.
+     *
+     * Die Moderation liest Gespraeche nicht mit (MessageService). Was sie
+     * sieht, legt die meldende Person hier selbst vor: die Nachricht und bis
+     * zu `evidence-context` davor, aus IHRER Sicht (was sie geleert hat, geht
+     * nicht mit). Das wird in die Meldung kopiert und bleibt dort.
+     *
+     * Versteckt wird nichts - eine private Nachricht hat kein Publikum, vor
+     * dem man sie verbergen muesste. Gegen die Person hilft Blockieren, und
+     * das bietet die Seite im selben Schritt an.
+     *
+     * Der Alarm nach Discord traegt den Text NICHT: er waere damit bei einem
+     * Dritten, und genau das verspricht die Datenschutzerklaerung nicht.
+     */
+    @Transactional
+    fun reportMessage(principal: PortalPrincipal, conversationId: UUID, messageId: UUID, category: ReportCategory, message: String, ip: String): UUID {
+        val reporter = accounts.requireUsable(principal.accountId)
+
+        if (reporter.falseReports >= properties.moderation.reportingBlockedAfterFalseReports)
+            throw PortalException.forbidden("Reporting is disabled for this account.")
+        rateLimiter.require("report", reporter.id.toString(), properties.limits.reportsPerHour, Duration.ofHours(1))
+
+        val reported = directMessages.findById(messageId).orElseThrow { PortalException.notFound("Message not found") }
+        val conversation = conversations.findById(reported.conversationId).orElse(null)
+        if (conversation == null || conversation.id != conversationId || !conversation.involves(reporter.id))
+            throw PortalException.notFound("Message not found")
+        val cleared = conversation.clearedAt(reporter.id)
+        if (cleared != null && !reported.createdAt.isAfter(cleared)) throw PortalException.notFound("Message not found")
+        if (reported.senderId == reporter.id)
+            throw PortalException.badRequest("own-message", "You cannot report your own message.")
+        if (reports.existsByMessageIdAndReporterIdAndStatus(reported.id, reporter.id, CaseStatus.OPEN))
+            throw PortalException.conflict("already-reported", "You already reported this message.")
+
+        val sender = accountRepository.findById(reported.senderId).orElseThrow { PortalException.notFound("Message not found") }
+
+        //  Die Nachricht und die davor, aelteste zuerst, so wie die meldende
+        //  Person sie sieht.
+        val context = directMessages.findByConversationIdAndCreatedAtAfterAndCreatedAtBeforeOrderByCreatedAtDesc(
+            conversation.id, cleared ?: Instant.EPOCH, reported.createdAt, PageRequest.of(0, properties.messages.evidenceContext))
+            .reversed() + reported
+        val names = mapOf(reporter.id to reporter.displayName + " (reporter)", sender.id to sender.displayName)
+        val evidence = context.joinToString("\n\n") { m ->
+            val marker = if (m.id == reported.id) ">> " else ""
+            marker + evidenceTime.format(m.createdAt) + "  " + (names[m.senderId] ?: "?") + ":\n" + m.body
+        }
+
+        val report = reports.save(
+            Report(accountId = sender.id, messageId = reported.id, evidence = evidence.take(24000),
+                reporterId = reporter.id, category = category, message = message.trim().take(2000),
+                createdAt = clock.instant())
+        )
+
+        audit.record(reporter.id, "message-report.created", "account", sender.id.toString(),
+            "category=$category report=${report.id}", ip)
+
+        alerts.send(
+            "Report on a direct message",
+            "Category: $category\nSender: ${profileUrl(sender)}\nStrikes so far: ${sender.strikes}\n" +
+                "The message is in the moderation list - it is not repeated here."
         )
 
         return report.id
@@ -297,6 +369,14 @@ class ModerationService(
             val reported = report.accountId?.let { accountRepository.findById(it).orElse(null) }
             if (report.accountId != null) {
                 if (reported == null) continue
+                //  Eine gemeldete Nachricht: der Moderator sieht, was die
+                //  meldende Person vorgelegt hat - und nichts darueber hinaus.
+                if (report.messageId != null) {
+                    val text = (report.evidence ?: "") + "\n\n-- reported as: " + report.message
+                    result += CaseView("message-report", report.id, report.createdAt, emptyList(),
+                        report.category.name, text, reporter, null, null, accountRef(reported))
+                    continue
+                }
                 result += CaseView("account-report", report.id, report.createdAt, emptyList(),
                     report.category.name, report.message, reporter, null, null, accountRef(reported))
                 continue
@@ -386,7 +466,9 @@ class ModerationService(
 
         //  Eine Kontomeldung hat nichts versteckt, also gibt es auch nichts
         //  zurueckzuholen - nur dem Melder zu sagen, dass jemand hingesehen hat.
-        if (report.accountId != null) {
+        if (report.messageId != null) {
+            notify(report.reporterId, "Your report about a message was reviewed. No action was taken.")
+        } else if (report.accountId != null) {
             notify(report.reporterId, "Your report about an account was reviewed. No action was taken.")
         } else if (pkg != null && comment != null) {
             //  Ein Kommentarfall abweisen heisst: der Kommentar kommt zurueck.
@@ -572,6 +654,8 @@ class ModerationService(
         val owner = accountRepository.findById(pkg.ownerId).orElse(null)
         return PackageRef(pkg.slug, pkg.title, pkg.status.name, owner?.displayName ?: "?", owner?.strikes ?: 0)
     }
+
+    private val evidenceTime = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm 'UTC'").withZone(ZoneOffset.UTC)
 
     private fun packageUrl(pkg: AnimationPackage) = "${properties.publicBaseUrl.trimEnd('/')}/clip.html?p=${pkg.slug}"
 

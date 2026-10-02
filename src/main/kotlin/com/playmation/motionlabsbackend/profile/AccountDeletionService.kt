@@ -13,6 +13,8 @@ import com.playmation.motionlabsbackend.catalog.PackageLikeRepository
 import com.playmation.motionlabsbackend.catalog.PackageStatus
 import com.playmation.motionlabsbackend.collection.ClipCollectionRepository
 import com.playmation.motionlabsbackend.collection.CollectionItemRepository
+import com.playmation.motionlabsbackend.messages.BlockService
+import com.playmation.motionlabsbackend.messages.MessageService
 import com.playmation.motionlabsbackend.moderation.NotificationRepository
 import com.playmation.motionlabsbackend.notification.Notifier
 import com.playmation.motionlabsbackend.system.AuditService
@@ -44,9 +46,14 @@ import java.util.UUID
  *   Kommentare bleiben stehen, ohne Namen. Ein Gespraech, aus dem nachtraeglich
  *   die Haelfte verschwindet, ist fuer alle anderen unlesbar.
  *
+ *   Direktnachrichten in ANGENOMMENEN Gespraechen bleiben bei der anderen
+ *   Seite, wie eine Mail im Postfach des Empfaengers - dort steht dann
+ *   "Deleted user". Offene Anfragen gehen ganz (MessageService.forget).
+ *
  * WAS GEHT: Sammlungen (die Auswahl gehoert der Person), Herzen, Folgen in
- * beide Richtungen, Benachrichtigungen (die eigenen und die, die das Konto bei
- * anderen ausgeloest hat), alle Workbench-Anmeldungen.
+ * beide Richtungen, Sperren in beide Richtungen, Benachrichtigungen (die
+ * eigenen und die, die das Konto bei anderen ausgeloest hat), alle
+ * Workbench-Anmeldungen.
  */
 @Service
 class AccountDeletionService(
@@ -62,6 +69,8 @@ class AccountDeletionService(
     private val packs: PackService,
     private val notifications: NotificationRepository,
     private val notifier: Notifier,
+    private val messages: MessageService,
+    private val blocks: BlockService,
     private val tokens: ApiTokenService,
     private val overview: CatalogOverviewService,
     private val audit: AuditService,
@@ -141,6 +150,10 @@ class AccountDeletionService(
         //  now"): ohne Absender waere es eine Zeile ueber niemanden.
         notifier.forgetActor(account.id)
         tokens.revokeAll(account.id)
+
+        // ── Nachrichten und Sperren ──────────────────────────────────────
+        messages.forget(account.id)
+        blocks.forget(account.id)
 
         // ── Und zuletzt das Konto selbst ─────────────────────────────────
         val marker = UUID.randomUUID().toString().replace("-", "").take(8)

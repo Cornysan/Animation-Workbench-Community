@@ -18,6 +18,7 @@ import com.playmation.motionlabsbackend.common.RateLimiter
 import com.playmation.motionlabsbackend.common.withoutInvisible
 import com.playmation.motionlabsbackend.config.PortalProperties
 import com.playmation.motionlabsbackend.format.AwclipSchema
+import com.playmation.motionlabsbackend.messages.BlockService
 import com.playmation.motionlabsbackend.notification.NotificationKind
 import com.playmation.motionlabsbackend.notification.Notifier
 import com.playmation.motionlabsbackend.system.AuditService
@@ -57,6 +58,8 @@ data class ProfileView(
     val achievements: List<AchievementView>,
     val followedByMe: Boolean,
     val isMe: Boolean,
+    /** Fuer "Unblock" auf dem Profil - nur der Abrufende sieht, wen er blockiert hat. */
+    val blockedByMe: Boolean = false,
 )
 
 /** Die kleine Fassung - fuer Follower- und Folge-Listen. */
@@ -90,6 +93,7 @@ class ProfileService(
     private val unlocks: PackageUnlockRepository,
     private val achievements: AchievementService,
     private val notifier: Notifier,
+    private val blocks: BlockService,
     private val audit: AuditService,
     private val rateLimiter: RateLimiter,
     /** Sammlungen, wenn es sie gibt - siehe [CollectionCounter]. */
@@ -141,6 +145,7 @@ class ProfileService(
             achievements = achievements.forStats(stats).filter { isMe || it.earned },
             followedByMe = principal != null && follows.existsByFollowerIdAndFolloweeId(principal.accountId, account.id),
             isMe = isMe,
+            blockedByMe = principal != null && !isMe && blocks.blockedByMe(principal.accountId, account.id),
         )
     }
 
@@ -191,6 +196,9 @@ class ProfileService(
 
         if (target.id == me.id)
             throw PortalException.badRequest("self-follow", "You cannot follow yourself.")
+        //  Entfolgen geht immer; folgen nicht, solange eine Seite blockiert hat.
+        if (following && blocks.between(me.id, target.id))
+            throw PortalException.forbidden("You cannot follow this person.")
 
         rateLimiter.require("follow", me.id.toString(), properties.limits.followsPerHour, Duration.ofHours(1))
 

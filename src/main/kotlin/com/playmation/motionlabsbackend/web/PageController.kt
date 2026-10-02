@@ -123,7 +123,7 @@ class PageController(
             //  diese Datei - gesperrt saehe er leere Seiten. Die Profilbilder
             //  dagegen gehoeren in keine Bildersuche.
             "User-agent: *\nDisallow: /admin.html\nDisallow: /admin-stats.html\nDisallow: /dev.html\nDisallow: /link.html\n" +
-                "Disallow: /signin.html\nDisallow: /me.html\nDisallow: /avatar/\n\n" +
+                "Disallow: /signin.html\nDisallow: /me.html\nDisallow: /messages.html\nDisallow: /avatar/\n\n" +
                 "Sitemap: " + portal.publicBaseUrl.trimEnd('/') + "/sitemap.xml\n"
         else
             "User-agent: *\nDisallow: /\n"
@@ -429,6 +429,19 @@ class PageController(
     }
 
     /**
+     * Direktnachrichten. Die Seite ist ein leerer Rahmen; Liste und Gespraech
+     * holt messages.js. `?c=<id>` oeffnet ein Gespraech, `?to=<handle>` das mit
+     * einer Person (auch ein noch nicht begonnenes) - so kommt man vom Profil
+     * hierher. Kein `active`: die Seite steht nicht in der Navigation, sondern
+     * hinter dem Briefsymbol im Kopf.
+     */
+    @GetMapping("/messages.html")
+    fun messages(model: Model): String {
+        model.addAttribute("meta", ShellModel.PageMeta("Messages", "Your direct messages.", noindex = true))
+        return view(model, "messages")
+    }
+
+    /**
      * Die Auswahl der Anbieter - und der Ort, an dem eine gescheiterte
      * Anmeldung in Worten steht. Der Grund kommt als Wort aus einer festen
      * Liste (`SignInFailureHandler`); was nicht darin steht, bekommt den
@@ -449,6 +462,7 @@ class PageController(
         model.addAttribute("signInContinue", when {
             saved == null -> null
             "/me.html" in saved -> "to open your account"
+            "/messages.html" in saved -> "to read your messages"
             else -> "to continue where you were"
         })
 

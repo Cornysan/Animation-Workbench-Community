@@ -1,0 +1,38 @@
+<!doctype html>
+<!--
+  Direktnachrichten (2026-10-03).
+
+  Links die Gespraeche, rechts eins davon - auf dem Telefon nacheinander. Der
+  Server liefert nur den Rahmen; Liste und Gespraech holt messages.js, und es
+  fragt nach, solange die Seite offen und sichtbar ist. Ein Push-Kanal waere
+  fuer die paar Gespraeche hier mehr Technik als Nutzen.
+
+  Wer herkommt: ueber den Papierflieger im Kopf, oder vom Profil einer Person
+  ("Message" -> `?to=<handle>`), dann steht ihr Gespraech offen - auch wenn es
+  noch keins gibt.
+-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/shell :: head('Messages')}"></head>
+<body th:attr="data-signed-in=${user != null}">
+<header th:replace="~{fragments/shell :: header}"></header>
+<main id="main" class="messages-main">
+  <div th:replace="~{fragments/shell :: paused}"></div>
+  <h1 class="visually-hidden">Messages</h1>
+  <div id="state"></div>
+
+  <div class="messages-layout" id="layout">
+    <aside class="messages-side" aria-label="Conversations">
+      <div class="segmented messages-boxes" id="boxes" role="group" aria-label="Show"></div>
+      <div class="conversation-list" id="conversation-list"></div>
+    </aside>
+
+    <section class="messages-thread" id="thread" aria-live="polite">
+      <p class="thread-empty muted">Pick a conversation, or write to someone from their profile.</p>
+    </section>
+  </div>
+</main>
+<footer th:replace="~{fragments/shell :: footer}"></footer>
+<script th:src="|${@buildStamp.assets}/app.js|"></script>
+<script th:src="|${@buildStamp.assets}/pages/messages.js|"></script>
+</body>
+</html>

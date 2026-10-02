@@ -33,6 +33,39 @@
           "Nothing yet. When someone follows you, likes, collects or comments on your clips, it shows up here.")
       : el("div", { class: "notification-list notification-page" }, ...notifications.map(AW.notificationRow)));
 
+  //  Wen man blockiert hat, mit "Unblock" daneben.
+  const blockedBox = document.getElementById("blocked-list");
+  const showBlocked = async () => {
+    const rows = await api("GET", "/api/v1/me/blocks").catch(() => []);
+    if (rows.length === 0) {
+      blockedBox.replaceChildren(el("p", { class: "muted small" }, "Nobody. Block someone from a conversation."));
+      return;
+    }
+    blockedBox.replaceChildren(el("ul", { class: "blocked-list" }, ...rows.map((row) => {
+      const unblock = el("button", { type: "button", class: "ghost" }, "Unblock");
+      unblock.disabled = !row.handle;
+      unblock.addEventListener("click", async () => {
+        unblock.disabled = true;
+        try {
+          await ensureCsrf();
+          await api("POST", "/api/v1/users/" + encodeURIComponent(row.handle) + "/block", { blocked: false });
+          toast(row.displayName + " is unblocked.", { kind: "ok" });
+          await showBlocked();
+        } catch (e) {
+          unblock.disabled = false;
+          toastError(e);
+        }
+      });
+      return el("li", { class: "blocked-row" },
+        AW.avatar(row.displayName, row.avatarUrl),
+        el("span", { class: "blocked-name" },
+          row.handle ? el("a", { href: AW.profileLink(row.handle) }, row.displayName) : row.displayName,
+          el("span", { class: "faint small" }, "  since " + formatDate(row.since))),
+        unblock);
+    })));
+  };
+  showBlocked();
+
   const clips = await clipsRequest;
   const body = document.querySelector("#clips tbody");
   body.replaceChildren(...(clips.length === 0

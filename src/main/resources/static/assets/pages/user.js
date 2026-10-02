@@ -138,6 +138,21 @@
     });
     follow.setAttribute("aria-pressed", String(following));
     actions.append(follow);
+
+    //  Schreiben. Ein Link auf die Nachrichtenseite, die das Gespraech mit
+    //  dieser Person oeffnet - auch ein noch nicht begonnenes. Ohne Konto
+    //  derselbe Hinweis wie beim Folgen.
+    const message = iconButton({
+      name: "message",
+      tip: "Message " + profile.displayName,
+      href: "/messages.html?to=" + encodeURIComponent(profile.handle),
+    });
+    message.addEventListener("click", (event) => {
+      if (signedIn()) return;
+      event.preventDefault();
+      signInHint(message, "Sign in to send a message.");
+    });
+    actions.append(message);
   }
 
   const share = iconButton({

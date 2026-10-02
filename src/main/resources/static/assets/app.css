@@ -688,6 +688,14 @@ img.avatar { object-fit: cover; padding: 0; background: var(--surface-2); }
   .header-account .button { padding: 0 14px; font-size: 14px; }
 
 }
+/* Seit dem Papierflieger (Direktnachrichten) fehlten auf 375 px genau die paar
+   Pixel, die Marke, Navigation und Konto in EINER Zeile hielten - der Kopf
+   brach in drei Zeilen. Etwas engere Abstaende holen sie zurueck. */
+@media (max-width: 420px) {
+  .header-inner { padding-inline: 16px; }
+  .nav-item { padding: 8px; }
+  .header-account, .account { gap: 6px; }
+}
 
 /* ── Seitengerüst ──────────────────────────────────────────────────────
    `--page` ist die Breite des Inhalts, `--gutter` sein Rand. Der Katalog
@@ -2602,3 +2610,200 @@ table.stats-table th[aria-sort="ascending"] .sort-button::after { content: " ↑
 .member-banned, .member-closed { color: var(--danger); }
 .member-restricted { color: var(--warn); }
 .member-row.closed td { opacity: 0.55; }
+
+/* ── Direktnachrichten (messages.html) ─────────────────────────────────
+   Zwei Spalten, die zusammen genau die Fensterhoehe unter dem Kopf fuellen:
+   links die Gespraeche, rechts eins davon, und nur INNEN wird gerollt. Eine
+   Seite, die als Ganzes rollt, schiebt das Schreibfeld aus dem Bild, sobald
+   ein Gespraech laenger wird als der Schirm.
+
+   Die eigenen Nachrichten stehen rechts in der Akzentfarbe, die der anderen
+   links auf der Flaeche - die eine Unterscheidung, die jeder Chat gleich
+   macht. Keine Lesebestaetigung: es gibt sie nicht, also steht auch nichts da. */
+main.messages-main { max-width: 1180px; padding-top: 20px; padding-bottom: 24px; }
+
+.messages-layout {
+  display: grid;
+  /* `minmax(0, ...)`: eine lange Vorschauzeile darf die Spalte nicht breiter
+     drücken als das Fenster - `1fr` allein haelt die Mindestbreite des Inhalts. */
+  grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+  height: calc(100dvh - 60px - 44px);
+  min-height: 460px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--highlight);
+  overflow: hidden;
+}
+
+.messages-side {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  border-right: 1px solid var(--line);
+}
+.messages-boxes { margin: 12px 12px 8px; align-self: flex-start; }
+.box-count {
+  margin-left: 6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.conversation-list { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 8px 12px; }
+.conversation-empty { margin: 0; padding: 14px 8px; font-size: 14px; }
+
+.conversation-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+}
+.conversation-row:hover { background: var(--surface-2); text-decoration: none; }
+.conversation-row.active { background: var(--surface-2); box-shadow: inset 2px 0 0 var(--accent); }
+.conversation-row .avatar { width: 38px; height: 38px; font-size: 15px; }
+.conversation-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.conversation-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.conversation-top strong { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conversation-top time { flex: none; font-size: 12px; color: var(--text-faint); }
+.conversation-last {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.conversation-last .chip { flex: none; padding: 0 7px; font-size: 11px; color: var(--danger); background: var(--danger-soft); border-color: var(--danger-line); }
+.conversation-row.unread .conversation-top strong { font-weight: 750; }
+.conversation-row.unread .conversation-last { color: var(--text); }
+.conversation-row.unread::after {
+  content: "";
+  position: absolute;
+  right: 10px;
+  bottom: 14px;
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+}
+
+.messages-thread { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.thread-empty { margin: auto; padding: 24px; text-align: center; font-size: 14.5px; }
+
+.thread-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.thread-who { display: flex; align-items: center; gap: 10px; min-width: 0; color: var(--text); }
+.thread-who:hover { text-decoration: none; }
+.thread-who:hover strong { color: var(--accent); }
+.thread-who .avatar { width: 34px; height: 34px; font-size: 14px; }
+.thread-who strong { font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.thread-actions { margin-left: auto; display: flex; gap: 4px; }
+.thread-back { display: none; color: var(--text-dim); padding: 4px; border-radius: var(--radius-sm); }
+.thread-back:hover { color: var(--text); background: var(--surface-2); }
+.thread-back .icon { width: 22px; height: 22px; }
+
+.thread-banner {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--accent-soft);
+  font-size: 14px;
+}
+.thread-banner p { margin: 0; flex: 1 1 260px; color: var(--text); }
+.thread-banner-actions { display: flex; gap: 8px; }
+
+.thread-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 18px 8px; }
+.thread-older { display: block; margin: 0 auto 12px; }
+.thread-messages { display: flex; flex-direction: column; gap: 4px; }
+
+.dm-time { align-self: center; margin: 12px 0 6px; font-size: 12px; color: var(--text-faint); }
+.dm { position: relative; display: flex; align-items: center; gap: 6px; max-width: min(78%, 62ch); align-self: flex-start; }
+.dm.mine { align-self: flex-end; flex-direction: row-reverse; }
+.dm-text {
+  margin: 0;
+  padding: 8px 13px;
+  border-radius: 16px 16px 16px 6px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 14.5px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.dm.mine .dm-text { border-radius: 16px 16px 6px 16px; background: var(--accent); color: var(--accent-ink); }
+/* Blockieren und Melden sind rot erst unter dem Zeiger - `button.danger`
+   truege einen Ring, der in jedem Gespraech dauerhaft Alarm schlaegt. */
+.thread-block:hover, .dm-report:hover { color: var(--danger); background: var(--danger-soft); border-color: var(--danger-line); }
+.thread-block.on { color: var(--danger); }
+.dm-report { opacity: 0; min-height: 28px; padding: 0 6px; transition: opacity var(--dur-fast) var(--ease-out); }
+.dm-report .icon { width: 15px; height: 15px; }
+.dm:hover .dm-report, .dm-report:focus-visible { opacity: 1; }
+@media (hover: none) { .dm-report { opacity: 0.6; } }
+
+.thread-compose {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  border-top: 1px solid var(--line);
+}
+.thread-compose textarea { flex: 1; min-height: 42px; max-height: 180px; resize: none; border-radius: 20px; padding: 10px 15px; }
+.thread-send { flex: none; width: 42px; height: 42px; min-height: 42px; padding: 0; border-radius: var(--radius-pill); display: grid; place-items: center; }
+.thread-send .icon { width: 19px; height: 19px; }
+.thread-closed {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  padding: 14px 16px;
+  border-top: 1px solid var(--line);
+}
+.thread-closed p { margin: 0; flex: 1 1 240px; font-size: 14px; }
+
+/* Telefon: erst die Liste, dann das Gespraech - nie beides. */
+@media (max-width: 760px) {
+  main.messages-main { padding: 0; }
+  .messages-layout {
+    grid-template-columns: minmax(0, 1fr);
+    height: calc(100dvh - 112px);
+    border: 0;
+    border-radius: 0;
+  }
+  .messages-side { border-right: 0; }
+  .messages-layout.has-thread .messages-side { display: none; }
+  .messages-layout:not(.has-thread) .messages-thread { display: none; }
+  .thread-back { display: inline-grid; place-items: center; }
+  .dm { max-width: 88%; }
+}
+
+/* Die Kontoseite: wen man blockiert hat. */
+.blocked-list { display: flex; flex-direction: column; gap: 6px; max-width: 560px; margin: 8px 0 0; padding: 0; list-style: none; }
+.blocked-row { display: flex; align-items: center; gap: 10px; }
+.blocked-row .avatar { width: 30px; height: 30px; }
+.blocked-row .blocked-name { flex: 1; min-width: 0; }
+
+/* Admin: eine gemeldete Nachricht behaelt ihre Zeilen. */
+.case-evidence { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; }

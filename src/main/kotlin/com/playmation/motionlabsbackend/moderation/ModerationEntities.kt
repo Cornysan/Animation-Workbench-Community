@@ -41,6 +41,22 @@ class Report(
      */
     var accountId: UUID? = null,
 
+    /**
+     * Gesetzt, wenn die Meldung einer DIREKTNACHRICHT gilt. `accountId` traegt
+     * dann den Absender - der Fall landet bei der Person, nicht beim Text,
+     * denn eine private Nachricht laesst sich nicht "verstecken": die
+     * meldende Seite kann blockieren, die Moderation entscheidet ueber das Konto.
+     */
+    var messageId: UUID? = null,
+
+    /**
+     * Was die meldende Person vorgelegt hat: die gemeldete Nachricht und die
+     * davor, als KOPIE zum Zeitpunkt der Meldung. Die Moderation liest
+     * Gespraeche nicht mit - sie sieht genau das hier und sonst nichts, und
+     * es bleibt stehen, auch wenn das Gespraech danach geleert wird.
+     */
+    var evidence: String? = null,
+
     var reporterId: UUID,
     @Enumerated(EnumType.STRING)
     var category: ReportCategory,
@@ -135,8 +151,10 @@ interface ReportRepository : JpaRepository<Report, UUID> {
     fun findByCommentIdAndStatus(commentId: UUID, status: CaseStatus): List<Report>
     fun existsByCommentIdAndReporterIdAndStatus(commentId: UUID, reporterId: UUID, status: CaseStatus): Boolean
 
-    /** Meldungen gegen ein KONTO - sie haengen an keinem Paket. */
-    fun existsByAccountIdAndReporterIdAndStatus(accountId: UUID, reporterId: UUID, status: CaseStatus): Boolean
+    /** Meldungen gegen ein KONTO - sie haengen an keinem Paket. Eine Nachrichtenmeldung zaehlt nicht mit. */
+    fun existsByAccountIdAndReporterIdAndStatusAndMessageIdIsNull(accountId: UUID, reporterId: UUID, status: CaseStatus): Boolean
+
+    fun existsByMessageIdAndReporterIdAndStatus(messageId: UUID, reporterId: UUID, status: CaseStatus): Boolean
 
     /** Was ein Konto selbst gemeldet hat - fuer den Datenexport. */
     fun findByReporterIdOrderByCreatedAtAsc(reporterId: UUID): List<Report>

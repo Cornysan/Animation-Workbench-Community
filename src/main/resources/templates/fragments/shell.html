@@ -287,8 +287,24 @@
 
         Ohne Skript bleiben es gewoehnliche Links: die Glocke fuehrt auf die
         Kontoseite, der Name aufs Profil.
+
+        Davor die Direktnachrichten (seit 2026-10-03): ein Papierflieger, weil
+        die Sprechblase schon "Kommentar" heisst. Er ist ein schlichter Link
+        ohne Kasten - eine Liste von Gespraechen in einem Kasten waere eine
+        zweite, schlechtere Nachrichtenseite. Seine Zahl zaehlt GESPRAECHE mit
+        Neuem, nicht Nachrichten, und steht nicht zusaetzlich unter der Glocke.
       -->
       <div class="account" th:if="${user != null}">
+        <a class="header-icon" id="messages-button" href="/messages.html"
+           th:aria-label="${user.unreadMessages > 0} ? ${'Messages, ' + user.unreadMessages + ' new'} : 'Messages'"
+           th:title="${user.unreadMessages > 0} ? ${'Messages (' + user.unreadMessages + ' new)'} : 'Messages'">
+          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
+               stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
+            <path d="M20.5 3.5 3.5 10.6l6.8 2.6 2.6 6.8z"></path><path d="m20.5 3.5-10.2 9.7"></path>
+          </svg>
+          <span class="bell-count" th:if="${user.unreadMessages > 0}"
+                th:text="${user.unreadMessages > 99} ? '99+' : ${user.unreadMessages}">1</span>
+        </a>
         <a class="header-icon bell" id="bell-button" href="/me.html#notifications"
            aria-haspopup="true" aria-expanded="false" aria-controls="bell-panel"
            th:aria-label="${user.unread > 0} ? ${'Notifications, ' + user.unreadLabel} : 'Notifications'"

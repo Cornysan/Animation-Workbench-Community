@@ -48,6 +48,7 @@ data class PortalProperties(
     val showcase: Showcase = Showcase(),
     val limits: Limits = Limits(),
     val comments: Comments = Comments(),
+    val messages: Messages = Messages(),
     val moderation: Moderation = Moderation(),
     val privacy: Privacy = Privacy(),
     val tokens: Tokens = Tokens(),
@@ -92,6 +93,19 @@ data class PortalProperties(
         /** So lange darf ein Kommentar noch geaendert werden. Danach steht der Text. */
         val editMinutes: Long = 15,
         val maxLength: Int = 1000,
+    )
+
+    /** Direktnachrichten - siehe `messages/MessageService.kt`. */
+    data class Messages(
+        val maxLength: Int = 2000,
+        /** Nachrichten je Konto und Stunde, alle Gespraeche zusammen. */
+        val perHour: Int = 60,
+        /** Neue Gespraeche (Anfragen) je Konto und Tag - der Hebel gegen Massenanschreiben. */
+        val newConversationsPerDay: Int = 10,
+        /** So viele Nachrichten darf eine Anfrage tragen, bevor die andere Seite annimmt. */
+        val pendingLimit: Int = 3,
+        /** Wie viele Nachrichten vor einer gemeldeten mit in die Meldung gehen. */
+        val evidenceContext: Int = 10,
     )
 
     data class Moderation(

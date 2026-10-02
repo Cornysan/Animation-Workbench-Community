@@ -553,6 +553,11 @@ const AW = (() => {
     user: '<circle cx="12" cy="8.5" r="3.6"/><path d="M5 20c0-3.8 3.1-6 7-6s7 2.2 7 6"/>',
     //  Aufrufe unter einem Clip (clip.js) - ein Auge, wie bei jedem Video.
     eye: '<path d="M2.8 12S6.2 5.8 12 5.8 21.2 12 21.2 12 17.8 18.2 12 18.2 2.8 12 2.8 12z"/><circle cx="12" cy="12" r="2.9"/>',
+    //  Direktnachrichten: ein Papierflieger, weil die Sprechblase schon der
+    //  Kommentar ist. Dasselbe Zeichen steht im Kopf (shell.html).
+    message: '<path d="M20.5 3.5 3.5 10.6l6.8 2.6 2.6 6.8z"/><path d="m20.5 3.5-10.2 9.7"/>',
+    block: '<circle cx="12" cy="12" r="8.2"/><path d="m6.3 6.3 11.4 11.4"/>',
+    back: '<path d="m14.5 6-6 6 6 6"/>',
   };
 
   /**

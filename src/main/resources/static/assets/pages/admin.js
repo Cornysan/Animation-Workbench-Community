@@ -183,7 +183,7 @@ const ADMIN_SCRIPT = document.currentScript ? document.currentScript.src : locat
         el("button", { onclick: decide((n) => api("POST", "/api/v1/admin/reports/" + item.id + "/dismiss", { note: n, falseReport: true })) }, "Dismiss as false report"),
         el("button", { class: "danger", onclick: decide((n) => api("POST", "/api/v1/admin/comments/" + item.commentId + "/remove", { note: n, strike: false })) }, "Remove comment"),
         el("button", { class: "danger", onclick: decide((n) => api("POST", "/api/v1/admin/comments/" + item.commentId + "/remove", { note: n, strike: true })) }, "Remove + strike"));
-    } else if (item.kind === "account-report") {
+    } else if (item.kind === "account-report" || item.kind === "message-report") {
       //  Hier ist NICHTS versteckt worden - eine Kontomeldung ist eine
       //  Bitte um Hinsehen, kein Auto-Hide. Entsprechend gibt es kein
       //  "wiederherstellen", sondern nur: abweisen, einschraenken, sperren.
@@ -210,6 +210,9 @@ const ADMIN_SCRIPT = document.currentScript ? document.currentScript.src : locat
       "report": "Report · " + item.category,
       "comment-report": "Comment report · " + item.category,
       "account-report": "Account report · " + item.category,
+      //  Was hier steht, hat die meldende Person vorgelegt: die Nachricht
+      //  (mit ">>") und die davor. Mehr vom Gespraech gibt es nirgends.
+      "message-report": "Message report · " + item.category,
     }[item.kind] || "Takedown request";
 
     //  Bei einer Kontomeldung steht kein Clip im Fall - das Ziel ist die
@@ -231,7 +234,8 @@ const ADMIN_SCRIPT = document.currentScript ? document.currentScript.src : locat
         el("span", { class: "muted small" }, formatDate(item.createdAt))),
       account,
       ...packages,
-      el("p", {}, item.message || el("span", { class: "muted" }, "No details.")),
+      el("p", { class: item.kind === "message-report" ? "case-evidence" : null },
+        item.message || el("span", { class: "muted" }, "No details.")),
       item.reporter ? el("div", { class: "muted small" }, "Reported by " + item.reporter) : null,
       item.contact ? el("div", { class: "muted small" }, "Contact: " + item.contact) : null,
       note,

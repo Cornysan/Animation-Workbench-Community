@@ -167,6 +167,8 @@ class SecurityConfig {
                 //  Workbench "Your account on the portal" waehlt und im Browser
                 //  keine Sitzung mehr hat.
                 authorize(HttpMethod.GET, "/me.html", authenticated)
+                //  Dasselbe fuer die Nachrichten: ohne Konto gibt es dort nichts.
+                authorize(HttpMethod.GET, "/messages.html", authenticated)
 
                 authorize(anyRequest, permitAll)
             }

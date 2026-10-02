@@ -19,6 +19,8 @@ import com.playmation.motionlabsbackend.collection.ClipCollectionRepository
 import com.playmation.motionlabsbackend.collection.CollectionItemRepository
 import com.playmation.motionlabsbackend.common.RateLimiter
 import com.playmation.motionlabsbackend.format.AwclipSchema
+import com.playmation.motionlabsbackend.messages.BlockService
+import com.playmation.motionlabsbackend.messages.MessageService
 import com.playmation.motionlabsbackend.moderation.ReportRepository
 import com.playmation.motionlabsbackend.notification.Notifier
 import com.playmation.motionlabsbackend.showcase.ShowcasePostRepository
@@ -75,6 +77,8 @@ class DataExportService(
     private val reports: ReportRepository,
     private val showcase: ShowcasePostRepository,
     private val notifier: Notifier,
+    private val messages: MessageService,
+    private val blocks: BlockService,
     private val apiTokens: ApiTokenRepository,
     private val browserLogins: BrowserLoginRepository,
     private val blobs: BlobStore,
@@ -155,6 +159,8 @@ class DataExportService(
         val workbenchSignIns: List<SessionPart>,
         val browserSignIns: List<SessionPart>,
         val discordShowcase: List<ShowcasePart>,
+        val directMessages: List<MessageService.ExportedConversation>,
+        val blocked: List<PersonRef>,
     )
 
     // ── Bauen ───────────────────────────────────────────────────────────
@@ -244,6 +250,7 @@ class DataExportService(
             reportsFiled = reportRows.map { r ->
                 ReportPart(
                     about = when {
+                        r.messageId != null -> "message"
                         r.commentId != null -> "comment"
                         r.accountId != null -> "account"
                         else -> "clip"
@@ -270,6 +277,8 @@ class DataExportService(
                 ShowcasePart(post.packageId?.let { clipsById[it]?.slug }, post.packId?.let { packSlugs[it] },
                     post.requestedAt, post.postedAt, post.retractedAt)
             },
+            directMessages = messages.export(account.id),
+            blocked = blocks.mine(principal).map { PersonRef(it.handle, it.displayName, it.since) },
         )
 
         val zip = ByteArrayOutputStream()
@@ -341,8 +350,11 @@ class DataExportService(
                     GitHub or Google), your clips and their versions, packs, collections,
                     comments, likes, who you follow and who follows you, the clips you
                     took, reports you filed, the upload declarations you accepted, your
-                    notifications, your Workbench and browser sign-ins, and which of
-                    your clips were posted to our Discord.
+                    notifications, your Workbench and browser sign-ins, which of
+                    your clips were posted to our Discord, your direct messages
+                    (everything still stored, including conversations you cleared
+                    for yourself - the other person keeps their copy) and who you
+                    blocked.
         clips/      The .awclip files you uploaded, one per stored version. The
                     Animation Workbench opens them (Tools > Animation Workbench >
                     Community > Import .awclip File), and data.json names the file for
