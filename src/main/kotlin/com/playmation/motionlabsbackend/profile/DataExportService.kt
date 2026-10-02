@@ -21,6 +21,7 @@ import com.playmation.motionlabsbackend.common.RateLimiter
 import com.playmation.motionlabsbackend.format.AwclipSchema
 import com.playmation.motionlabsbackend.moderation.ReportRepository
 import com.playmation.motionlabsbackend.notification.Notifier
+import com.playmation.motionlabsbackend.showcase.ShowcasePostRepository
 import com.playmation.motionlabsbackend.storage.BlobStore
 import com.playmation.motionlabsbackend.system.AuditService
 import com.playmation.motionlabsbackend.unlocks.PackageUnlockRepository
@@ -72,6 +73,7 @@ class DataExportService(
     private val follows: AccountFollowRepository,
     private val unlocks: PackageUnlockRepository,
     private val reports: ReportRepository,
+    private val showcase: ShowcasePostRepository,
     private val notifier: Notifier,
     private val apiTokens: ApiTokenRepository,
     private val browserLogins: BrowserLoginRepository,
@@ -128,6 +130,9 @@ class DataExportService(
     data class NotificationPart(val message: String, val link: String?, val read: Boolean, val createdAt: Instant)
     data class SessionPart(val label: String?, val createdAt: Instant, val lastUsedAt: Instant?,
                            val expiresAt: Instant, val endedAt: Instant?)
+    /** Ein Clip oder Pack, den man beim Teilen fuers Discord-Schaufenster angekreuzt hat. */
+    data class ShowcasePart(val clip: String?, val pack: String?, val requestedAt: Instant,
+                            val postedToDiscordAt: Instant?, val removedFromDiscordAt: Instant?)
 
     data class Export(
         val format: String,
@@ -149,6 +154,7 @@ class DataExportService(
         val notifications: List<NotificationPart>,
         val workbenchSignIns: List<SessionPart>,
         val browserSignIns: List<SessionPart>,
+        val discordShowcase: List<ShowcasePart>,
     )
 
     // ── Bauen ───────────────────────────────────────────────────────────
@@ -260,6 +266,10 @@ class DataExportService(
             browserSignIns = browserLogins.findByAccountIdOrderByCreatedAtAsc(account.id).map {
                 SessionPart(null, it.createdAt, it.lastUsedAt, it.expiresAt, null)
             },
+            discordShowcase = showcase.findByAccountIdOrderByRequestedAtAsc(account.id).map { post ->
+                ShowcasePart(post.packageId?.let { clipsById[it]?.slug }, post.packId?.let { packSlugs[it] },
+                    post.requestedAt, post.postedAt, post.retractedAt)
+            },
         )
 
         val zip = ByteArrayOutputStream()
@@ -331,7 +341,8 @@ class DataExportService(
                     GitHub or Google), your clips and their versions, packs, collections,
                     comments, likes, who you follow and who follows you, the clips you
                     took, reports you filed, the upload declarations you accepted, your
-                    notifications, and your Workbench and browser sign-ins.
+                    notifications, your Workbench and browser sign-ins, and which of
+                    your clips were posted to our Discord.
         clips/      The .awclip files you uploaded, one per stored version. The
                     Animation Workbench opens them (Tools > Animation Workbench >
                     Community > Import .awclip File), and data.json names the file for

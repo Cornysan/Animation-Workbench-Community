@@ -123,6 +123,11 @@ portal:
     discord-webhook-url: ${PORTAL_ALERT_WEBHOOK:}
     mail-to: ${PORTAL_ALERT_MAIL_TO:}
     mail-from: ${PORTAL_ALERT_MAIL_FROM:}
+  # Neue Clips im Discord-Forum, wenn der Ersteller es ankreuzt
+  # (showcase/ShowcaseService.kt). Leer = gibt es nicht.
+  showcase:
+    discord-webhook-url: ${PORTAL_SHOWCASE_WEBHOOK:}
+    forum-tags: ${PORTAL_SHOWCASE_TAGS:}
 ---
 spring:
   config:

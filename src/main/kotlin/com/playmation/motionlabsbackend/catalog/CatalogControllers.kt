@@ -3,6 +3,7 @@ package com.playmation.motionlabsbackend.catalog
 import com.playmation.motionlabsbackend.auth.portalPrincipal
 import com.playmation.motionlabsbackend.auth.requirePrincipal
 import com.playmation.motionlabsbackend.common.clientIp
+import com.playmation.motionlabsbackend.showcase.ShowcaseService
 import jakarta.servlet.http.HttpServletRequest
 import org.springframework.http.CacheControl
 import org.springframework.http.ContentDisposition
@@ -27,7 +28,7 @@ import java.util.UUID
 
 @RestController
 @RequestMapping("/api/v1")
-class PackageController(private val catalog: CatalogService) {
+class PackageController(private val catalog: CatalogService, private val showcase: ShowcaseService) {
 
     @GetMapping("/packages")
     fun search(
@@ -97,13 +98,17 @@ class PackageController(private val catalog: CatalogService) {
         /** Wie der Clip auftritt - siehe `looks/FigureLooks.kt`. Fehlt es, der Standard. */
         @RequestParam("figure", required = false) figure: String?,
         @RequestParam("look", required = false) look: String?,
+        /** Ins Discord-Schaufenster - nur oeffentlich, siehe [ShowcaseService]. Ein Pack-Clip schickt es nicht. */
+        @RequestParam("announce", required = false, defaultValue = "false") announce: Boolean,
         authentication: Authentication?,
         request: HttpServletRequest,
-    ): ResponseEntity<PackageDetail> =
-        ResponseEntity.status(HttpStatus.CREATED).body(
-            catalog.upload(authentication.requirePrincipal(), file.bytes, declarationText, declarationVersion,
-                declarationAccepted, request.clientIp(), null, restPose, notifyFollowers, figure, look)
-        )
+    ): ResponseEntity<PackageDetail> {
+        val principal = authentication.requirePrincipal()
+        val detail = catalog.upload(principal, file.bytes, declarationText, declarationVersion,
+            declarationAccepted, request.clientIp(), null, restPose, notifyFollowers, figure, look)
+        if (announce) showcase.requestClip(detail.slug, principal)
+        return ResponseEntity.status(HttpStatus.CREATED).body(detail)
+    }
 
     @PostMapping("/packages/{slug}/versions", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun uploadVersion(

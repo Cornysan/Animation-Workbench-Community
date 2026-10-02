@@ -155,6 +155,29 @@ ssh linux 'cd /srv/aw-community && docker compose pull && docker compose up -d'
 
 Nur die `.env` geaendert: `docker compose up -d` reicht, kein `pull`.
 
+## Discord-Schaufenster (seit Schema 22)
+
+Wer beim Teilen „Also post it on our Discord" ankreuzt, bekommt einen Post im
+Discord - einen eigenen Thread je Clip oder Pack, wenn der Webhook auf einen
+Forum-Kanal zeigt. Ohne Webhook gibt es das Haekchen in der Workbench gar
+nicht (`/api/v1/status`, `discordShowcase`).
+
+1. In Discord einen **Forum-Kanal** anlegen (etwa `#community-clips`), dort
+   Einstellungen > Integrationen > Webhook erstellen, URL kopieren.
+2. In die `.env` auf dem Server:
+   ```
+   PORTAL_SHOWCASE_WEBHOOK=https://discord.com/api/webhooks/<id>/<token>
+   ```
+   Verlangt das Forum Tags („Require tags"), zusaetzlich
+   `PORTAL_SHOWCASE_TAGS=<tag-id>[,<tag-id>]` - sonst scheitert jeder Post.
+3. `docker-compose.yml` aus dem Repo auf den Server kopieren (die zwei
+   Variablen stehen erst ab Schema 22 darin), dann `docker compose up -d`.
+
+Gepostet wird, sobald der Clip sein Vorschaubild hat, spaetestens nach zehn
+Minuten mit dem Bild der Seite. Verschwindet der Clip (zurueckgezogen, privat,
+von der Moderation versteckt), loescht der Dienst den Post wieder; der leere
+Thread bleibt stehen, weil ein Webhook keine Threads loeschen darf.
+
 ## Zurueckfallen
 
 Jede Fassung liegt als eigene Marke im Registry. In der `.env`:

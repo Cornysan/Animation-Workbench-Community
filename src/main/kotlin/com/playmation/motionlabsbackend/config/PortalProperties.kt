@@ -45,6 +45,7 @@ data class PortalProperties(
      */
     val betaUntil: java.time.Instant? = null,
     val alerts: Alerts = Alerts(),
+    val showcase: Showcase = Showcase(),
     val limits: Limits = Limits(),
     val comments: Comments = Comments(),
     val moderation: Moderation = Moderation(),
@@ -57,6 +58,20 @@ data class PortalProperties(
         val discordWebhookUrl: String = "",
         val mailTo: String = "",
         val mailFrom: String = "",
+    )
+
+    /**
+     * Das Discord-Schaufenster fuer neue Clips - siehe `showcase/ShowcaseService.kt`.
+     * Ohne Webhook gibt es es nicht: die Workbench bietet das Haekchen dann
+     * gar nicht erst an (`/api/v1/status`, `discordShowcase`).
+     */
+    data class Showcase(
+        /** Am besten ein Forum-Kanal: dann wird jeder Clip ein eigener Thread. */
+        val discordWebhookUrl: String = "",
+        /** So lange wartet ein Post auf das Vorschaubild, dann geht er mit dem der Seite. */
+        val waitForCard: java.time.Duration = java.time.Duration.ofMinutes(10),
+        /** Kennungen von Forum-Tags, komma-getrennt - noetig, wenn das Forum Tags verlangt. */
+        val forumTags: String = "",
     )
 
     /** Pro Zeitfenster; die Fenster stehen an den Namen. */

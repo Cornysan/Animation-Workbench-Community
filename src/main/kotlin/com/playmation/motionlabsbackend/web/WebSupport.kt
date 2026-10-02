@@ -68,6 +68,12 @@ class StatusController(
          * Feld schon mitbringen, bevor ein Server es annahm.
          */
         val restPoseWanted: Boolean,
+        /**
+         * Ob es das Discord-Schaufenster gibt - nur dann bietet die Workbench
+         * beim Teilen das Haekchen an (Feld `announce`, siehe
+         * [com.playmation.motionlabsbackend.showcase.ShowcaseService]).
+         */
+        val discordShowcase: Boolean,
     )
 
     data class BuildInfo(val number: String, val commit: String, val time: String)
@@ -82,6 +88,7 @@ class StatusController(
         devLogin = portal.devLogin,
         build = BuildInfo(build.number, build.commit, build.time),
         restPoseWanted = true,
+        discordShowcase = portal.showcase.discordWebhookUrl.isNotBlank() && settings.uploadsEnabled(),
     )
 
     /**

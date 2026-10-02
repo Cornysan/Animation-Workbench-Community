@@ -4,6 +4,7 @@ import com.playmation.motionlabsbackend.auth.portalPrincipal
 import com.playmation.motionlabsbackend.auth.requirePrincipal
 import com.playmation.motionlabsbackend.common.clientIp
 import com.playmation.motionlabsbackend.profile.ProfileService
+import com.playmation.motionlabsbackend.showcase.ShowcaseService
 import jakarta.servlet.http.HttpServletRequest
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -54,6 +55,7 @@ class CatalogWallController(
 class PackController(
     private val packs: PackService,
     private val profiles: ProfileService,
+    private val showcase: ShowcaseService,
 ) {
     /** Die Packs eines Profils. */
     @GetMapping
@@ -69,9 +71,12 @@ class PackController(
         @RequestBody body: PackService.PackInput,
         authentication: Authentication?,
         request: HttpServletRequest,
-    ): ResponseEntity<PackDetail> =
-        ResponseEntity.status(HttpStatus.CREATED)
-            .body(packs.create(authentication.requirePrincipal(), body, request.clientIp()))
+    ): ResponseEntity<PackDetail> {
+        val principal = authentication.requirePrincipal()
+        val detail = packs.create(principal, body, request.clientIp())
+        if (body.announce) showcase.requestPack(detail.slug, principal)
+        return ResponseEntity.status(HttpStatus.CREATED).body(detail)
+    }
 
     /** Titel und Beschreibung. */
     @PatchMapping("/{slug}")

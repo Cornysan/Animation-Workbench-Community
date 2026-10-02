@@ -265,6 +265,11 @@ class PackService(
         val clips: List<String> = emptyList(),
         /** Ein Admin legt den Pack fuer die Starter-Clips an ([StarterClips]). */
         val starter: Boolean = false,
+        /**
+         * Ins Discord-Schaufenster, nur beim Anlegen - das erledigt der
+         * Controller nach dem Anlegen ([com.playmation.motionlabsbackend.showcase.ShowcaseService]).
+         */
+        val announce: Boolean = false,
     )
 
     /**
