@@ -146,20 +146,21 @@
     </a>
 
     <!--
-      ZWEI REITER WIE BEI MIXAMO: "Animations" ist der Katalog und zugleich
-      die Startseite, "Collections" die Sammlungen. Vorher hiess der erste
-      "Browse" und lag auf /browse.html, davor stand eine eigene Startseite.
+      ZWEI REITER WIE BEI MIXAMO: "Community" ist der Katalog und zugleich
+      die Startseite, "Collections" die Sammlungen. Bis 2026-10-02 hiess der
+      erste "Animations", davor "Browse" auf /browse.html, davor stand eine
+      eigene Startseite.
       Der Stern ist dasselbe Zeichen wie an jeder Karte - "in eine Sammlung".
     -->
     <nav class="site-nav">
-      <a href="/" title="Animations" class="nav-item"
+      <a href="/" title="Community" class="nav-item"
          th:classappend="${active == 'animations'} ? ' active'">
         <svg viewBox="0 0 24 24" class="nav-icon" aria-hidden="true" fill="none" stroke="currentColor"
              stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
           <path d="M4 4h6v6H4z"></path><path d="M14 4h6v6h-6z"></path>
           <path d="M4 14h6v6H4z"></path><path d="M14 14h6v6h-6z"></path>
         </svg>
-        <span>Animations</span>
+        <span>Community</span>
       </a>
 
       <a href="/collections.html" title="Collections" class="nav-item"
