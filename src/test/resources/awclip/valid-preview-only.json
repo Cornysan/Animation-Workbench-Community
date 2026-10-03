@@ -1,0 +1,112 @@
+{
+ "format": "awclip",
+ "version": 2,
+ "manifest": {
+  "title": "Wave From The Web",
+  "tags": [
+   "wave"
+  ],
+  "license": "CC0-1.0",
+  "rig": "humanoid",
+  "frameRate": 30,
+  "duration": 0.1,
+  "tool": "Playmations upload"
+ },
+ "settings": {
+  "loopTime": true
+ },
+ "origin": "unknown",
+ "curves": [],
+ "preview": {
+  "frameRate": 30,
+  "bones": [
+   "Hips",
+   "Spine",
+   "Head"
+  ],
+  "parents": [
+   -1,
+   0,
+   1
+  ],
+  "rest": [
+   [
+    0,
+    0.95,
+    0
+   ],
+   [
+    0,
+    0.1,
+    0
+   ],
+   [
+    0,
+    0.5,
+    0
+   ]
+  ],
+  "hips": [
+   [
+    0,
+    0.95,
+    0
+   ],
+   [
+    0,
+    0.96,
+    0.01
+   ]
+  ],
+  "rotations": [
+   [
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    1
+   ],
+   [
+    0,
+    0.0998334,
+    0,
+    0.9950042,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    1
+   ]
+  ],
+  "restRot": [
+   [
+    0,
+    0,
+    0,
+    1
+   ],
+   [
+    0,
+    0,
+    0,
+    1
+   ],
+   [
+    0.0499792,
+    0,
+    0,
+    0.9987503
+   ]
+  ]
+ }
+}

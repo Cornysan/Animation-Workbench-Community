@@ -49,7 +49,16 @@ data class AwclipDocument(
      * alle anderen Einstellungen reicht der Server ungelesen durch.
      */
     val loops: Boolean = false,
-)
+    /** 1, oder 2 fuer einen Clip, der nur aus seiner Vorschau besteht ([AwclipSchema.FORMAT_VERSION_PREVIEW]). */
+    val version: Int = AwclipSchema.FORMAT_VERSION,
+) {
+    /**
+     * Keine Kurven, nur die Vorschau mit ihrer T-Pose - die Workbench backt die
+     * Kurven beim Import. So kommt ein Clip, der auf dem Portal aus einer
+     * `.fbx` oder `.glb` geteilt wurde.
+     */
+    val previewOnly get() = curves.isEmpty()
+}
 
 sealed class AwclipReadResult {
     data class Ok(val document: AwclipDocument) : AwclipReadResult()
@@ -70,6 +79,12 @@ object AwclipReader {
     private val SETTINGS_NUMBER_FIELDS = setOf("cycleOffset", "orientationOffsetY", "level")
     private val CURVE_FIELDS = setOf("attribute", "keys")
     private val PREVIEW_FIELDS = setOf("frameRate", "bones", "parents", "rest", "hips", "rotations")
+
+    /** Version 2 darf die T-Pose IN der Vorschau tragen - siehe [AwclipSchema.FORMAT_VERSION_PREVIEW]. */
+    private val PREVIEW_FIELDS_V2 = PREVIEW_FIELDS + RestPose.FIELD
+
+    /** Wie weit ein Quaternion der T-Pose von der Laenge 1 abweichen darf - wie [RestPose]. */
+    private const val UNIT_TOLERANCE = 1e-3
 
     private class Reject(code: String, path: String, message: String) : RuntimeException(message) {
         val error = AwclipError(code, path, message)
@@ -191,9 +206,10 @@ object AwclipReader {
         if (requireString(obj, "format", "") != AwclipSchema.FORMAT_NAME)
             throw Reject("unsupported-format", "format", "Not an awclip document")
 
-        val version = requireNumber(obj, "version", "")
-        if (version != AwclipSchema.FORMAT_VERSION.toDouble())
-            throw Reject("unsupported-version", "version", "Unsupported version $version")
+        val versionNumber = requireNumber(obj, "version", "")
+        val version = AwclipSchema.READABLE_VERSIONS.firstOrNull { it.toDouble() == versionNumber }
+            ?: throw Reject("unsupported-version", "version", "Unsupported version $versionNumber")
+        val previewVersion = version == AwclipSchema.FORMAT_VERSION_PREVIEW
 
         val manifest = readManifest(require(obj, "manifest", ""))
 
@@ -203,13 +219,25 @@ object AwclipReader {
         val origin = requireString(obj, "origin", "")
         if (origin !in AwclipSchema.ORIGINS) throw Reject("invalid-origin", "origin", "Unknown origin '$origin'")
 
-        val curves = readCurves(require(obj, "curves", ""), manifest)
+        val curves = readCurves(require(obj, "curves", ""), manifest, allowEmpty = previewVersion)
 
-        val preview = obj["preview"]?.let { readPreview(it, manifest.rig) }
+        val preview = obj["preview"]?.let { readPreview(it, manifest.rig, previewVersion) }
+
+        //  Ohne Kurven traegt die Vorschau die ganze Bewegung - dann muss sie
+        //  da sein, humanoid und mit ihrer T-Pose. Ohne T-Pose liesse sie sich
+        //  auf keine andere Figur uebertragen, auch nicht beim Backen in Unity.
+        if (curves.isEmpty()) {
+            if (manifest.rig != AwclipSchema.RIG_HUMANOID)
+                throw Reject("invalid-curve-count", "curves", "Only a humanoid clip may come without curves")
+            if (preview == null)
+                throw Reject("missing-field", "preview", "A clip without curves needs its preview")
+            if (preview[RestPose.FIELD] == null)
+                throw Reject("missing-field", "preview.${RestPose.FIELD}", "A clip without curves needs the rest pose of its preview")
+        }
 
         val loops = ((settings as? StrictJson.Value.Obj)?.get("loopTime") as? StrictJson.Value.Bool)?.value == true
 
-        return AwclipDocument(manifest, origin, curves, settings != null, preview, loops)
+        return AwclipDocument(manifest, origin, curves, settings != null, preview, loops, version)
     }
 
     private fun readManifest(node: StrictJson.Value): AwclipManifest {
@@ -278,10 +306,11 @@ object AwclipReader {
         }
     }
 
-    private fun readCurves(node: StrictJson.Value, manifest: AwclipManifest): List<AwclipCurve> {
+    /** @param allowEmpty Version 2: die Vorschau traegt die Bewegung ([AwclipSchema.FORMAT_VERSION_PREVIEW]). */
+    private fun readCurves(node: StrictJson.Value, manifest: AwclipManifest, allowEmpty: Boolean): List<AwclipCurve> {
         val arr = expectArray(node, "curves")
         val maxCurves = AwclipSchema.maxCurves(manifest.rig)
-        if (arr.items.isEmpty() || arr.items.size > maxCurves)
+        if ((arr.items.isEmpty() && !allowEmpty) || arr.items.size > maxCurves)
             throw Reject("invalid-curve-count", "curves", "Between 1 and $maxCurves curves required")
 
         val seen = HashSet<String>()
@@ -356,9 +385,9 @@ object AwclipReader {
      * fremden Figur, sondern auf dem Skelett, das sie selbst mitbringt; dann
      * ist der Name kein Versprechen mehr, sondern nur noch eine Beschriftung.
      */
-    private fun readPreview(node: StrictJson.Value, rig: String): StrictJson.Value.Obj {
+    private fun readPreview(node: StrictJson.Value, rig: String, previewVersion: Boolean): StrictJson.Value.Obj {
         val at = "preview"
-        val obj = requireObject(node, at, PREVIEW_FIELDS)
+        val obj = requireObject(node, at, if (previewVersion) PREVIEW_FIELDS_V2 else PREVIEW_FIELDS)
 
         val frameRate = requireNumber(obj, "frameRate", at)
         if (frameRate < AwclipSchema.MIN_FRAME_RATE || frameRate > AwclipSchema.MAX_PREVIEW_FRAME_RATE)
@@ -393,6 +422,18 @@ object AwclipReader {
 
         vectorList(hips, "$at.hips", 3, frames, frames)
         vectorList(require(obj, "rotations", at), "$at.rotations", 4 * count, frames, frames)
+
+        //  Je Knochen ein Quaternion der Laenge 1 - dieselbe Pruefung wie fuer
+        //  das Formularfeld ([RestPose.attach]).
+        obj[RestPose.FIELD]?.let { restRot ->
+            val restAt = "$at.${RestPose.FIELD}"
+            vectorList(restRot, restAt, 4, count, count)
+            (restRot as StrictJson.Value.Arr).items.forEachIndexed { i, row ->
+                val q = (row as StrictJson.Value.Arr).items.map { (it as StrictJson.Value.Number).value }
+                if (kotlin.math.abs(kotlin.math.sqrt(q.sumOf { it * it }) - 1.0) > UNIT_TOLERANCE)
+                    throw Reject("invalid-preview", "$restAt[$i]", "Expected a unit quaternion")
+            }
+        }
 
         return obj
     }

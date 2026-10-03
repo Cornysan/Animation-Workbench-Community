@@ -290,7 +290,7 @@ const CLIP_SCRIPT = document.currentScript ? document.currentScript.src : locati
 
     try {
       const fetchSome = async (query) => {
-        const page = await api("GET", "/api/v1/packages?" + query + "&size=7");
+        const page = await api("GET", "/api/v1/packages?" + query + "&size=7&previewClips=true");
         return page.items.filter((item) => item.slug !== slug).slice(0, 6);
       };
 

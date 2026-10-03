@@ -39,8 +39,15 @@ class PackageController(private val catalog: CatalogService, private val showcas
         @RequestParam(required = false, defaultValue = "new") sort: String,
         @RequestParam(required = false, defaultValue = "0") page: Int,
         @RequestParam(required = false, defaultValue = "24") size: Int,
+        /**
+         * Auch Clips, die nur aus ihrer Vorschau bestehen (Format 2). Ohne das
+         * Feld fehlen sie: diese Liste liest die Workbench bis 2.5.0, und die
+         * kann sie nicht importieren ([CatalogService.search], `bakedOnly`).
+         * Die Seite fragt mit `previewClips=true`.
+         */
+        @RequestParam(required = false, defaultValue = "false") previewClips: Boolean,
         authentication: Authentication?,
-    ) = catalog.search(q, tag, sort, page, size, authentication.portalPrincipal(), author)
+    ) = catalog.search(q, tag, sort, page, size, authentication.portalPrincipal(), author, bakedOnly = !previewClips)
 
     /** Ein Herz setzen (true) oder zurücknehmen (false). */
     data class LikeRequest(val liked: Boolean = true)

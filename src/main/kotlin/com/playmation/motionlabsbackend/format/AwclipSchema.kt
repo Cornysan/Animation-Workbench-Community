@@ -7,7 +7,35 @@ package com.playmation.motionlabsbackend.format
  */
 object AwclipSchema {
     const val FORMAT_NAME = "awclip"
+
+    /** Was die Workbench schreibt und `/api/v1/status` nennt. */
     const val FORMAT_VERSION = 1
+
+    /**
+     * Ein Clip, der nur aus seiner Vorschau besteht (2026-10-03).
+     *
+     * WOZU. Auf dem Portal laesst sich ein Clip auch aus einer `.fbx` oder
+     * `.glb` teilen, ohne Unity. Der Browser kann daraus die Vorschau bauen -
+     * Knochendrehungen je Bild, wie sie die Workbench backt -, aber keine
+     * Muskelkurven: die rechnet Unitys `HumanPoseHandler`, und den gibt es nur
+     * in Unity. Also traegt so eine Datei KEINE Kurven, dafuer die T-Pose ihrer
+     * Quelle in der Vorschau (`restRot`), und die Workbench backt die Kurven
+     * beim Import (`AWClipPreviewBake`) - genau so, wie sie ihre Kacheln
+     * stellt.
+     *
+     * WARUM EINE EIGENE VERSION. Eine Workbench bis 2.5.0 kann so eine Datei
+     * nicht importieren. Unter Version 1 ohne Kurven wiese ihr Leser sie mit
+     * "invalid-curve-count" ab, was nach einer kaputten Datei klingt; Version 2
+     * sagt "Unsupported version" - das ist die Wahrheit. Gezeigt bekommt sie
+     * solche Clips in ihrer Liste ohnehin nicht (`/api/v1/packages`).
+     *
+     * Version 2 ist Version 1 mit genau zwei Unterschieden: `curves` darf leer
+     * sein (dann nur humanoid, mit Vorschau und `restRot`), und die Vorschau
+     * darf `restRot` tragen.
+     */
+    const val FORMAT_VERSION_PREVIEW = 2
+
+    val READABLE_VERSIONS = listOf(FORMAT_VERSION, FORMAT_VERSION_PREVIEW)
 
     const val MAX_COMPRESSED_BYTES = 8L * 1024 * 1024
     const val MAX_UNCOMPRESSED_BYTES = 64L * 1024 * 1024

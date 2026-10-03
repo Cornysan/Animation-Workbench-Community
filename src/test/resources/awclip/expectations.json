@@ -126,12 +126,42 @@
    "hash": "6c0375545ede5346030ba984c3afe1df9bcae535d8de6637844142d801d389f7"
   },
   {
+   "file": "valid-preview-only.json",
+   "error": null,
+   "hash": "4addadbba83e8816a4b72498a0c8d8b7f244d7e047782f761320f1aa32d7e4e1"
+  },
+  {
    "file": "invalid-generic-attribute.json",
    "error": "unknown-attribute",
    "hash": null
   },
   {
    "file": "invalid-generic-bone.json",
+   "error": "invalid-preview",
+   "hash": null
+  },
+  {
+   "file": "invalid-preview-only-without-rest.json",
+   "error": "missing-field",
+   "hash": null
+  },
+  {
+   "file": "invalid-preview-only-without-preview.json",
+   "error": "missing-field",
+   "hash": null
+  },
+  {
+   "file": "invalid-preview-only-generic.json",
+   "error": "invalid-curve-count",
+   "hash": null
+  },
+  {
+   "file": "invalid-rest-rot-in-version-1.json",
+   "error": "unknown-field",
+   "hash": null
+  },
+  {
+   "file": "invalid-rest-rot-length.json",
    "error": "invalid-preview",
    "hash": null
   }

@@ -824,13 +824,20 @@ class CatalogService(
      *   Stelle gibt, die entscheidet, was oeffentlich sichtbar ist.
      */
     @Transactional(readOnly = true)
+    /**
+     * @param bakedOnly nur Clips MIT Kurven - die flache Liste der Workbench bis
+     *   2.5.0 (`/api/v1/packages`). Einen Clip, der nur aus seiner Vorschau
+     *   besteht ([com.playmation.motionlabsbackend.format.AwclipDocument.previewOnly]),
+     *   kann sie nicht importieren; sie bekommt ihn darum gar nicht erst gezeigt.
+     */
     fun search(q: String?, tag: String?, sort: String?, page: Int, size: Int,
                principal: PortalPrincipal? = null, author: String? = null,
-               ownerId: UUID? = null): PageResult<PackageSummary> {
+               ownerId: UUID? = null, bakedOnly: Boolean = false): PageResult<PackageSummary> {
         val pageSize = size.coerceIn(1, 50)
         val pageIndex = page.coerceAtLeast(0)
 
-        val result = findClips(q, tag, sort, pageIndex, pageSize, authorIds(author), ownerId, unpackedOnly = false)
+        val result = findClips(q, tag, sort, pageIndex, pageSize, authorIds(author), ownerId, unpackedOnly = false,
+            bakedOnly = bakedOnly)
 
         return PageResult(cardsFor(result.content, principal), pageIndex, pageSize, result.totalElements)
     }
@@ -852,7 +859,8 @@ class CatalogService(
      *   zeigt die anderen als eine Karte je Pack.
      */
     internal fun findClips(q: String?, tag: String?, sort: String?, page: Int, size: Int,
-                           authorIds: List<UUID>?, ownerId: UUID?, unpackedOnly: Boolean): org.springframework.data.domain.Page<AnimationPackage> {
+                           authorIds: List<UUID>?, ownerId: UUID?, unpackedOnly: Boolean,
+                           bakedOnly: Boolean = false): org.springframework.data.domain.Page<AnimationPackage> {
         val spec = Specification<AnimationPackage> { root, query, cb ->
             val predicates = mutableListOf(
                 cb.equal(root.get<PackageStatus>("status"), PackageStatus.PUBLISHED),
@@ -883,10 +891,13 @@ class CatalogService(
                 val version = q.subquery(UUID::class.java)
                 val v = version.from(PackageVersion::class.java)
                 version.select(v.get("id"))
-                version.where(
+                version.where(*listOfNotNull(
                     cb.equal(v.get<UUID>("id"), root.get<UUID>("currentVersionId")),
                     v.get<String>("rig").`in`(AwclipSchema.ACCEPTED_RIGS),
-                )
+                    //  Derselbe Ort, dieselbe Begruendung: ein ausgeblendeter
+                    //  Clip zaehlt auch nicht mit.
+                    if (bakedOnly) cb.greaterThan(v.get<Int>("curveCount"), 0) else null,
+                ).toTypedArray())
                 predicates += cb.exists(version)
             }
 

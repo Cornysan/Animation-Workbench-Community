@@ -634,10 +634,12 @@ class PageController(
             packTitle = clip.pack?.title,
             sourceCredit = clip.source?.credit,
             sourceUrl = clip.source?.url,
-            facts = listOf(
+            facts = listOfNotNull(
                 Fact("Duration", Seo.duration(clip.durationSeconds)),
                 Fact("Frame rate", Math.round(clip.frameRate).toString() + " fps"),
-                Fact("Curves", clip.curveCount.toString()),
+                //  Ein Clip aus dem Browser bringt keine Kurven mit - die
+                //  backt erst die Workbench beim Import. "0" saehe kaputt aus.
+                if (clip.curveCount > 0) Fact("Curves", clip.curveCount.toString()) else null,
                 Fact("Rig", if (clip.rig == AwclipSchema.RIG_HUMANOID) "Humanoid" else "Generic"),
                 Fact("Version", clip.version.toString()),
             ),
