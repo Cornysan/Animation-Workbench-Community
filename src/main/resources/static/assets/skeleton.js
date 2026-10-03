@@ -78,7 +78,7 @@ function fbxManager() {
  * und eine Figur in Zentimetern sehen in Zahlen gleich aus. Die Datei weiss
  * es, also wird sie gefragt. Zoll-Dateien (2.54) fallen damit gleich mit ab.
  */
-function metresPerUnit(root, kind) {
+export function metresPerUnit(root, kind) {
   if (kind !== 'fbx') return 1;
   const factor = root && root.userData && root.userData.unitScaleFactor;
   return Number.isFinite(factor) && factor > 0 ? factor / 100 : 0.01;
@@ -148,7 +148,7 @@ function facts(scene) {
  * keine Animation, also stehen die Knochen genau dort, wo der Rigger sie
  * hingesetzt hat. Genau das braucht die Seitenpruefung in `humanoid.js`.
  */
-function readBones(scene, metres) {
+export function readBones(scene, metres) {
   scene.updateMatrixWorld(true);
 
   const joints = [];

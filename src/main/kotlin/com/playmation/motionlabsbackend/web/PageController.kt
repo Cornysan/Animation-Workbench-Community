@@ -513,6 +513,19 @@ class PageController(
         return view(model, "share", active = "share")
     }
 
+    /**
+     * Einen Clip aus einer `.fbx` oder `.glb` teilen, ohne Unity (2026-10-03).
+     * Die Seite rechnet die Datei im Browser in eine Vorschau um
+     * (`clip-from-file.js`) und schickt nur die - Format 2, siehe
+     * [com.playmation.motionlabsbackend.format.AwclipSchema.FORMAT_VERSION_PREVIEW].
+     * Nur angemeldet (SecurityConfig), und kein Fall fuer den Suchindex.
+     */
+    @GetMapping("/upload.html")
+    fun upload(model: Model): String {
+        model.addAttribute("meta", shell.defaultMeta().copy(title = "Upload an animation", noindex = true))
+        return view(model, "upload", active = "share")
+    }
+
     @GetMapping("/licenses.html")
     fun licenses(model: Model) = view(model, "licenses", active = "licenses")
 

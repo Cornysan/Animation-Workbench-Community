@@ -277,8 +277,12 @@ function byName(nodes) {
 
     //  Finger zuerst: sie tragen eine Nummer und wuerden sonst als
     //  Namensrest in die falsche Tabelle laufen.
+    //  `index_01_l` heisst schlicht "index" mit Nummer; Unitys eigene Namen
+    //  (`LeftIndexProximal`, auch VRMs `leftIndexProximal`) haengen das Glied
+    //  als Wort an - "indexproximal" stuende in keiner Tabelle.
     const finger = Object.entries(FINGER_NAMES)
-      .find(([, keys]) => keys.includes(r.key));
+      .find(([, keys]) => keys.includes(r.key) ||
+        (r.words.length === 2 && keys.includes(r.words[0]) && r.words[1] in SEGMENT_WORDS));
     if (finger) {
       const segment = r.number ? r.number - 1 : SEGMENT_WORDS[r.words[r.words.length - 1]] ?? 0;
       if (segment >= 0 && segment <= 2 && r.side) {

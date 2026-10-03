@@ -2,10 +2,11 @@
 <!--
   Wie ein Clip hierher kommt.
 
-  Teilen geht nur aus Unity, mit der Animation Workbench - das Portal nimmt
-  keine Dateien im Browser an, weil erst die Workbench aus einem Clip eine
-  .awclip mit Vorschau und Herkunft macht. Bis 2026-09-26 stand das nirgends:
-  wer hier stoeberte und selbst etwas beitragen wollte, fand keinen Weg.
+  Geteilt wird vor allem aus Unity, mit der Animation Workbench. Seit dem
+  2026-10-03 geht es auch ohne: upload.html rechnet eine .fbx oder .glb im
+  Browser in eine Vorschau um (Format 2) - der Abschnitt "Without Unity?"
+  fuehrt dorthin. Bis 2026-09-26 stand gar kein Weg hier: wer stoeberte und
+  selbst etwas beitragen wollte, fand keinen.
 
   Die Seite ist kurz: drei Schritte, die zwei Ausgaben, und was sich teilen
   laesst. Die ausfuehrliche Fassung steht in der Doku der Workbench.
@@ -66,8 +67,12 @@
       walks through the Community view step by step.</p>
 
     <h2>Without Unity?</h2>
+    <p><strong>Upload an <code>.fbx</code> or <code>.glb</code></strong> straight from Blender, Maya or a motion
+      capture tool. The page reads the skeleton, shows the animation on the mannequin, and the Workbench imports it
+      like any other clip.</p>
+    <p><a class="button primary" href="/upload.html">Upload an animation</a></p>
     <p>Every clip here also downloads as <strong>FBX</strong> or <strong>GLB</strong> - on the mannequin or as a
-      bare skeleton - for Blender, Maya or any other tool. Sharing, though, goes through the Workbench.</p>
+      bare skeleton - for Blender, Maya or any other tool.</p>
   </div>
 </main>
 <footer th:replace="~{fragments/shell :: footer}"></footer>

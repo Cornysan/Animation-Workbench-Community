@@ -169,6 +169,9 @@ class SecurityConfig {
                 authorize(HttpMethod.GET, "/me.html", authenticated)
                 //  Dasselbe fuer die Nachrichten: ohne Konto gibt es dort nichts.
                 authorize(HttpMethod.GET, "/messages.html", authenticated)
+                //  Und fuers Hochladen aus dem Browser: eine Datei durchrechnen,
+                //  nur um am Ende "Sign in" zu lesen, waere die schlechtere Reihenfolge.
+                authorize(HttpMethod.GET, "/upload.html", authenticated)
 
                 authorize(anyRequest, permitAll)
             }

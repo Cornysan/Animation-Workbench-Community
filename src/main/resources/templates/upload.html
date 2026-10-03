@@ -1,0 +1,106 @@
+<!doctype html>
+<!--
+  Einen Clip aus einer Datei teilen, ohne Unity.
+
+  WAS HIER PASSIERT. Die Datei wird im Browser geoeffnet und in eine Vorschau
+  umgerechnet - je Bild die Drehung jedes Knochens, wie sie die Workbench
+  beim Teilen backt (clip-from-file.js). Nur DIE geht hinaus, als .awclip nach
+  Format 2. Mesh, Texturen, die Datei selbst bleiben auf dem Rechner.
+
+  WARUM DIE ZUORDNUNG SICHTBAR IST. Eine fremde Datei nennt ihre Knochen, wie
+  sie will; humanoid.js raet die Rollen. Ein stiller Fehlgriff waere eine
+  vertauschte Schulter im Katalog - darum steht die Buehne neben dem Formular,
+  und die Maske ist einen Klick entfernt.
+
+  Nur angemeldet (SecurityConfig): ohne Konto ist am Ende nichts zu teilen.
+-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/shell :: head('Upload an animation')}"></head>
+<body th:attr="data-signed-in=${user != null}">
+<header th:replace="~{fragments/shell :: header}"></header>
+<main id="main">
+  <div th:replace="~{fragments/shell :: paused}"></div>
+
+  <h1>Upload an animation</h1>
+  <p class="lead">An <code>.fbx</code> or <code>.glb</code> with a humanoid skeleton, from Blender, Maya or a
+    motion capture tool. It plays on the mannequin here, and the Animation Workbench imports it like any other clip.</p>
+
+  <div id="drop" class="figure-drop">
+    <p><strong>Drop a file here</strong></p>
+    <p class="muted small">The file is read in your browser. Only the motion goes up, when you press Upload.</p>
+    <button type="button" class="button" id="pick">Choose a file</button>
+    <input type="file" id="file" accept=".glb,.fbx,model/gltf-binary" hidden>
+  </div>
+
+  <div id="note"></div>
+
+  <div id="work" class="clip-layout upload-layout" hidden>
+    <div class="clip-main">
+      <div class="viewer" id="viewer"></div>
+      <div id="bones" class="upload-bones"></div>
+    </div>
+
+    <form id="form" class="clip-side panel upload-form" novalidate>
+      <label class="field" id="animation-field" hidden>
+        <span>Animation</span>
+        <select id="animation"></select>
+      </label>
+
+      <label class="field">
+        <span>Title</span>
+        <input type="text" id="title" maxlength="80" required>
+      </label>
+
+      <label class="field">
+        <span>Description <span class="faint small">optional</span> <span class="faint small counter" id="counter">0/2000</span></span>
+        <textarea id="description" maxlength="2000" rows="4"></textarea>
+      </label>
+
+      <div class="field">
+        <label class="field-label" id="tags-label">Tags</label>
+        <div id="tags"></div>
+      </div>
+
+      <fieldset class="choices">
+        <legend>Who can see it</legend>
+        <label><input type="radio" name="visibility" value="CC0-1.0" checked>
+          <span><strong>Public</strong> - in the community, for everyone to use</span></label>
+        <label><input type="radio" name="visibility" value="ARR">
+          <span><strong>Private</strong> - only you</span></label>
+      </fieldset>
+
+      <label class="check"><input type="checkbox" id="loops">
+        <span>Plays as a loop</span></label>
+      <label class="check" id="announce-field" hidden><input type="checkbox" id="announce">
+        <span>Also post it on our Discord, with your name</span></label>
+      <label class="check"><input type="checkbox" id="declared">
+        <span id="declaration">I created this animation myself and have the right to share it here.</span></label>
+
+      <div id="error"></div>
+      <button type="submit" class="primary" id="upload">Upload</button>
+    </form>
+  </div>
+
+  <div id="done" hidden></div>
+
+  <div class="prose upload-how">
+    <h2>What you can upload</h2>
+    <ul>
+      <li>Humanoid animations you made yourself - keyframed or captured.</li>
+      <li>Not animations from Mixamo, Asset Store packs, motion libraries or games. A Mixamo rig is turned
+        away here, as it is in the Workbench.</li>
+      <li>One animation per upload. A file with several lets you pick one.</li>
+    </ul>
+    <p class="muted">The page names every bone of your skeleton the way Unity does - <code>LeftUpperArm</code>,
+      <code>Spine</code> - and shows you what it came up with under the stage. If an arm or a leg moves wrong,
+      fix the bones there before you upload. The rules for what belongs here are the
+      <a href="/rules.html">community rules</a>.</p>
+  </div>
+</main>
+<footer th:replace="~{fragments/shell :: footer}"></footer>
+<script th:src="|${@buildStamp.assets}/app.js|"></script>
+<script th:src="|${@buildStamp.assets}/viewer.js|"></script>
+<script th:src="|${@buildStamp.assets}/tag-input.js|"></script>
+<script type="module" th:src="|${@buildStamp.assets}/pages/upload.js|"></script>
+</body>
+</html>

@@ -2158,6 +2158,19 @@ dialog.sheet form > p:last-of-type { margin-bottom: 20px; }
 .figure-drop .button { margin-top: 10px; }
 .figure-drop.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
 
+/* Hochladen aus einer Datei (upload.html): Buehne links, Formular rechts -
+   dieselbe Aufteilung wie die Clip-Seite, damit man sieht, was man teilt. */
+.upload-layout { margin-top: 8px; }
+.upload-bones { margin-top: 14px; }
+.upload-bones .notice p { margin: 0 0 8px; }
+.upload-bones .notice button { margin-top: 4px; }
+.upload-form .counter { float: right; }
+.upload-form label.check { font-size: 14px; margin: 10px 0; }
+.upload-form button[type=submit] { width: 100%; margin-top: 8px; }
+.upload-done p { margin: 0 0 12px; }
+.upload-done-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.upload-how { margin-top: 40px; }
+
 .figure-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
