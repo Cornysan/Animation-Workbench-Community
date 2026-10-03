@@ -83,6 +83,7 @@ class AdminController(
         val communityEnabled: Boolean? = null,
         val uploadsEnabled: Boolean? = null,
         val charactersEnabled: Boolean? = null,
+        val webUploadEnabled: Boolean? = null,
     )
 
     @GetMapping("/cases")
@@ -135,10 +136,12 @@ class AdminController(
         body.communityEnabled?.let { settings.set(SystemSettingsService.COMMUNITY_ENABLED, it) }
         body.uploadsEnabled?.let { settings.set(SystemSettingsService.UPLOADS_ENABLED, it) }
         body.charactersEnabled?.let { settings.set(SystemSettingsService.CHARACTERS_ENABLED, it) }
+        body.webUploadEnabled?.let { settings.set(SystemSettingsService.WEB_UPLOAD_ENABLED, it) }
         return mapOf(
             "communityEnabled" to settings.communityEnabled(),
             "uploadsEnabled" to settings.uploadsEnabled(),
             "charactersEnabled" to settings.charactersEnabled(),
+            "webUploadEnabled" to settings.webUploadEnabled(),
         )
     }
 

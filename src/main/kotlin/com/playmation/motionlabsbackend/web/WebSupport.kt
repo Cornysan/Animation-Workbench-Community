@@ -47,6 +47,12 @@ class StatusController(
         val uploadsEnabled: Boolean,
         /** Ob die Figuren-Seite ueberhaupt angeboten wird - siehe SystemSettingsService. */
         val charactersEnabled: Boolean,
+        /**
+         * Ob das Teilen aus einer Datei im Browser an ist (`upload.html`) -
+         * fuer die Seite und die Admin-Schalter. Die Workbench braucht es
+         * nicht: sie importiert einen solchen Clip ohnehin.
+         */
+        val webUploadEnabled: Boolean,
         val formatVersion: Int,
         val declarationText: String,
         val declarationVersion: Int,
@@ -93,6 +99,7 @@ class StatusController(
     @GetMapping("/status")
     fun status() = StatusResponse(
         settings.communityEnabled(), settings.uploadsEnabled(), settings.charactersEnabled(),
+        settings.webUploadEnabled(),
         AwclipSchema.FORMAT_VERSION,
         Declaration.TEXT, Declaration.VERSION, licenses(),
         discordSignIn = providers.isEnabled("discord"),

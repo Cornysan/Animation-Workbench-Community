@@ -48,9 +48,10 @@ class SystemSettingsService(private val repository: SystemSettingRepository, pri
         const val COMMUNITY_ENABLED = "community.enabled"
         const val UPLOADS_ENABLED = "uploads.enabled"
         const val CHARACTERS_ENABLED = "characters.enabled"
+        const val WEB_UPLOAD_ENABLED = "webupload.enabled"
         private const val SITE_CARD = "site.card"
 
-        private val KEYS = setOf(COMMUNITY_ENABLED, UPLOADS_ENABLED, CHARACTERS_ENABLED)
+        private val KEYS = setOf(COMMUNITY_ENABLED, UPLOADS_ENABLED, CHARACTERS_ENABLED, WEB_UPLOAD_ENABLED)
     }
 
     fun communityEnabled() = flag(COMMUNITY_ENABLED, default = true)
@@ -78,6 +79,25 @@ class SystemSettingsService(private val repository: SystemSettingRepository, pri
      * angeboten. Wird wieder eingeschaltet, sind sie unveraendert da.
      */
     fun charactersEnabled() = flag(CHARACTERS_ENABLED, default = false)
+
+    /**
+     * Teilen aus einer `.fbx`/`.glb` im Browser (`upload.html`, Format 2) -
+     * vorerst aus, eingeschaltet auf der Admin-Seite.
+     *
+     * `default = false` aus demselben Grund wie die Figuren: eine frische
+     * Datenbank soll das Neue nicht von selbst zeigen. Und weil ein Clip aus
+     * dem Browser erst mit der Workbench NACH 2.5.0 importierbar ist - wann
+     * das Portal ihn anbietet, ist eine Entscheidung, keine Voreinstellung.
+     *
+     * AN `uploadsEnabled()` gekettet: es ist ein Upload. Steht der Upload-Stopp,
+     * steht auch das hier.
+     *
+     * Was der Schalter tut: die Seite sagt "nicht verfuegbar", der Knopf auf
+     * der Share-Seite verschwindet, und der Server nimmt keinen Clip ohne
+     * Kurven mehr an (CatalogService.upload). Was er NICHT tut: schon geteilte
+     * Clips aus dem Browser verstecken - die bleiben im Katalog.
+     */
+    fun webUploadEnabled() = uploadsEnabled() && flag(WEB_UPLOAD_ENABLED, default = false)
 
     @Transactional
     fun set(key: String, enabled: Boolean) {

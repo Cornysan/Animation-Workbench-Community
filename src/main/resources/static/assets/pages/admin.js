@@ -21,6 +21,7 @@ const ADMIN_SCRIPT = document.currentScript ? document.currentScript.src : locat
   const community = document.getElementById("community-enabled");
   const uploads = document.getElementById("uploads-enabled");
   const characters = document.getElementById("characters-enabled");
+  const webUpload = document.getElementById("web-upload-enabled");
   const status = await api("GET", "/api/v1/status");
 
   //  Die Antwort des Servers ist die Wahrheit, nicht der Klick. `uploads`
@@ -30,6 +31,9 @@ const ADMIN_SCRIPT = document.currentScript ? document.currentScript.src : locat
     community.checked = s.communityEnabled;
     uploads.checked = s.uploadsEnabled;
     characters.checked = s.charactersEnabled;
+    //  Haengt an `uploads` wie `uploads` an `community`: der Server meldet,
+    //  was GILT, nicht was gespeichert ist.
+    webUpload.checked = s.webUploadEnabled;
   };
   show(status);
 
@@ -46,6 +50,7 @@ const ADMIN_SCRIPT = document.currentScript ? document.currentScript.src : locat
   //  Wirkt erst beim naechsten Seitenaufbau: der Schalter steht im Kopf
   //  jeder Seite, und der wird auf dem Server gesetzt.
   characters.addEventListener("change", () => saveSwitch({ charactersEnabled: characters.checked }, characters));
+  webUpload.addEventListener("change", () => saveSwitch({ webUploadEnabled: webUpload.checked }, webUpload));
 
   // ── Vorschaubilder ──────────────────────────────────────────────────
   //  Einer nach dem anderen, mit einer Zeile je Clip: bei fuenfzig Clips will

@@ -22,6 +22,18 @@
   <div th:replace="~{fragments/shell :: paused}"></div>
 
   <h1>Upload an animation</h1>
+
+  <!--
+    AUSGESCHALTET (Admin-Seite, SystemSettingsService.webUploadEnabled). Kein
+    404: wer einem Link hierher folgt, soll lesen, wie es sonst geht.
+  -->
+  <div th:unless="${webUploadEnabled}" class="prose">
+    <p class="lead">Uploading an animation file is not available right now.</p>
+    <p>Clips come into the community from Unity in the meantime: the free Animation Workbench shares any
+      humanoid clip in two clicks. <a href="/share.html">How sharing works</a></p>
+  </div>
+
+  <div th:if="${webUploadEnabled}">
   <p class="lead">An <code>.fbx</code> or <code>.glb</code> with a humanoid skeleton, from Blender, Maya or a
     motion capture tool. It plays on the mannequin here, and the Animation Workbench imports it like any other clip.</p>
 
@@ -96,11 +108,12 @@
       fix the bones there before you upload. The rules for what belongs here are the
       <a href="/rules.html">community rules</a>.</p>
   </div>
+  </div>
 </main>
 <footer th:replace="~{fragments/shell :: footer}"></footer>
 <script th:src="|${@buildStamp.assets}/app.js|"></script>
 <script th:src="|${@buildStamp.assets}/viewer.js|"></script>
 <script th:src="|${@buildStamp.assets}/tag-input.js|"></script>
-<script type="module" th:src="|${@buildStamp.assets}/pages/upload.js|"></script>
+<script type="module" th:src="|${@buildStamp.assets}/pages/upload.js|" th:if="${webUploadEnabled}"></script>
 </body>
 </html>

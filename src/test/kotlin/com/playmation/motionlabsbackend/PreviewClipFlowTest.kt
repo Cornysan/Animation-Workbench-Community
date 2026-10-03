@@ -1,6 +1,8 @@
 package com.playmation.motionlabsbackend
 
 import com.playmation.motionlabsbackend.catalog.Declaration
+import com.playmation.motionlabsbackend.system.SystemSettingsService
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -35,6 +37,11 @@ import kotlin.test.assertTrue
 class PreviewClipFlowTest {
 
     @Autowired lateinit var mvc: MockMvc
+    @Autowired lateinit var settings: SystemSettingsService
+
+    /** Der Schalter der Admin-Seite steht von Haus aus auf aus. */
+    @BeforeEach
+    fun switchOn() = settings.set(SystemSettingsService.WEB_UPLOAD_ENABLED, true)
 
     private val json = JsonMapper.builder().build()
 
@@ -84,6 +91,42 @@ class PreviewClipFlowTest {
         mvc.get(url).andExpect { status { isOk() } }.body()[field].map {
             (it["clip"] ?: it)["title"]?.asString() ?: ""
         }
+
+    @Test
+    fun `switched off on the admin page, a clip without curves is turned away`() {
+        val token = login("web-off-${unique()}")
+        settings.set(SystemSettingsService.WEB_UPLOAD_ENABLED, false)
+        try {
+            val status = mvc.get("/api/v1/status").andExpect { status { isOk() } }.body()
+            assertFalse(status["webUploadEnabled"].asBoolean())
+
+            val answer = upload(token, previewClip("Web Off ${unique()}", 0.8)).andExpect { status { isForbidden() } }.body()
+            assertEquals("web-upload-off", answer["error"]["code"].asString())
+        } finally {
+            settings.set(SystemSettingsService.WEB_UPLOAD_ENABLED, true)
+        }
+        assertTrue(mvc.get("/api/v1/status").andExpect { status { isOk() } }.body()["webUploadEnabled"].asBoolean())
+    }
+
+    @Test
+    fun `the pages follow the switch`() {
+        val token = login("web-page-${unique()}")
+        fun page(path: String) = mvc.get(path) { header("Authorization", "Bearer $token") }
+            .andExpect { status { isOk() } }.andReturn().response.contentAsString
+
+        assertTrue(page("/upload.html").contains("id=\"drop\""))
+        assertTrue(page("/share.html").contains("href=\"/upload.html\""))
+
+        settings.set(SystemSettingsService.WEB_UPLOAD_ENABLED, false)
+        try {
+            val off = page("/upload.html")
+            assertTrue(off.contains("not available right now"))
+            assertFalse(off.contains("id=\"drop\""))
+            assertFalse(page("/share.html").contains("href=\"/upload.html\""))
+        } finally {
+            settings.set(SystemSettingsService.WEB_UPLOAD_ENABLED, true)
+        }
+    }
 
     @Test
     fun `a clip from the browser goes up and carries its rest pose in the preview`() {

@@ -85,6 +85,9 @@ class PageController(
     @ModelAttribute("charactersEnabled")
     fun charactersEnabled() = shell.charactersEnabled()
 
+    @ModelAttribute("webUploadEnabled")
+    fun webUploadEnabled() = shell.webUploadEnabled()
+
     @ModelAttribute("store")
     fun store() = shell.store
 

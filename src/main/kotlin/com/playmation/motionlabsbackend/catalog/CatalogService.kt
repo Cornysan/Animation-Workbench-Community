@@ -249,6 +249,14 @@ class CatalogService(
             is AwclipReadResult.Rejected -> throw PortalException.badRequest("invalid-awclip", read.error.toString())
         }
 
+        //  Ein Clip ohne Kurven kommt nur aus dem Browser (upload.html), und
+        //  den kann die Admin-Seite abschalten. Ohne diese Sperre ginge der
+        //  Weg ueber die Schnittstelle weiter, waehrend die Seite "nicht
+        //  verfuegbar" sagt.
+        if (doc.previewOnly && !settings.webUploadEnabled())
+            throw PortalException(HttpStatus.FORBIDDEN, "web-upload-off",
+                "Uploading an animation file on the portal is switched off right now.")
+
         //  DIE TUER: humanoid ja, generisch noch nicht.
         //
         //  Sie steht HIER und nicht im Leser. Der Leser sagt, ob eine Datei

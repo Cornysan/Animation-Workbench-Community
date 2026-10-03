@@ -80,6 +80,15 @@ async function start() {
     return;
   }
 
+  //  Die Seite selbst kommt bei ausgeschaltetem Schalter gar nicht erst mit
+  //  diesem Skript; das hier faengt nur eine Seite ab, die offen stand, als
+  //  jemand auf der Admin-Seite umschaltete.
+  if (status && status.webUploadEnabled === false) {
+    drop.hidden = true;
+    notice(note, 'Uploading an animation file is not available right now.', 'warn');
+    return;
+  }
+
   if (status && status.declarationText) declarationLine.textContent = status.declarationText;
 
   picker.addEventListener('change', () => { if (picker.files[0]) load(picker.files[0]); picker.value = ''; });

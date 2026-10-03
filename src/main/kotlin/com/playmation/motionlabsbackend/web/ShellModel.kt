@@ -118,6 +118,7 @@ class ShellModel(
     val buildLabel: String get() = build.label
     fun communityEnabled() = settings.communityEnabled()
     fun charactersEnabled() = settings.charactersEnabled()
+    fun webUploadEnabled() = settings.webUploadEnabled()
 
     /**
      * Was eine Vorschau zeigt, wenn jemand eine Adresse dieses Portals in
