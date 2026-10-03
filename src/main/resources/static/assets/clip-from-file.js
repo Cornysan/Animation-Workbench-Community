@@ -56,19 +56,27 @@
  * Waagerechten. Als T-Pose genommen hingen die Arme dann in jedem Bild genau
  * so viel zu hoch.
  *
- * Also wird die Bindepose in die T-Pose GESCHWENKT, und zwar nur Ober- und
- * Unterarm, Ober- und Unterschenkel: Arme waagerecht zur Seite, Beine
- * senkrecht nach unten. Das ist, was Unitys "Enforce T-Pose" mit einem Avatar
- * macht, und gemessen zwischen zwei Unity-T-Posen liegen genau diese Knochen
- * nur 1 bis 7 Grad auseinander (`SWING_TO_TPOSE` in `stage.js`). Alles andere
- * - Schluesselbein, Wirbelsaeule, Hand, Finger - legt jeder Rigger anders,
- * und dort ist die eigene Bindepose die beste Antwort. Die Drehung UM jeden
- * Knochen kommt immer aus der Bindepose: genau die laesst sich aus Bewegung
- * allein nicht zuverlaessig schaetzen (`rest-pose.js`).
+ * Also wird die Bindepose in die T-Pose GESCHWENKT: Ober- und Unterarm, Hand,
+ * Ober- und Unterschenkel - Arme waagerecht zur Seite, Beine senkrecht nach
+ * unten. Das ist, was Unitys "Enforce T-Pose" mit einem Avatar macht, und
+ * gemessen zwischen zwei Unity-T-Posen liegen genau diese Knochen nur 1 bis 7
+ * Grad auseinander (`SWING_TO_TPOSE` in `stage.js`).
+ *
+ * Dazu die FINGER. Jede Unity-T-Pose haelt sie gestreckt, eine Bindepose in
+ * Ruhehaltung gekruemmt - beim Export aus der Workbench 33 bis 37 Grad je
+ * Gelenk. Als Nullstellung genommen bog sich jeder Finger, der in der
+ * Animation weniger gekruemmt war, auf dem Mannequin nach hinten
+ * ([straightenFingers]).
+ *
+ * Schluesselbein, Wirbelsaeule und Fuss legt jeder Rigger anders, dort ist
+ * die eigene Bindepose die beste Antwort. Die Drehung UM jeden Knochen kommt
+ * immer aus der Bindepose: genau die laesst sich aus Bewegung allein nicht
+ * zuverlaessig schaetzen (`rest-pose.js`).
  */
 
 import { readBones, kindOf, metresPerUnit, parseModel } from './skeleton.js';
 import { BONES, REQUIRED, guess } from './humanoid.js';
+import { THUMB_DOWN, THUMB_FORWARD } from './rest-pose.js';
 import { Matrix4, Quaternion, Vector3 } from './vendor/three.module.js';
 
 /** So viele Bilder je Sekunde hat eine Vorschau hoechstens - wie in der Workbench. */
@@ -98,7 +106,9 @@ const KEEP_BELOW = { left: 15, right: 15, down: 6 };
 /** Welche Knochen in die T-Pose geschwenkt werden, in dieser Reihenfolge (Eltern zuerst). */
 const SWINGS = [
   ['LeftUpperArm', 'LeftLowerArm', 'left'], ['LeftLowerArm', 'LeftHand', 'left'],
+  ['LeftHand', 'LeftMiddleProximal', 'left'],
   ['RightUpperArm', 'RightLowerArm', 'right'], ['RightLowerArm', 'RightHand', 'right'],
+  ['RightHand', 'RightMiddleProximal', 'right'],
   ['LeftUpperLeg', 'LeftLowerLeg', 'down'], ['LeftLowerLeg', 'LeftFoot', 'down'],
   ['RightUpperLeg', 'RightLowerLeg', 'down'], ['RightLowerLeg', 'RightFoot', 'down'],
 ];
@@ -112,6 +122,21 @@ const TPOSE_DIRECTION = {
   right: new Vector3(-1, 0, 0),
   down: new Vector3(0, -1, 0),
 };
+
+/**
+ * Unter diesem Winkel bleibt ein Fingerglied, wie die Datei es haelt (Grad).
+ * Unitys T-Pose streckt die Finger ganz: gemessen am Mannequin 0 Grad aus der
+ * Handflaeche, 0 Grad an Mittel- und Endgelenk, beim Daumen genauso. Ein paar
+ * Grad Eigenart eines Riggers bleiben stehen, eine Ruhehaltung nicht.
+ */
+const FINGER_KEEP_BELOW = 5;
+
+/**
+ * ... und das Grundglied des Daumens, gemessen an seiner Richtung in der
+ * T-Pose (`THUMB_FORWARD`, `THUMB_DOWN`). Die halten Rigs verschieden - 40 bis
+ * 43 Grad vor der Handachse, 5 bis 8 darunter -, daher mehr Spielraum.
+ */
+const THUMB_KEEP_BELOW = 10;
 
 /**
  * `mixamorig:Hips`, `mixamorig1:Hips`, `mixamorig_Hips` - und so, wie die
@@ -452,28 +477,136 @@ function turnPose(pose, G) {
 function swingToTPose(bind, tree) {
   const pose = new Map([...bind].map(([bone, e]) => [bone, { position: e.position.clone(), rotation: e.rotation.clone() }]));
 
-  const below = (bone) => {
-    const out = [bone];
-    for (let i = 0; i < out.length; i++) out.push(...(tree.children.get(out[i]) || []));
-    return out;
-  };
-
   for (const [bone, child, side] of SWINGS) {
     const a = pose.get(bone), b = pose.get(child);
     if (!a || !b) continue;
     const direction = b.position.clone().sub(a.position);
     if (direction.lengthSq() < 1e-12) continue;
     direction.normalize();
-    if (direction.angleTo(TPOSE_DIRECTION[side]) * 180 / Math.PI < KEEP_BELOW[side]) continue;
-    const swing = new Quaternion().setFromUnitVectors(direction, TPOSE_DIRECTION[side]);
-    const pivot = a.position.clone();
-    for (const name of below(bone)) {
-      const e = pose.get(name);
-      e.rotation.premultiply(swing).normalize();
-      e.position.sub(pivot).applyQuaternion(swing).add(pivot);
+    if (degrees(direction, TPOSE_DIRECTION[side]) < KEEP_BELOW[side]) continue;
+    swingBelow(pose, tree, bone, new Quaternion().setFromUnitVectors(direction, TPOSE_DIRECTION[side]));
+  }
+
+  //  Nach G blickt die Figur nach +Z, ihre linke Seite liegt bei +X: die
+  //  linke Handflaeche zeigt dann in Richtung Handachse x Quer, die rechte
+  //  entgegen.
+  straightenFingers(pose, tree, 'Left', 1);
+  straightenFingers(pose, tree, 'Right', -1);
+  return pose;
+}
+
+/** Den Knochen und alles, was an ihm haengt, um seinen Ansatz drehen. */
+function swingBelow(pose, tree, bone, swing) {
+  const pivot = pose.get(bone).position.clone();
+  const open = [bone];
+  while (open.length) {
+    const name = open.pop();
+    const e = pose.get(name);
+    e.rotation.premultiply(swing).normalize();
+    e.position.sub(pivot).applyQuaternion(swing).add(pivot);
+    open.push(...(tree.children.get(name) || []));
+  }
+}
+
+const degrees = (a, b) => a.angleTo(b) * 180 / Math.PI;
+
+/**
+ * Die Finger einer Hand strecken (siehe Kopf). Gemessen in der Handflaeche -
+ * Handachse zum Mittelfinger, quer vom kleinen zum Zeigefinger -, nicht im
+ * Raum: wie die Hand selbst liegt, ist Sache der Arme.
+ *
+ *   Grundglied     aus der Handflaeche heraus zurueck in sie hinein; war die
+ *                  Hand gekruemmt, dazu parallel zum Mittelfinger (`relaxed`).
+ *                  Beim Daumen in die Richtung der T-Pose, vor der Handachse
+ *                  und etwas zur Handflaeche hin.
+ *   Mittelglied    in die Richtung des Glieds davor.
+ *   Endglied       ebenso. Es hat kein Kind, an dem sich seine Richtung
+ *                  ablesen liesse; es zeigt, wohin seine Achse zeigt - die
+ *                  Achse, entlang der das Glied davor zu ihm reicht. So baut
+ *                  jedes Rig seine Ketten, und so schaetzt auch `rest-pose.js`.
+ *
+ * Jeder Schritt dreht das Glied samt allem dahinter um sein Gelenk, wie die
+ * Arme: die Drehung um die Gliedachse bleibt die der Datei.
+ */
+function straightenFingers(pose, tree, side, handedness) {
+  const at = (bone) => pose.get(side + bone);
+  const hand = at('Hand'), middle = at('MiddleProximal'), index = at('IndexProximal'), little = at('LittleProximal');
+  if (!hand || !middle || !index || !little) return;
+
+  const along = middle.position.clone().sub(hand.position);
+  const across = index.position.clone().sub(little.position);
+  if (along.lengthSq() < 1e-12) return;
+  along.normalize();
+  across.addScaledVector(along, -across.dot(along));
+  if (across.lengthSq() < 1e-12) return;
+  across.normalize();
+  const palm = new Vector3().crossVectors(along, across).multiplyScalar(handedness);
+
+  const forward = THUMB_FORWARD * Math.PI / 180, down = THUMB_DOWN * Math.PI / 180;
+  const thumb = along.clone().multiplyScalar(Math.cos(forward)).addScaledVector(across, Math.sin(forward))
+    .multiplyScalar(Math.cos(down)).addScaledVector(palm, Math.sin(down));
+
+  const towards = (from, to) => pose.get(to).position.clone().sub(pose.get(from).position);
+
+  const chains = new Map();
+  for (const finger of ['Middle', 'Index', 'Ring', 'Little', 'Thumb']) {
+    const chain = ['Proximal', 'Intermediate', 'Distal'].map((part) => side + finger + part).filter((b) => pose.has(b));
+    //  Nur eine Kette, die auch im Baum eine ist - eine verunglueckte
+    //  Zuordnung bleibt, wie sie ist, statt etwas Falsches zu strecken.
+    if (chain.length < 2 || chain.some((b, k) => k > 0 && tree.parent.get(b) !== chain[k - 1])) continue;
+    chains.set(finger, chain);
+  }
+
+  //  Eine gekruemmte Hand ist auch gespreizt: in der Ruhehaltung stehen Zeige-
+  //  und kleiner Finger 8 bis 16 Grad vom Mittelfinger weg, in Unitys T-Pose
+  //  liegen alle vier auf 3 Grad parallel. Dann richten sie sich nach dem
+  //  Mittelfinger. Eine gestreckte Hand behaelt ihre Spreizung - die hat ihr
+  //  Rigger so gebaut, und Unity laesst sie ihr.
+  const relaxed = ['Index', 'Middle', 'Ring', 'Little'].some((finger) => {
+    const chain = chains.get(finger);
+    if (!chain) return false;
+    const first = towards(chain[0], chain[1]).normalize();
+    if (Math.abs(90 - degrees(first, palm)) >= FINGER_KEEP_BELOW) return true;
+    return chain.length > 2 && degrees(first, towards(chain[1], chain[2]).normalize()) >= FINGER_KEEP_BELOW;
+  });
+  let parallel = null;
+
+  for (const [finger, chain] of chains) {
+    for (let k = 0; k < chain.length - 1; k++) {
+      const direction = towards(chain[k], chain[k + 1]);
+      if (direction.lengthSq() < 1e-12) break;
+      direction.normalize();
+
+      let target;
+      let keep = FINGER_KEEP_BELOW;
+      if (k > 0) {
+        target = towards(chain[k - 1], chain[k]).normalize();
+      } else if (finger === 'Thumb') {
+        target = thumb;
+        keep = THUMB_KEEP_BELOW;
+      } else if (relaxed && parallel) {
+        target = parallel;
+      } else {
+        target = direction.clone().addScaledVector(palm, -direction.dot(palm));
+        target = target.lengthSq() > 1e-6 ? target.normalize() : along.clone();
+        //  Der Mittelfinger kommt zuerst und gibt die Richtung vor.
+        if (finger === 'Middle') parallel = target;
+      }
+      if (degrees(direction, target) >= keep) {
+        swingBelow(pose, tree, chain[k], new Quaternion().setFromUnitVectors(direction, target));
+      }
+    }
+
+    const last = chain[chain.length - 1];
+    const before = pose.get(chain[chain.length - 2]);
+    const reach = towards(chain[chain.length - 2], last);
+    if (reach.lengthSq() < 1e-12) continue;
+    reach.normalize();
+    const tip = reach.clone().applyQuaternion(before.rotation.clone().invert()).applyQuaternion(pose.get(last).rotation);
+    if (degrees(tip, reach) >= FINGER_KEEP_BELOW) {
+      swingBelow(pose, tree, last, new Quaternion().setFromUnitVectors(tip, reach));
     }
   }
-  return pose;
 }
 
 // ── Animation abtasten ────────────────────────────────────────────────────

@@ -182,9 +182,11 @@ const TORSO_TILT = {
  * Der Daumen zeigt in der T-Pose nicht zur Seite, sondern schraeg nach vorn:
  * gemessen 43 Grad vor und 5 Grad unter der Handachse (Sidekick), 41 und 8
  * (Feel). Mit der Handachse geschaetzt lag der Daumen 48 Grad daneben.
+ *
+ * Exportiert fuer `clip-from-file.js`, das eine Bindepose in die T-Pose stellt.
  */
-const THUMB_FORWARD = 42;
-const THUMB_DOWN = 6;
+export const THUMB_FORWARD = 42;
+export const THUMB_DOWN = 6;
 
 /** Wenn kein Bild den Fuss flach zeigt: Fuss->Zehen so weit unter der Waagrechten. */
 const FOOT_PITCH = 30;
