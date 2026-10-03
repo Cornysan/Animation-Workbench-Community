@@ -59,6 +59,17 @@ function message(text) {
     //  beiden nichts voneinander wissen muessen: kommt niemand, passiert
     //  nichts, und kommt die Buehne nie, wartet niemand vergebens.
     document.dispatchEvent(new CustomEvent('aw:viewer', { detail: { viewer, preview, slug } }));
+
+    //  Nach dem Bearbeiten (clip.js) traegt die Buehne, was gespeichert ist -
+    //  der Dialog deckt sie zu, waehrend gewaehlt wird; die Bilder der Looks
+    //  sind dort die Vorschau.
+    document.addEventListener('aw:dress', (event) => {
+      const { figure, look } = event.detail || {};
+      if (!figure || !look) return;
+      box.dataset.figure = figure;
+      box.dataset.look = look;
+      viewer.dress(figure, look).catch((error) => console.warn('[clip] could not dress the stage', error));
+    });
   } catch (error) {
     console.warn('[clip] no viewer', error);
     message('The preview could not be loaded.');

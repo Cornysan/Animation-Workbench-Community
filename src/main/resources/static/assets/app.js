@@ -1311,10 +1311,12 @@ const AW = (() => {
   }
 
   /**
-   * Die Clips, die in einen Pack duerfen: die eigenen oeffentlichen - oder,
-   * fuer einen Admin, die der Starter-Clips. Einer, der schon in einem Pack
-   * liegt, kommt trotzdem mit: [packDialog] zeigt ihn ausgegraut, mit Grund.
-   * Nach Titel sortiert, damit man in einer langen Liste etwas findet.
+   * Die Clips, die in einen Pack duerfen: die eigenen - oder, fuer einen
+   * Admin, die der Starter-Clips. Einer, der schon in einem Pack liegt oder
+   * privat ist, kommt trotzdem mit: [packDialog] zeigt ihn ausgegraut, mit
+   * Grund. Fehlte er still, sah eine Liste voller privater Clips aus, als
+   * haette man keine. Nach Titel sortiert, damit man in einer langen Liste
+   * etwas findet.
    */
   async function packCandidates(starter = false) {
     let clips;
@@ -1327,7 +1329,7 @@ const AW = (() => {
       }
     } else {
       clips = (await api("GET", "/api/v1/me/packages"))
-        .filter((clip) => clip.status === "PUBLISHED" && clip.license === "CC0-1.0" && clip.rig === "humanoid");
+        .filter((clip) => clip.status === "PUBLISHED" && clip.rig === "humanoid");
     }
     return clips.sort((a, b) => a.title.localeCompare(b.title));
   }
@@ -1344,13 +1346,19 @@ const AW = (() => {
    * @param pack       ein bestehender Pack: ohne `candidates` aendert der
    *                   Dialog Name und Beschreibung, mit ihnen fuegt er nur
    *                   Clips hinzu.
-   * @param candidates Clips zur Auswahl ({slug, title, pack}). Einer, der schon
-   *                   in einem ANDEREN Pack liegt, steht ausgegraut da, mit
-   *                   dessen Namen - so sieht man, warum er nicht geht.
+   * @param candidates Clips zur Auswahl ({slug, title, pack, license}). Einer,
+   *                   der schon in einem ANDEREN Pack liegt, steht ausgegraut
+   *                   da, mit dessen Namen - so sieht man, warum er nicht geht.
+   *                   Ebenso ein privater: ein Pack steht auf der Wand.
+   * @param preselect  Slugs, die schon angehakt sind - der Clip, von dessen
+   *                   Seite aus der Pack entsteht. Sie stehen oben.
    * @param starter    ein Admin legt einen Pack der Starter-Clips an.
    * Antwort: der gespeicherte Pack, oder null.
    */
-  function packDialog({ pack = null, candidates = null, starter = false } = {}) {
+  function packDialog({ pack = null, candidates = null, preselect = [], starter = false } = {}) {
+    if (candidates && preselect.length) {
+      candidates = [...candidates].sort((a, b) => preselect.includes(b.slug) - preselect.includes(a.slug));
+    }
     return new Promise((resolve) => {
       const name = el("input", { type: "text", name: "title", maxlength: "80", required: true,
         placeholder: "Longbow Locomotion", value: pack ? pack.title : "" });
@@ -1366,12 +1374,24 @@ const AW = (() => {
       const boxes = [];
       const list = candidates ? el("div", { class: "pick-list" }, ...candidates.map((clip) => {
         const elsewhere = clip.pack && (!pack || clip.pack.slug !== pack.slug);
-        const box = el("input", { type: "checkbox", value: clip.slug, disabled: elsewhere || null });
-        if (!elsewhere) boxes.push(box);
-        return el("label", { class: "pick" + (elsewhere ? " taken" : "") }, box,
+        //  Der Server lehnt ihn ab ("private-clip") - besser, man sieht es
+        //  vorher, als nach dem Klick auf "Create pack".
+        const hidden = !elsewhere && clip.license && clip.license !== "CC0-1.0";
+        const blocked = elsewhere || hidden;
+        const box = el("input", { type: "checkbox", value: clip.slug, disabled: blocked || null,
+          checked: !blocked && preselect.includes(clip.slug) });
+        if (!blocked) boxes.push(box);
+        return el("label", { class: "pick" + (blocked ? " taken" : "") }, box,
           el("span", { class: "pick-title" }, clip.title),
-          elsewhere ? el("span", { class: "faint small" }, "in “" + clip.pack.title + "”") : null);
+          elsewhere ? el("span", { class: "faint small" }, "in “" + clip.pack.title + "”")
+            : hidden ? el("span", { class: "faint small" }, "private") : null);
       })) : null;
+      //  Warum "private" nicht geht, einmal unter der Liste - ein Tooltip am
+      //  Eintrag schnitte die scrollende Liste ab.
+      const privateNote = candidates && candidates.some((clip) => !(clip.pack && (!pack || clip.pack.slug !== pack.slug))
+        && clip.license && clip.license !== "CC0-1.0")
+        ? el("p", { class: "faint small pick-note" }, "Private clips stay out: a pack is public.")
+        : null;
 
       const picked = el("span", { class: "faint small" });
       //  Ein Satz aus einer Quelle ist oft ALLES, was man hat - achtzehn
@@ -1408,7 +1428,8 @@ const AW = (() => {
           candidates.length ? list
             : el("p", { class: "muted" }, adding
               ? "All your public clips are in a pack already."
-              : "No clips to choose from. Share some first.")) : null,
+              : "No clips to choose from. Share some first."),
+          privateNote) : null,
         error,
         el("div", { class: "dialog-actions" },
           el("button", { value: "cancel", type: "button", class: "ghost" }, "Cancel"),
@@ -1475,6 +1496,98 @@ const AW = (() => {
       dialog.showModal();
       (adding ? boxes[0] || form.querySelector("button.primary") : name).focus();
     });
+  }
+
+  /** Figuren und Looks (`/api/v1/looks`) - einmal je Seite geholt. */
+  let looksPromise = null;
+  const looksRequest = () => {
+    if (!looksPromise) looksPromise = api("GET", "/api/v1/looks").catch((e) => { looksPromise = null; throw e; });
+    return looksPromise;
+  };
+
+  /**
+   * Figur und Look eines Clips waehlen - im Bearbeiten-Dialog und beim
+   * Hochladen aus einer Datei. Dieselbe Wahl wie beim Teilen in der Workbench
+   * (`AWCommunityLooks`): oben die Figur, darunter ihre Looks als Bilder.
+   * Wechselt die Figur, wird der Look zu seinem Gegenstueck (Gold -> Rose
+   * Gold), wie in Unity und auf dem Server (`FigureLooks.kt`).
+   *
+   * PRO-LOOKS SIND HIER ZU. Das Portal sieht keine Lizenz; offen bekaeme jeder
+   * sie, der eine Datei hochlaedt, auch ohne Workbench. Sie stehen trotzdem
+   * da, mit "Pro": wer sie sieht, weiss, wo es sie gibt. Ausnahme ist der
+   * Look, den der Clip schon traegt, und sein Gegenstueck - gewaehlt in der
+   * Workbench mit Pro; ihn beim Bearbeiten wegzunehmen hiesse, diese Wahl
+   * rueckgaengig zu machen.
+   *
+   * @param figure / look  die geltende Wahl
+   * @param onChange       ({ figure, look }) nach jedem Wechsel
+   * Antwort: { element, value() }.
+   */
+  function lookPicker({ figure = "default", look = "classic", onChange = null } = {}) {
+    let chosen = { figure, look };
+    const element = el("div", { class: "look-picker" }, el("p", { class: "faint small" }, "Loading the looks…"));
+
+    looksRequest().then((data) => {
+      const byKey = new Map(data.looks.map((entry) => [entry.key, entry]));
+      const kept = byKey.get(look);
+      const open = (entry) => !entry.pro || entry.key === look || (kept && entry.key === kept.twin);
+
+      const set = (next) => {
+        chosen = next;
+        draw();
+        if (onChange) onChange({ ...chosen });
+      };
+
+      const draw = () => {
+        const figures = el("div", { class: "segmented look-figures", role: "radiogroup", "aria-label": "Figure" },
+          ...data.figures.map((entry) => {
+            const on = entry.key === chosen.figure;
+            const button = el("button", { type: "button", class: on ? "active" : null, role: "radio",
+              "aria-checked": String(on) }, entry.label);
+            button.addEventListener("click", () => {
+              if (on) return;
+              const current = byKey.get(chosen.look);
+              const fits = current && current.figures.includes(entry.key);
+              set({ figure: entry.key, look: fits ? current.key : current ? current.twin : entry.defaultLook });
+            });
+            return button;
+          }));
+
+        const tiles = el("div", { class: "look-grid", role: "radiogroup", "aria-label": "Look" },
+          ...data.looks.filter((entry) => entry.figures.includes(chosen.figure)).map((entry) => {
+            const on = entry.key === chosen.look;
+            const locked = !open(entry);
+            const tile = el("button", {
+              type: "button",
+              class: "look-tile" + (on ? " on" : "") + (locked ? " locked" : ""),
+              role: "radio",
+              "aria-checked": String(on),
+              "aria-disabled": locked ? "true" : null,
+              "data-tip": locked ? "Comes with Animation Workbench Pro" : null,
+            },
+              el("img", { src: (entry.images && entry.images[chosen.figure]) || entry.image, alt: "",
+                width: "72", height: "72", loading: "lazy" }),
+              el("span", { class: "look-name" }, entry.label),
+              locked ? el("span", { class: "look-pro" }, "Pro") : null);
+            tile.addEventListener("click", () => {
+              if (!locked && !on) set({ figure: chosen.figure, look: entry.key });
+            });
+            return tile;
+          }));
+
+        element.replaceChildren(figures, tiles);
+      };
+
+      //  Ein Look, den diese Figur nicht hat (aeltere Daten), wird zu seinem
+      //  Gegenstueck - so, wie der Server ihn ohnehin speichern wuerde.
+      if (kept && !kept.figures.includes(chosen.figure)) chosen = { ...chosen, look: kept.twin };
+      if (!kept) chosen = { ...chosen, look: data.defaultLook };
+      draw();
+    }).catch(() => {
+      element.replaceChildren(el("p", { class: "faint small" }, "The looks could not be loaded. The clip keeps its own."));
+    });
+
+    return { element, value: () => ({ ...chosen }) };
   }
 
   /**
@@ -1637,7 +1750,7 @@ const AW = (() => {
   return {
     api, ApiError, ensureCsrf, me, el, notice, formatDuration, formatDate, formatRelative,
     copyText, param, signInUrl, signInButton, clipCard, collectionCard, packCard, entryCard, packDialog,
-    packCandidates,
+    packCandidates, lookPicker,
     previewObserver,
     icon, iconButton, discordButton, setIconState, popover, closePopover, signInHint, signedIn,
     likeButton, saveButton, collectionDialog, profileHref, releasePreviews,

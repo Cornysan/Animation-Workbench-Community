@@ -67,6 +67,29 @@
   showBlocked();
 
   const clips = await clipsRequest;
+
+  //  Mehrere eigene Clips zu einem Pack - der Dialog (app.js, packDialog) ist
+  //  die Auswahl zum Abhaken. Private stehen darin ausgegraut, mit Grund.
+  if (clips.filter((clip) => clip.status === "PUBLISHED" && clip.rig === "humanoid").length >= 2) {
+    const make = el("button", { class: "button", type: "button" }, AW.icon("pack"), "New pack");
+    make.addEventListener("click", async () => {
+      let candidates;
+      try {
+        candidates = await AW.packCandidates();
+      } catch (e) {
+        toastError(e);
+        return;
+      }
+      const made = await AW.packDialog({ candidates });
+      if (!made) return;
+      toast("Pack created", { kind: "ok" });
+      location.href = "/pack.html?k=" + encodeURIComponent(made.slug);
+    });
+    const actions = document.getElementById("clip-actions");
+    actions.replaceChildren(make);
+    actions.hidden = false;
+  }
+
   const body = document.querySelector("#clips tbody");
   body.replaceChildren(...(clips.length === 0
     ? [el("tr", {}, el("td", { colspan: 6, class: "muted" }, "You have not shared a clip yet."))]
@@ -74,7 +97,9 @@
         //  Privat heisst "nur ich" - hier, wo nur man selbst hinsieht, steht
         //  es dabei, sonst sieht die Liste aus, als waere alles im Katalog.
         el("td", {}, el("a", { href: "/clip.html?p=" + encodeURIComponent(clip.slug) }, clip.title),
-          clip.license === "ARR" ? el("span", { class: "chip", "data-tip": "Only you can see it" }, "Private") : null),
+          clip.license === "ARR" ? el("span", { class: "chip", "data-tip": "Only you can see it" }, "Private") : null,
+          clip.pack ? el("a", { class: "chip", href: "/pack.html?k=" + encodeURIComponent(clip.pack.slug),
+            "data-tip": "In this pack" }, AW.icon("pack"), clip.pack.title) : null),
         el("td", {}, el("span", { class: "status " + clip.status }, clip.status)),
         el("td", {}, clip.version),
         el("td", {}, clip.views),

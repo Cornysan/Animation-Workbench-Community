@@ -176,9 +176,12 @@ async function mountFigureRow(row, activeId, house, remount, withOwn) {
 
 /**
  * Haengt Buehne und Bedienung in `box`. Gibt einen Griff zurueck, der die
- * Buehne wieder abbauen kann; `mode` sagt, was am Ende dort steht.
+ * Buehne wieder abbauen (`destroy`) und umziehen (`dress`) kann; `mode` sagt,
+ * was am Ende dort steht. Der Griff bleibt derselbe, wenn die Buehne fuer eine
+ * andere Figur neu aufgebaut wird (`options.handle`, siehe [rebuild]).
  */
 export async function mountViewer(box, preview, options = {}) {
+  const handle = options.handle || {};
   const canvas = document.createElement('canvas');
   const wrap = document.createElement('div');
   wrap.className = 'stage';
@@ -398,16 +401,39 @@ export async function mountViewer(box, preview, options = {}) {
    * Leinwand gibt ihren WebGL-Kontext nicht wieder her. Der Aufbau ist
    * ohnehin ein Ladevorgang; ihn zu wiederholen ist ehrlicher als einen
    * halben Zustand weiterzureichen.
+   *
+   * Der neue Aufbau fuellt DENSELBEN Griff (`handle`): wer ihn haelt - die
+   * Ausgabe "mit Figur" (clip-download.js), die Upload-Seite - liest danach
+   * die neue Buehne, nicht die abgebaute.
    */
-  const remount = async (nextId, nextHouse) => {
-    rememberFigure(nextId);
+  const rebuild = async (next) => {
     const playing = stage.playing;
     //  Follow bleibt, wie man es gestellt hat - die neue Figur zeigt denselben Clip.
     const follow = stage.cameraFollow;
     destroy();
-    await mountViewer(box, preview, {
-      ...options, figureId: nextId, house: nextHouse || house, autoplay: playing, follow,
-    });
+    await mountViewer(box, preview, { ...next, autoplay: playing, follow, handle });
+  };
+
+  const remount = (nextId, nextHouse) => {
+    rememberFigure(nextId);
+    return rebuild({ ...options, figureId: nextId, house: nextHouse || house });
+  };
+
+  /**
+   * Figur und Look des Clips anziehen - nach dem Bearbeiten auf der
+   * Clip-Seite, beim Hochladen bei jeder Wahl. Ein anderer Look ist nur ein
+   * Materialwechsel; eine andere Figur heisst neu aufbauen. Steht gerade die
+   * eigene Figur des Besuchers da, weicht sie fuer diesen Blick, ohne dass
+   * die gemerkte Wahl verloren geht: gezeigt wird, was alle sehen.
+   */
+  const dress = async (nextHouse, nextLook) => {
+    if (mode !== 'mannequin') return;
+    options = { ...options, house: nextHouse, look: nextLook };
+    if (own || nextHouse !== house) {
+      await rebuild({ ...options, figureId: '' });
+      return;
+    }
+    stage.setLook(nextLook);
   };
 
   if (mode === 'mannequin') {
@@ -477,5 +503,5 @@ export async function mountViewer(box, preview, options = {}) {
 
   document.addEventListener('keydown', onKey);
 
-  return { stage, mode, destroy };
+  return Object.assign(handle, { stage, mode, destroy, dress });
 }

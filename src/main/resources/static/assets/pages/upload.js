@@ -63,6 +63,16 @@ $('tags').append(tags.element);
 $('tags-label').htmlFor = tags.inputId;
 $('tags-label').append(' ', el('span', { class: 'faint small' }, 'up to ' + AWTags.MAX_TAGS));
 
+//  Figur und Look - die Buehne steht hier neben dem Formular und zieht bei
+//  jeder Wahl mit. Pro-Looks sind zu (siehe lookPicker): wer eine Datei
+//  hochlaedt, braucht keine Workbench, also sieht das Portal auch kein Pro.
+const looks = AW.lookPicker({
+  onChange: ({ figure, look }) => {
+    if (viewer) viewer.dress(figure, look).catch((e) => console.warn('[upload] could not dress the stage', e));
+  },
+});
+$('looks').append(looks.element);
+
 if (drop) start();
 
 // ── Anfang ────────────────────────────────────────────────────────────────
@@ -212,7 +222,8 @@ async function rebuild({ fresh = false } = {}) {
 
   viewerBox.replaceChildren(el('div', { class: 'viewer-empty' }, 'Loading the preview…'));
   try {
-    viewer = await mountViewer(viewerBox, built.preview, { autoplay: true });
+    const { figure, look } = looks.value();
+    viewer = await mountViewer(viewerBox, built.preview, { autoplay: true, house: figure, look });
   } catch (e) {
     viewerBox.replaceChildren(el('div', { class: 'viewer-empty' }, 'The preview could not start in this browser.'));
   }
@@ -310,6 +321,8 @@ async function upload() {
     body.append('declarationVersion', String(status ? status.declarationVersion : ''));
     body.append('declarationAccepted', 'true');
     body.append('announce', String(license === PUBLIC && !announceField.hidden && announce.checked));
+    body.append('figure', looks.value().figure);
+    body.append('look', looks.value().look);
 
     await ensureCsrf();
     const clip = await api('POST', '/api/v1/packages', body);

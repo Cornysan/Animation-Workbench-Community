@@ -197,16 +197,40 @@ const CLIP_SCRIPT = document.currentScript ? document.currentScript.src : locati
     //  kommt als neue Fassung aus der Workbench.
     const edit = iconButton({
       name: "edit",
-      tip: "Edit title, description, tags and who can see it",
+      //  Kurz: der unsichtbare Zettel liegt mit voller Breite im Layout, und
+      //  die alte Aufzaehlung machte die Seite auf dem Telefon 443 px breit.
+      //  Was sich aendern laesst, zeigt der Dialog.
+      tip: "Edit this clip",
       onClick: async () => {
+        const before = clip;
         const saved = await editDialog(clip);
         if (!saved) return;
         clip = saved;
         showClip();
         toast("Saved.", { kind: "ok" });
+        if (saved.figure !== before.figure || saved.look !== before.look) redressed();
       },
     });
     bar.append(edit);
+
+    //  In einen Pack - von dort aus, wo man den Clip vor sich hat. Bis
+    //  2026-10-04 ging das nur ueber "New pack" im eigenen Profil, und das
+    //  fand niemand. Ein privater Clip darf nicht hinein (ein Pack steht auf
+    //  der Wand), einer in einem Pack hat oben schon seine Zeile.
+    if (!clip.pack && clip.license === "CC0-1.0" && clip.status === "PUBLISHED" && clip.rig === "humanoid") {
+      const toPack = iconButton({
+        name: "pack",
+        tip: "Add to a pack",
+        onClick: async () => {
+          const pack = await choosePack();
+          if (!pack) return;
+          clip = { ...clip, pack: { slug: pack.slug, title: pack.title } };
+          showClip();
+          toPack.remove();
+        },
+      });
+      bar.append(toPack);
+    }
 
     //  Aus der Workbench ("Edit on the portal") kommt man mit `edit=1` -
     //  dann steht der Dialog gleich offen. Der Parameter geht aus der
@@ -318,8 +342,110 @@ const CLIP_SCRIPT = document.currentScript ? document.currentScript.src : locati
     } catch { /* Nachbarschaft ist Zugabe. */ }
   }
 
+  /**
+   * Figur oder Look haben gewechselt: die Buehne zieht um (clip-viewer.js),
+   * und das Vorschaubild fuer Discord & Co. entsteht neu - der Server hat das
+   * alte beim Speichern verworfen. Derselbe Weg wie beim ersten Laden, oben.
+   */
+  function redressed() {
+    document.dispatchEvent(new CustomEvent("aw:dress", { detail: { figure: clip.figure, look: clip.look } }));
+    if (clip.license !== "CC0-1.0" || clip.rig !== "humanoid" || !clip.hasPreview || clip.status !== "PUBLISHED") return;
+    import(new URL("../og-card.js", CLIP_SCRIPT).href)
+      .then(({ refreshClipCard }) => refreshClipCard(slug, null, { figure: clip.figure, look: clip.look }))
+      .catch((error) => console.warn("[clip] preview image not rendered", error));
+  }
+
+  // ── In einen Pack ────────────────────────────────────────────────────
+  //  Gibt es schon eigene Packs, fragt ein kleiner Dialog, in welchen - oder
+  //  ob ein neuer entsteht. Ohne eigene Packs geht es gleich zum neuen, mit
+  //  diesem Clip schon angehakt. Antwort: der Pack, oder null.
+  async function choosePack() {
+    let mine;
+    try {
+      mine = await api("GET", "/api/v1/me/packs");
+    } catch (e) {
+      toastError(e);
+      return null;
+    }
+
+    const NEW = "";
+    const target = mine.length ? await packChoice(mine, NEW) : NEW;
+    if (target === null) return null;
+
+    if (target === NEW) {
+      let candidates;
+      try {
+        candidates = await AW.packCandidates();
+      } catch (e) {
+        toastError(e);
+        return null;
+      }
+      const made = await AW.packDialog({ candidates, preselect: [slug] });
+      if (made) toast("Pack created", { kind: "ok" });
+      return made;
+    }
+
+    try {
+      await ensureCsrf();
+      const saved = await api("POST", "/api/v1/packs/" + encodeURIComponent(target) + "/clips", { clips: [slug] });
+      toast("Added to “" + saved.title + "”", { kind: "ok" });
+      return saved;
+    } catch (e) {
+      toastError(e);
+      return null;
+    }
+  }
+
+  /** Neuer Pack oder einer der eigenen? Antwort: der Slug, `fresh` fuer neu, null fuer Abbrechen. */
+  function packChoice(mine, fresh) {
+    return new Promise((resolve) => {
+      const option = (value, label, sub, checked) => el("label", {},
+        el("input", { type: "radio", name: "pack", value, checked }),
+        el("span", {}, el("strong", {}, label), sub ? " - " + sub : ""));
+
+      const form = el("form", { method: "dialog" },
+        el("h2", {}, "Add to a pack"),
+        el("fieldset", { class: "choices" },
+          option(fresh, "A new pack", "with this clip and others you pick", true),
+          ...mine.map((pack) => option(pack.slug, pack.title, pack.clips === 1 ? "1 clip" : pack.clips + " clips", false))),
+        el("div", { class: "dialog-actions" },
+          el("button", { value: "cancel", type: "button", class: "ghost" }, "Cancel"),
+          el("button", { value: "next", class: "primary" }, "Continue")));
+
+      const dialog = el("dialog", { class: "sheet" }, form);
+      document.body.append(dialog);
+
+      let done = false;
+      const finish = (result) => {
+        if (done) return;
+        done = true;
+        dialog.close();
+        dialog.remove();
+        resolve(result);
+      };
+
+      form.querySelector('button[value="cancel"]').addEventListener("click", (event) => {
+        event.preventDefault();
+        finish(null);
+      });
+      dialog.addEventListener("cancel", (event) => {
+        event.preventDefault();
+        finish(null);
+      });
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        //  Mindestens zwei Knoepfe (neu + ein eigener Pack): `pack` ist eine
+        //  RadioNodeList, ihr `value` der angehakte.
+        finish(form.elements.pack.value);
+      });
+
+      dialog.showModal();
+      form.querySelector("button.primary").focus();
+    });
+  }
+
   // ── Bearbeiten ───────────────────────────────────────────────────────
-  //  Titel, Beschreibung, Schlagworte und wer ihn sehen darf. Gebaut wie der
+  //  Titel, Beschreibung, Schlagworte, Figur und wer ihn sehen darf. Gebaut wie der
   //  Dialog fuer Sammlungen (collectionDialog in app.js), und aus demselben
   //  Grund schliesst und antwortet EINE Stelle - das `close`-Ereignis feuert
   //  nicht in jedem Browser.
@@ -353,6 +479,11 @@ const CLIP_SCRIPT = document.currentScript ? document.currentScript.src : locati
       };
       title.addEventListener("input", refreshTags);
       description.addEventListener("input", refreshTags);
+
+      //  Figur und Look (app.js, lookPicker). Ein generischer Clip laeuft
+      //  auf seinem eigenen Skelett, nicht auf dem Mannequin - fuer ihn gibt
+      //  es nichts zu waehlen.
+      const looks = current.rig === "humanoid" ? AW.lookPicker({ figure: current.figure, look: current.look }) : null;
 
       const publicChoice = el("input", { type: "radio", name: "visibility", value: PUBLIC, checked: wasPublic });
       const privateChoice = el("input", { type: "radio", name: "visibility", value: PRIVATE, checked: !wasPublic });
@@ -394,6 +525,7 @@ const CLIP_SCRIPT = document.currentScript ? document.currentScript.src : locati
           el("label", { class: "field-label", for: tags.inputId },
             "Tags ", el("span", { class: "faint small" }, "up to " + AWTags.MAX_TAGS)),
           tags.element),
+        looks ? el("div", { class: "field" }, el("span", { class: "field-label" }, "Figure"), looks.element) : null,
         el("fieldset", { class: "choices" },
           el("legend", {}, "Who can see it"),
           el("label", {}, publicChoice,
@@ -451,6 +583,9 @@ const CLIP_SCRIPT = document.currentScript ? document.currentScript.src : locati
             declarationAccepted: goingPublic && declared.checked,
             declarationText: declaration ? declaration.declarationText : null,
             declarationVersion: declaration ? declaration.declarationVersion : null,
+            //  Ohne Auswahl null - dann bleibt, was der Clip traegt.
+            figure: looks ? looks.value().figure : null,
+            look: looks ? looks.value().look : null,
           }));
         } catch (e) {
           notice(error, e.message, "error");
