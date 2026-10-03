@@ -197,8 +197,8 @@ der Workbench gar nicht (`/api/v1/status`, `clipRequests`).
 
 Gepostet wird sofort. Wer dasselbe sucht, solange ein Wunsch offen ist (30
 Tage), bekommt dessen Thread statt eines neuen; drei Wuensche je Konto und Tag.
-„Take it back" und gesperrte oder geschlossene Konten loeschen den Post
-innerhalb einer Minute, der leere Thread bleibt.
+„Take it back" loescht den Post sofort, gesperrte oder geschlossene Konten
+innerhalb einer Minute; der leere Thread bleibt.
 
 ## Zurueckfallen
 

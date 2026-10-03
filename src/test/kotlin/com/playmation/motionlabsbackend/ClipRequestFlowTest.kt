@@ -55,6 +55,9 @@ class ClipRequestFlowTest {
         val posted = CopyOnWriteArrayList<ClipRequestMessage>()
         val deleted = CopyOnWriteArrayList<String>()
 
+        /** Solange gesetzt, lehnt "Discord" jedes Loeschen ab. */
+        @Volatile var refuseDeletes = false
+
         override fun post(message: ClipRequestMessage): ShowcasePosted {
             posted += message
             return ShowcasePosted("m" + posted.size, (700000 + posted.size).toString())
@@ -63,6 +66,7 @@ class ClipRequestFlowTest {
         override fun guildId() = GUILD
 
         override fun delete(messageId: String, threadId: String?): Boolean {
+            if (refuseDeletes) return false
             deleted += messageId
             return true
         }
@@ -205,18 +209,39 @@ class ClipRequestFlowTest {
         mvc.delete("/api/v1/requests/$id") { header("Authorization", "Bearer $stranger") }
             .andExpect { status { isNotFound() } }
 
+        val messageId = "m" + (channel.posted.indexOfFirst { it.title == "Looking for: $phrase" } + 1)
         mvc.delete("/api/v1/requests/$id") { header("Authorization", "Bearer $token") }
             .andExpect { status { isOk() } }
         assertNull(find(token, phrase), "a request taken back is no longer open")
+        assertEquals(1, channel.deleted.count { it == messageId }, "the post goes at once, not in the next tick")
 
-        val messageId = "m" + (channel.posted.indexOfFirst { it.title == "Looking for: $phrase" } + 1)
         requests.runOnce(Instant.now())
-        requests.runOnce(Instant.now())
-        assertEquals(1, channel.deleted.count { it == messageId }, "deleted once, not on every tick")
+        assertEquals(1, channel.deleted.count { it == messageId }, "deleted once, not again by the tick")
 
         //  Danach darf jemand anders neu fragen.
         ask(stranger, phrase).andExpect { status { isCreated() } }
         assertEquals(2, postsTitled(phrase).size)
+    }
+
+    @Test
+    fun `when Discord refuses, the tick deletes it later`() {
+        val token = login("later-" + unique())
+        val phrase = phrase()
+        val id = ask(token, phrase).andExpect { status { isCreated() } }.body()["request"]["id"].asString()
+        val messageId = "m" + (channel.posted.indexOfFirst { it.title == "Looking for: $phrase" } + 1)
+
+        channel.refuseDeletes = true
+        try {
+            mvc.delete("/api/v1/requests/$id") { header("Authorization", "Bearer $token") }
+                .andExpect { status { isOk() } }
+            assertNull(find(token, phrase), "taken back even though Discord said no")
+            assertFalse(messageId in channel.deleted)
+        } finally {
+            channel.refuseDeletes = false
+        }
+
+        requests.runOnce(Instant.now())
+        assertTrue(messageId in channel.deleted, "the tick deletes what the request could not")
     }
 
     @Test

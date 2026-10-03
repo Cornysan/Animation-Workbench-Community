@@ -35,7 +35,7 @@ class ClipRequest(
     var messageId: String,
     var threadId: String? = null,
 
-    /** "Take it back" - der Takt loescht den Post. */
+    /** "Take it back" - geloescht wird sofort, und scheitert das, im Takt. */
     var retractWanted: Boolean = false,
     var retractedAt: Instant? = null,
     var attempts: Int = 0,

@@ -45,9 +45,9 @@ import java.util.UUID
  * Markdown noch Links noch Erwaehnungen; der Webhook postet mit dem Namen des
  * Portals. Mit Haekchen dazu Name und Bild des Kontos, wie im Schaufenster.
  *
- * WAS VERSCHWINDET: was zurueckgenommen wird ([takeBack]) und alles von
- * gesperrten oder geschlossenen Konten - der Takt loescht den Post. Der Thread
- * bleibt, ein Webhook darf keine Threads loeschen.
+ * WAS VERSCHWINDET: was zurueckgenommen wird ([takeBack]), sofort, und alles
+ * von gesperrten oder geschlossenen Konten im Takt. Der Thread bleibt, ein
+ * Webhook darf keine Threads loeschen.
  */
 @Service
 class ClipRequestService(
@@ -151,7 +151,16 @@ class ClipRequestService(
         return AskResult(view(row, principal), existing = false)
     }
 
-    /** "Take it back" - der Takt loescht den Post innerhalb einer Minute. */
+    /**
+     * "Take it back" - der Post geht SOFORT, nicht erst im Takt. Wer
+     * zuruecknimmt, schaut gleich auf Discord nach, und bis 2026-10-03 stand
+     * er dort dann noch bis zu einer Minute lang. Ohne Transaktion um den
+     * Aufruf, wie beim Fragen.
+     *
+     * Erst markieren, dann loeschen: lehnt Discord ab oder antwortet nicht,
+     * ist der Wunsch trotzdem schon zurueckgenommen, und der Takt versucht es
+     * weiter ([runOnce]).
+     */
     fun takeBack(principal: PortalPrincipal, id: UUID) {
         val row = requests.findById(id).orElse(null)
         if (row == null || (row.accountId != principal.accountId && !principal.isAdmin))
@@ -159,6 +168,11 @@ class ClipRequestService(
         if (row.retractWanted || row.retractedAt != null) return
         row.retractWanted = true
         requests.save(row)
+
+        if (enabled && channel.delete(row.messageId, row.threadId)) {
+            row.retractedAt = clock.instant()
+            requests.save(row)
+        }
     }
 
     // ════════════════════════════════════════════════════════════════════
