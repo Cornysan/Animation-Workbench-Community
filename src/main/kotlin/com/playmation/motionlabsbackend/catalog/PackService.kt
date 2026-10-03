@@ -188,6 +188,10 @@ class PackService(
 
         val shown = shownClipsOf(candidates)
         val authors = authorsOf(candidates)
+        //  Die Wand (CatalogWall) holt ihre Packs HIER, nicht ueber
+        //  summaries - bis 2026-10-03 trugen Pack-Karten auf der Wand darum
+        //  keinen Thread, auf der Pack-Seite schon.
+        val threads = discussion.forPacks(candidates.map { it.id })
 
         return candidates.mapNotNull { pack ->
             val clips = shown[pack.id].orEmpty()
@@ -199,7 +203,7 @@ class PackService(
                 !pack.description.lowercase().contains(term) && tags.none { it.contains(term) })
                 return@mapNotNull null
 
-            summarize(pack, clips, authors[pack.ownerId], principal)
+            summarize(pack, clips, authors[pack.ownerId], principal).copy(discordUrl = threads[pack.id])
         }
     }
 

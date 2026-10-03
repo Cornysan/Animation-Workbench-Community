@@ -211,12 +211,12 @@ class ShowcaseFlowTest {
             upload(token, "Bow Release $word", announce = false, notify = false),
         )
         val title = "Longbow Pack $word"
-        mvc.post("/api/v1/packs") {
+        val slug = mvc.post("/api/v1/packs") {
             contentType = MediaType.APPLICATION_JSON
             content = json.writeValueAsString(mapOf("title" to title, "description" to "", "clips" to clips,
                 "announce" to true))
             header("Authorization", "Bearer $token")
-        }.andExpect { status { isCreated() } }
+        }.andExpect { status { isCreated() } }.body()["slug"].asString()
 
         showcase.runOnce(later())
         val post = postsTitled(title).single()
@@ -224,6 +224,14 @@ class ShowcaseFlowTest {
         assertTrue(post.url.contains("/pack.html?k="))
         assertTrue(post.footer.startsWith("2 clips"))
         assertTrue(channel.posted.none { it.title.startsWith("Bow Draw $word") }, "the clips do not post on their own")
+
+        //  Die Pack-Karte auf der Wand traegt denselben Thread wie die Pack-Seite
+        //  - die Wand holt Packs auf einem eigenen Weg (PackService.matching).
+        val url = mvc.get("/api/v1/packs/$slug").andExpect { status { isOk() } }.body()["discordUrl"].asString()
+        assertTrue(url.startsWith("https://discord.com/channels/$GUILD/"))
+        val card = mvc.get("/api/v1/catalog") { param("q", "Longbow Pack $word") }
+            .andExpect { status { isOk() } }.body()["items"].first { it["kind"].asString() == "pack" }
+        assertEquals(url, card["pack"]["discordUrl"].asString())
     }
 
     /**
