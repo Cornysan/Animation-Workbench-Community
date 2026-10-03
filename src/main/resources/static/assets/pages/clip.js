@@ -144,7 +144,9 @@ const CLIP_SCRIPT = document.currentScript ? document.currentScript.src : locati
     document.getElementById("facts").replaceChildren(
       el("dt", {}, "Duration"), el("dd", {}, formatDuration(clip.durationSeconds)),
       el("dt", {}, "Frame rate"), el("dd", {}, Math.round(clip.frameRate) + " fps"),
-      el("dt", {}, "Curves"), el("dd", {}, clip.curveCount),
+      //  Ein Clip aus einer hochgeladenen Datei hat keine Kurven - die backt
+      //  erst die Workbench beim Import (Format 2). "0" saehe kaputt aus.
+      ...(clip.curveCount > 0 ? [el("dt", {}, "Curves"), el("dd", {}, clip.curveCount)] : []),
       el("dt", {}, "Rig"), el("dd", {}, clip.rig === "generic" ? "Generic" : "Humanoid"),
       el("dt", {}, "Version"), el("dd", {}, clip.version),
       //  Die Lizenz steht nicht mehr auf der Seite: jeder oeffentliche Clip hat

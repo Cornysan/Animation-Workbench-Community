@@ -113,8 +113,12 @@ const TPOSE_DIRECTION = {
   down: new Vector3(0, -1, 0),
 };
 
-/** `mixamorig:Hips`, `mixamorig1:Hips`, `mixamorig_Hips`. */
-const MIXAMO = /^mixamorig\d*[:_]/i;
+/**
+ * `mixamorig:Hips`, `mixamorig1:Hips`, `mixamorig_Hips` - und so, wie die
+ * Lader sie hinterlassen: three.js wirft den Doppelpunkt aus Knotennamen,
+ * aus `mixamorig:Hips` wird `mixamorigHips`. Darum nur der Anfang.
+ */
+const MIXAMO = /^mixamorig/i;
 
 /** three.js' Regel fuer Knotennamen in Animationsspuren (`PropertyBinding.sanitizeNodeName`). */
 const sanitize = (name) => String(name || '').replace(/\s/g, '_').replace(/[[\]./:]/g, '');
