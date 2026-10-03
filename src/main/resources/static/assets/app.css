@@ -2161,6 +2161,9 @@ dialog.sheet form > p:last-of-type { margin-bottom: 20px; }
 /* Hochladen aus einer Datei (upload.html): Buehne links, Formular rechts -
    dieselbe Aufteilung wie die Clip-Seite, damit man sieht, was man teilt. */
 .upload-layout { margin-top: 8px; }
+/* `hidden` verliert sonst gegen `.clip-layout` und `label.field` - das Feld fuer
+   eine einzige Animation und das Discord-Haekchen standen trotzdem da. */
+.upload-layout[hidden], .upload-form [hidden] { display: none; }
 .upload-bones { margin-top: 14px; }
 .upload-bones .notice p { margin: 0 0 8px; }
 .upload-bones .notice button { margin-top: 4px; }
