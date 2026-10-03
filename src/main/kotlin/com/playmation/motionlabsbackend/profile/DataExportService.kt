@@ -23,6 +23,7 @@ import com.playmation.motionlabsbackend.messages.BlockService
 import com.playmation.motionlabsbackend.messages.MessageService
 import com.playmation.motionlabsbackend.moderation.ReportRepository
 import com.playmation.motionlabsbackend.notification.Notifier
+import com.playmation.motionlabsbackend.requests.ClipRequestRepository
 import com.playmation.motionlabsbackend.showcase.ShowcasePostRepository
 import com.playmation.motionlabsbackend.storage.BlobStore
 import com.playmation.motionlabsbackend.system.AuditService
@@ -76,6 +77,7 @@ class DataExportService(
     private val unlocks: PackageUnlockRepository,
     private val reports: ReportRepository,
     private val showcase: ShowcasePostRepository,
+    private val clipRequests: ClipRequestRepository,
     private val notifier: Notifier,
     private val messages: MessageService,
     private val blocks: BlockService,
@@ -138,6 +140,10 @@ class DataExportService(
     data class ShowcasePart(val clip: String?, val pack: String?, val requestedAt: Instant,
                             val postedToDiscordAt: Instant?, val removedFromDiscordAt: Instant?)
 
+    /** Ein Clip-Wunsch im Discord-Forum ("Ask for it on Discord"). */
+    data class ClipRequestPart(val searchedFor: String, val withYourName: Boolean, val postedToDiscordAt: Instant,
+                               val removedFromDiscordAt: Instant?)
+
     data class Export(
         val format: String,
         val formatVersion: Int,
@@ -159,6 +165,7 @@ class DataExportService(
         val workbenchSignIns: List<SessionPart>,
         val browserSignIns: List<SessionPart>,
         val discordShowcase: List<ShowcasePart>,
+        val clipRequests: List<ClipRequestPart>,
         val directMessages: List<MessageService.ExportedConversation>,
         val blocked: List<PersonRef>,
     )
@@ -277,6 +284,9 @@ class DataExportService(
                 ShowcasePart(post.packageId?.let { clipsById[it]?.slug }, post.packId?.let { packSlugs[it] },
                     post.requestedAt, post.postedAt, post.retractedAt)
             },
+            clipRequests = clipRequests.findByAccountIdOrderByAskedAtAsc(account.id).map {
+                ClipRequestPart(it.phrase, it.named, it.askedAt, it.retractedAt)
+            },
             directMessages = messages.export(account.id),
             blocked = blocks.mine(principal).map { PersonRef(it.handle, it.displayName, it.since) },
         )
@@ -351,7 +361,8 @@ class DataExportService(
                     comments, likes, who you follow and who follows you, the clips you
                     took, reports you filed, the upload declarations you accepted, your
                     notifications, your Workbench and browser sign-ins, which of
-                    your clips were posted to our Discord, your direct messages
+                    your clips were posted to our Discord, the clips you asked for
+                    there, your direct messages
                     (everything still stored, including conversations you cleared
                     for yourself - the other person keeps their copy) and who you
                     blocked.

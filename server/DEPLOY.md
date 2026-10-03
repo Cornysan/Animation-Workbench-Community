@@ -178,6 +178,28 @@ Minuten mit dem Bild der Seite. Verschwindet der Clip (zurueckgezogen, privat,
 von der Moderation versteckt), loescht der Dienst den Post wieder; der leere
 Thread bleibt stehen, weil ein Webhook keine Threads loeschen darf.
 
+## Clip-Wuensche (seit Schema 24)
+
+Findet eine Suche in der Workbench nichts, kann man den Suchtext mit „Ask for
+it on Discord" in ein eigenes Forum stellen. Ohne Webhook gibt es den Knopf in
+der Workbench gar nicht (`/api/v1/status`, `clipRequests`).
+
+1. In Discord einen zweiten **Forum-Kanal** anlegen (etwa `#clip-requests`),
+   dort einen Webhook erstellen. Nicht das Schaufenster - dort stehen fertige
+   Clips.
+2. In die `.env` auf dem Server:
+   ```
+   PORTAL_REQUESTS_WEBHOOK=https://discord.com/api/webhooks/<id>/<token>
+   ```
+   Verlangt das Forum Tags, zusaetzlich `PORTAL_REQUESTS_TAGS=<tag-id>`.
+3. `docker-compose.yml` aus dem Repo auf den Server kopieren (die zwei
+   Variablen stehen erst ab Schema 24 darin), dann `docker compose up -d`.
+
+Gepostet wird sofort. Wer dasselbe sucht, solange ein Wunsch offen ist (30
+Tage), bekommt dessen Thread statt eines neuen; drei Wuensche je Konto und Tag.
+„Take it back" und gesperrte oder geschlossene Konten loeschen den Post
+innerhalb einer Minute, der leere Thread bleibt.
+
 ## Zurueckfallen
 
 Jede Fassung liegt als eigene Marke im Registry. In der `.env`:

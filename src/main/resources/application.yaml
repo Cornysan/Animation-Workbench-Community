@@ -130,6 +130,12 @@ portal:
     forum-tags: ${PORTAL_SHOWCASE_TAGS:}
     # Leer = der Server fragt den Webhook selbst danach (ShowcaseLinks).
     discord-guild-id: ${PORTAL_SHOWCASE_GUILD_ID:}
+  # Clip-Wuensche aus einer leeren Suche in der Workbench, in einem eigenen
+  # Forum (requests/ClipRequestService.kt). Leer = gibt es nicht.
+  requests:
+    discord-webhook-url: ${PORTAL_REQUESTS_WEBHOOK:}
+    forum-tags: ${PORTAL_REQUESTS_TAGS:}
+    discord-guild-id: ${PORTAL_REQUESTS_GUILD_ID:}
 ---
 spring:
   config:

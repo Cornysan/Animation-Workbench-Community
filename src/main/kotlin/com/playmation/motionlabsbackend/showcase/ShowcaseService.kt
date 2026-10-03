@@ -17,11 +17,7 @@ import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import org.springframework.stereotype.Service
 import tools.jackson.databind.json.JsonMapper
-import java.net.URI
 import java.net.URLEncoder
-import java.net.http.HttpClient
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
@@ -320,80 +316,19 @@ interface ShowcaseChannel {
 }
 
 /**
- * Discord ueber einen Webhook. Zeigt er auf einen Forum-Kanal, wird jeder
- * Post ein eigener Thread (`thread_name`); zeigt er auf einen Textkanal,
- * antwortet Discord darauf mit Code 220003, und der Post geht ohne
- * Thread-Felder noch einmal hinaus. Derselbe Weg wie beim Feedback-Dienst.
+ * Discord ueber einen Webhook ([DiscordWebhook]). Zeigt er auf einen
+ * Forum-Kanal, wird jeder Post ein eigener Thread (`thread_name`).
  */
 @Component
 class DiscordShowcaseChannel(private val properties: PortalProperties) : ShowcaseChannel {
-    private val log = LoggerFactory.getLogger(javaClass)
-    private val http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build()
+    private val hook = DiscordWebhook("Showcase") { properties.showcase.discordWebhookUrl }
     private val json = JsonMapper.builder().build()
 
-    private val webhook get() = properties.showcase.discordWebhookUrl.trim().substringBefore('?')
+    override fun post(message: ShowcaseMessage): ShowcasePosted? = hook.post { asThread -> payload(message, asThread) }
 
-    override fun post(message: ShowcaseMessage): ShowcasePosted? = try {
-        val forum = send(payload(message, asThread = true))
-        when {
-            forum.statusCode() in 200..299 -> posted(forum.body(), asThread = true)
-            forum.statusCode() == 400 && discordCode(forum.body()) == 220003 -> {
-                val plain = send(payload(message, asThread = false))
-                if (plain.statusCode() in 200..299) posted(plain.body(), asThread = false)
-                else null.also { log.warn("Showcase post failed: HTTP {} {}", plain.statusCode(), plain.body().take(300)) }
-            }
-            else -> null.also { log.warn("Showcase post failed: HTTP {} {}", forum.statusCode(), forum.body().take(300)) }
-        }
-    } catch (ex: Exception) {
-        log.warn("Showcase post failed: {}", ex.message)
-        null
-    }
+    override fun delete(messageId: String, threadId: String?): Boolean = hook.delete(messageId, threadId)
 
-    override fun delete(messageId: String, threadId: String?): Boolean = try {
-        val url = "$webhook/messages/$messageId" + (threadId?.let { "?thread_id=$it" } ?: "")
-        val request = HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(10)).DELETE().build()
-        val status = http.send(request, HttpResponse.BodyHandlers.discarding()).statusCode()
-        //  404: schon von Hand geloescht - auch gut.
-        (status in 200..299 || status == 404).also { if (!it) log.warn("Showcase delete failed: HTTP {}", status) }
-    } catch (ex: Exception) {
-        log.warn("Showcase delete failed: {}", ex.message)
-        false
-    }
-
-    /**
-     * Ein GET auf den Webhook selbst liefert ihn als Objekt, samt `guild_id`.
-     * Kostet nichts, darf aber dauern - deshalb nur aus dem Takt.
-     */
-    override fun guildId(): String? = try {
-        val request = HttpRequest.newBuilder(URI.create(webhook)).timeout(Duration.ofSeconds(10)).GET().build()
-        val response = http.send(request, HttpResponse.BodyHandlers.ofString())
-        if (response.statusCode() in 200..299) json.readTree(response.body()).path("guild_id").asString("").ifEmpty { null }
-        else null.also { log.warn("Showcase: reading the webhook failed: HTTP {}", response.statusCode()) }
-    } catch (ex: Exception) {
-        log.warn("Showcase: reading the webhook failed: {}", ex.message)
-        null
-    }
-
-    private fun send(body: String): HttpResponse<String> {
-        val request = HttpRequest.newBuilder(URI.create("$webhook?wait=true"))
-            .timeout(Duration.ofSeconds(10))
-            .header("Content-Type", "application/json")
-            .POST(HttpRequest.BodyPublishers.ofString(body))
-            .build()
-        return http.send(request, HttpResponse.BodyHandlers.ofString())
-    }
-
-    private fun posted(body: String, asThread: Boolean): ShowcasePosted? {
-        val node = json.readTree(body)
-        val id = node.path("id").asString("").ifEmpty { return null }
-        return ShowcasePosted(id, if (asThread) node.path("channel_id").asString("").ifEmpty { null } else null)
-    }
-
-    private fun discordCode(body: String): Int? = try {
-        json.readTree(body).path("code").takeIf { it.isNumber }?.asInt()
-    } catch (ex: Exception) {
-        null
-    }
+    override fun guildId(): String? = hook.guildId()
 
     internal fun payload(message: ShowcaseMessage, asThread: Boolean): String {
         val embed = linkedMapOf<String, Any>(

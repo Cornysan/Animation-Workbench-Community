@@ -112,6 +112,9 @@ services:
       # Discord-Schaufenster fuer neue Clips (Webhook eines Forum-Kanals).
       PORTAL_SHOWCASE_WEBHOOK: ${PORTAL_SHOWCASE_WEBHOOK:-}
       PORTAL_SHOWCASE_TAGS: ${PORTAL_SHOWCASE_TAGS:-}
+      # Clip-Wuensche aus einer leeren Suche (eigenes Forum, Schema 24).
+      PORTAL_REQUESTS_WEBHOOK: ${PORTAL_REQUESTS_WEBHOOK:-}
+      PORTAL_REQUESTS_TAGS: ${PORTAL_REQUESTS_TAGS:-}
       MAIL_HOST: ${MAIL_HOST:-}
       MAIL_PORT: ${MAIL_PORT:-587}
       MAIL_USER: ${MAIL_USER:-}

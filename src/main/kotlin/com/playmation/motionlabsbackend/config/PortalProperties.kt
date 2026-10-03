@@ -46,6 +46,7 @@ data class PortalProperties(
     val betaUntil: java.time.Instant? = null,
     val alerts: Alerts = Alerts(),
     val showcase: Showcase = Showcase(),
+    val requests: Requests = Requests(),
     val limits: Limits = Limits(),
     val comments: Comments = Comments(),
     val messages: Messages = Messages(),
@@ -78,6 +79,26 @@ data class PortalProperties(
          * (`showcase/ShowcaseLinks.kt`). Leer = beim Webhook erfragen.
          */
         val discordGuildId: String = "",
+    )
+
+    /**
+     * "Ask for it on Discord": Clip-Wuensche aus einer leeren Suche - siehe
+     * `requests/ClipRequestService.kt`. Ohne Webhook gibt es sie nicht: die
+     * Workbench bietet den Knopf dann gar nicht erst an (`/api/v1/status`,
+     * `clipRequests`).
+     */
+    data class Requests(
+        /** Ein eigenes Forum, nicht das Schaufenster: dort stehen fertige Clips. */
+        val discordWebhookUrl: String = "",
+        /** Kennungen von Forum-Tags, komma-getrennt - noetig, wenn das Forum Tags verlangt. */
+        val forumTags: String = "",
+        /** Leer = die des Schaufensters, und ist auch die leer, beim Webhook erfragen. */
+        val discordGuildId: String = "",
+        /** Wuensche je Konto und Tag. Wer etwas schon Gewuenschtes sucht, zaehlt nicht. */
+        val perDay: Int = 3,
+        /** So lange gilt ein Wunsch als offen - wer danach dasselbe sucht, fragt neu. */
+        val openDays: Long = 30,
+        val maxLength: Int = 60,
     )
 
     /** Pro Zeitfenster; die Fenster stehen an den Namen. */

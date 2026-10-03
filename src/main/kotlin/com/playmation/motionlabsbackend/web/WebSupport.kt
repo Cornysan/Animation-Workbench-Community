@@ -75,6 +75,12 @@ class StatusController(
          */
         val discordShowcase: Boolean,
         /**
+         * Ob es das Forum fuer Clip-Wuensche gibt - nur dann bietet die leere
+         * Suche der Workbench "Ask for it on Discord" an (Schema 24, siehe
+         * [com.playmation.motionlabsbackend.requests.ClipRequestService]).
+         */
+        val clipRequests: Boolean,
+        /**
          * Ob dieser Server Direktnachrichten kann (Schema 23, `messages/`).
          * Die Workbench zeigt ihr Postfach nur dann - so kann sie es schon
          * mitbringen, bevor der Server ausgerollt ist, ohne ins Leere zu fragen.
@@ -95,6 +101,7 @@ class StatusController(
         build = BuildInfo(build.number, build.commit, build.time),
         restPoseWanted = true,
         discordShowcase = portal.showcase.discordWebhookUrl.isNotBlank() && settings.uploadsEnabled(),
+        clipRequests = portal.requests.discordWebhookUrl.isNotBlank(),
         directMessages = true,
     )
 
