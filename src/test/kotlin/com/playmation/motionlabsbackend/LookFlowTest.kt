@@ -103,24 +103,24 @@ class LookFlowTest {
 
     // ── Tests ───────────────────────────────────────────────────────────
 
-    /** Die Auswahl zeigt auch ohne Konto alles, was es gibt - und was Pro ist. */
+    /**
+     * Die Auswahl zeigt auch ohne Konto alles, was es gibt - und nichts davon
+     * ist gesperrt: seit 2026-10-04 traegt jede Ausgabe jeden Look.
+     */
     @Test
-    fun `the looks are public and say which are pro`() {
+    fun `the looks are public and none is locked`() {
         val view = looks()
 
         assertEquals(listOf("default", "female"), view["figures"].map { it["key"].asString() })
         assertEquals(listOf("classic", "classic"), view["figures"].map { it["defaultLook"].asString() })
         assertEquals("classic", view["defaultLook"].asString())
 
-        //  Lite: die zwei gemeinsamen und je Figur einer - Mint beim Mann, Blush bei der Frau.
-        val lite = view["looks"].filter { !it["pro"].asBoolean() }.map { it["key"].asString() }
-        assertEquals(listOf("classic", "graphite", "mint", "blush"), lite)
         assertEquals(18, view["looks"].size())
+        assertTrue(view["looks"].none { it.has("pro") }, "no look says it is Pro")
         for (gone in listOf("coral", "crimson", "noir"))
             assertFalse(view["looks"].any { it["key"].asString() == gone }, gone)
 
         val galaxy = look(view, "galaxy")
-        assertTrue(galaxy["pro"].asBoolean())
         assertFalse(galaxy.has("unlocked"))
         assertEquals("default", galaxy["figure"].asString())
         assertEquals("nebula", galaxy["twin"].asString())

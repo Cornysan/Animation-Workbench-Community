@@ -1510,14 +1510,10 @@ const AW = (() => {
    * Hochladen aus einer Datei. Dieselbe Wahl wie beim Teilen in der Workbench
    * (`AWCommunityLooks`): oben die Figur, darunter ihre Looks als Bilder.
    * Wechselt die Figur, wird der Look zu seinem Gegenstueck (Gold -> Rose
-   * Gold), wie in Unity und auf dem Server (`FigureLooks.kt`).
-   *
-   * PRO-LOOKS SIND HIER ZU. Das Portal sieht keine Lizenz; offen bekaeme jeder
-   * sie, der eine Datei hochlaedt, auch ohne Workbench. Sie stehen trotzdem
-   * da, mit "Pro": wer sie sieht, weiss, wo es sie gibt. Ausnahme ist der
-   * Look, den der Clip schon traegt, und sein Gegenstueck - gewaehlt in der
-   * Workbench mit Pro; ihn beim Bearbeiten wegzunehmen hiesse, diese Wahl
-   * rueckgaengig zu machen.
+   * Gold), wie in Unity und auf dem Server (`FigureLooks.kt`). Jeder Look ist
+   * fuer jeden waehlbar: die Pro-Sperre, die hier vom 2026-10-04 an einen
+   * halben Tag stand, lief anders als die in Unity - Pablo hat sie ueberall
+   * gestrichen.
    *
    * @param figure / look  die geltende Wahl
    * @param onChange       ({ figure, look }) nach jedem Wechsel
@@ -1530,7 +1526,6 @@ const AW = (() => {
     looksRequest().then((data) => {
       const byKey = new Map(data.looks.map((entry) => [entry.key, entry]));
       const kept = byKey.get(look);
-      const open = (entry) => !entry.pro || entry.key === look || (kept && entry.key === kept.twin);
 
       const set = (next) => {
         chosen = next;
@@ -1556,21 +1551,17 @@ const AW = (() => {
         const tiles = el("div", { class: "look-grid", role: "radiogroup", "aria-label": "Look" },
           ...data.looks.filter((entry) => entry.figures.includes(chosen.figure)).map((entry) => {
             const on = entry.key === chosen.look;
-            const locked = !open(entry);
             const tile = el("button", {
               type: "button",
-              class: "look-tile" + (on ? " on" : "") + (locked ? " locked" : ""),
+              class: "look-tile" + (on ? " on" : ""),
               role: "radio",
               "aria-checked": String(on),
-              "aria-disabled": locked ? "true" : null,
-              "data-tip": locked ? "Comes with Animation Workbench Pro" : null,
             },
               el("img", { src: (entry.images && entry.images[chosen.figure]) || entry.image, alt: "",
                 width: "72", height: "72", loading: "lazy" }),
-              el("span", { class: "look-name" }, entry.label),
-              locked ? el("span", { class: "look-pro" }, "Pro") : null);
+              el("span", { class: "look-name" }, entry.label));
             tile.addEventListener("click", () => {
-              if (!locked && !on) set({ figure: chosen.figure, look: entry.key });
+              if (!on) set({ figure: chosen.figure, look: entry.key });
             });
             return tile;
           }));

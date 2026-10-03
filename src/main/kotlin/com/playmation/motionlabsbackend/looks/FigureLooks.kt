@@ -11,10 +11,9 @@ import org.springframework.web.bind.annotation.RestController
  * Figur und Look eines Clips - wie das Mannequin aussieht, das ALLE auf Karte,
  * Clip-Seite und Link-Vorschau sehen.
  *
- * Der Ersteller waehlt beides beim Teilen (in der Workbench) und kann es
- * spaeter aendern. Die Figur ist frei; in Animation Workbench Lite traegt
- * sie Classic, Graphite und Mint bzw. Blush ([LITE_LOOKS]), alle anderen
- * Looks kommen mit Pro ([Look.pro]).
+ * Der Ersteller waehlt beides beim Teilen (in der Workbench oder beim
+ * Hochladen hier) und kann es spaeter aendern. Figur und Look sind frei, in
+ * Lite wie in Pro.
  *
  * ── Jede Figur hat ihre eigenen Looks ───────────────────────────────────
  *
@@ -26,14 +25,12 @@ import org.springframework.web.bind.annotation.RestController
  * der Clip das Gegenstueck ([FigureLooks.lookFor]), statt dass die Anfrage
  * scheitert.
  *
- * ── Wer die Grenze zieht ────────────────────────────────────────────────
+ * ── Keine Grenze mehr ───────────────────────────────────────────────────
  *
- * Die WORKBENCH, nicht dieses Portal. Pro wird im Asset Store gekauft, eine
- * Lizenz sieht das Portal nie - es kann Lite und Pro nicht unterscheiden und
- * versucht es auch nicht. Es sagt nur, welcher Look Pro ist; die Auswahl in
- * Unity sperrt ihn in Lite. Wer die Anfrage von Hand baut, kommt an der
- * Sperre vorbei - dieselbe weiche Tuer wie bei den anderen Pro-Grenzen, und
- * fuer eine Farbe am Mannequin kein Grund, eine Lizenzpruefung zu bauen.
+ * Bis 2026-10-04 waren die meisten Looks Pro. Gesperrt hat nur die
+ * Workbench - das Portal sieht keine Lizenz -, und im Web musste eine eigene
+ * Sperre her, die anders lief als die in Unity. Pablo: auseinander. Seitdem
+ * traegt jede Ausgabe jeden Look, und `pro` ist aus der Antwort verschwunden.
  *
  * Verkauft wird hier nach wie vor nichts: bezahlt wird im Asset Store fuer
  * die Workbench, das Portal bleibt eine kostenlose Community.
@@ -48,13 +45,6 @@ object FigureLooks {
     /** Der Standard beider Figuren. */
     const val DEFAULT_LOOK = "classic"
 
-    /**
-     * Die Looks in Lite: die zwei gemeinsamen und je Figur ein eigener, Mint
-     * beim Mann, Blush bei der Frau. Dieselbe Liste steht in der Workbench
-     * (`AWMannequinLooks._liteLooks`) - dort wird sie gezogen, hier nur gemeldet.
-     */
-    val LITE_LOOKS = setOf(DEFAULT_LOOK, "graphite", "mint", "blush")
-
     /** [defaultLook] = was die Figur ohne Wahl traegt. */
     data class Figure(val key: String, val label: String, val defaultLook: String = DEFAULT_LOOK)
 
@@ -67,9 +57,9 @@ object FigureLooks {
     /**
      * [figures] = wer ihn tragen kann: beide (Classic, Graphite) oder eine.
      * [twin] = das Gegenstueck bei der anderen Figur; ein gemeinsamer Look ist
-     * sein eigenes. [pro] = nur mit Animation Workbench Pro waehlbar.
+     * sein eigenes.
      */
-    data class Look(val key: String, val label: String, val figures: List<String>, val twin: String, val pro: Boolean) {
+    data class Look(val key: String, val label: String, val figures: List<String>, val twin: String) {
         val shared: Boolean get() = figures.size > 1
     }
 
@@ -99,11 +89,9 @@ object FigureLooks {
      * Je Figur gelesen ([looksOf]) steht das Gegenstueck an derselben Stelle.
      */
     val LOOKS: List<Look> =
-        SHARED.map { (key, label) ->
-            Look(key, label, listOf(DEFAULT_FIGURE, FEMALE_FIGURE), key, pro = key !in LITE_LOOKS)
-        } +
-            PAIRS.map { (male, female) -> Look(male.first, male.second, listOf(DEFAULT_FIGURE), female.first, pro = male.first !in LITE_LOOKS) } +
-            PAIRS.map { (male, female) -> Look(female.first, female.second, listOf(FEMALE_FIGURE), male.first, pro = female.first !in LITE_LOOKS) }
+        SHARED.map { (key, label) -> Look(key, label, listOf(DEFAULT_FIGURE, FEMALE_FIGURE), key) } +
+            PAIRS.map { (male, female) -> Look(male.first, male.second, listOf(DEFAULT_FIGURE), female.first) } +
+            PAIRS.map { (male, female) -> Look(female.first, female.second, listOf(FEMALE_FIGURE), male.first) }
 
     /**
      * Looks, die es nicht mehr gibt, und woraus sie wurden. Eine aeltere
@@ -152,8 +140,6 @@ data class LookView(
     val figures: List<String>,
     /** Das Gegenstueck bei der anderen Figur - fuer den Figurwechsel in der Auswahl. */
     val twin: String,
-    /** Nur mit Pro waehlbar - gesperrt wird in der Workbench, siehe [FigureLooks]. */
-    val pro: Boolean,
     /**
      * Das Bildchen fuer die Auswahl in der Workbench, relativ zum Portal und
      * mit dem Build im Pfad (`/assets/v/<commit>/looks/galaxy.png`): aendert
@@ -193,7 +179,6 @@ class LookService(private val build: BuildStamp) {
                 figure = if (look.shared) null else look.figures.single(),
                 figures = look.figures,
                 twin = look.twin,
-                pro = look.pro,
                 image = images.getValue(look.figures.first()),
                 images = images,
             )

@@ -64,8 +64,7 @@ $('tags-label').htmlFor = tags.inputId;
 $('tags-label').append(' ', el('span', { class: 'faint small' }, 'up to ' + AWTags.MAX_TAGS));
 
 //  Figur und Look - die Buehne steht hier neben dem Formular und zieht bei
-//  jeder Wahl mit. Pro-Looks sind zu (siehe lookPicker): wer eine Datei
-//  hochlaedt, braucht keine Workbench, also sieht das Portal auch kein Pro.
+//  jeder Wahl mit.
 const looks = AW.lookPicker({
   onChange: ({ figure, look }) => {
     if (viewer) viewer.dress(figure, look).catch((e) => console.warn('[upload] could not dress the stage', e));

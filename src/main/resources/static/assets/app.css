@@ -2147,7 +2147,7 @@ dialog.sheet form > p:last-of-type { margin-bottom: 20px; }
 
 /* Figur und Look eines Clips (lookPicker in app.js): oben die Figur, darunter
    ihre Looks als Bilder. Das Bild ist die Vorschau - im Bearbeiten-Dialog
-   liegt die Buehne unter dem Schleier. Pro-Looks stehen da, aber blass. */
+   liegt die Buehne unter dem Schleier. */
 .look-picker { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
 .look-grid {
   align-self: stretch;
@@ -2171,24 +2171,7 @@ dialog.sheet form > p:last-of-type { margin-bottom: 20px; }
 .look-tile img { width: 100%; max-width: 72px; height: auto; aspect-ratio: 1; object-fit: contain; }
 .look-tile:hover { color: var(--text); }
 .look-tile.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); color: var(--text); }
-.look-tile.locked { cursor: default; }
-.look-tile.locked img { opacity: 0.4; }
-.look-tile.locked:hover { background: var(--surface-2); border-color: var(--line); color: var(--text-dim); }
-.look-tile.locked:active { transform: none; }
 .look-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.look-pro {
-  position: absolute;
-  top: 5px;
-  right: 5px;
-  padding: 0 6px;
-  border-radius: var(--radius-pill);
-  background: var(--accent-soft);
-  border: 1px solid var(--accent-line);
-  color: var(--accent);
-  font-size: 10.5px;
-  font-weight: 600;
-  line-height: 16px;
-}
 
 @media (max-width: 720px) {
   .profile-head { gap: 16px; }
