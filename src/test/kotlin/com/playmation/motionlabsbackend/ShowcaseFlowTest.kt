@@ -63,13 +63,20 @@ class ShowcaseFlowTest {
 
         override fun post(message: ShowcaseMessage): ShowcasePosted {
             posted += message
-            return ShowcasePosted("m" + posted.size + "-" + message.title.hashCode(), "t" + posted.size)
+            //  Discord-Kennungen sind Ziffern - der Link baut nur aus solchen.
+            return ShowcasePosted("m" + posted.size + "-" + message.title.hashCode(), (900000 + posted.size).toString())
         }
+
+        override fun guildId() = GUILD
 
         override fun delete(messageId: String, threadId: String?): Boolean {
             deleted += messageId
             return true
         }
+    }
+
+    companion object {
+        const val GUILD = "1234567890"
     }
 
     @Autowired lateinit var mvc: MockMvc
@@ -217,6 +224,40 @@ class ShowcaseFlowTest {
         assertTrue(post.url.contains("/pack.html?k="))
         assertTrue(post.footer.startsWith("2 clips"))
         assertTrue(channel.posted.none { it.title.startsWith("Bow Draw $word") }, "the clips do not post on their own")
+    }
+
+    /**
+     * "Discuss on Discord": sobald der Post steht, tragen Karte und Clip-Seite
+     * die Adresse seines Threads - und verlieren sie wieder, wenn er geht.
+     */
+    @Test
+    fun `a posted clip links to its thread until it is withdrawn`() {
+        val token = login("talker" + unique())
+        val title = "Talk Walk " + unique()
+        val slug = upload(token, title, announce = true)
+
+        showcase.runOnce(Instant.now())
+        assertTrue(mvc.get("/api/v1/packages/$slug").andExpect { status { isOk() } }.body()["discordUrl"]
+            .let { it == null || it.isNull }, "no link before the post")
+
+        showcase.runOnce(later())
+        val url = mvc.get("/api/v1/packages/$slug").andExpect { status { isOk() } }.body()["discordUrl"].asString()
+        assertTrue(url.startsWith("https://discord.com/channels/$GUILD/9"), url)
+
+        //  Dieselbe Adresse an der Karte im Katalog und unter "My clips".
+        val card = mvc.get("/api/v1/packages") { param("q", title) }
+            .andExpect { status { isOk() } }.body()["items"].first { it["slug"].asString() == slug }
+        assertEquals(url, card["discordUrl"].asString())
+        val mine = mvc.get("/api/v1/me/packages") { header("Authorization", "Bearer $token") }
+            .andExpect { status { isOk() } }.body().first { it["slug"].asString() == slug }
+        assertEquals(url, mine["discordUrl"].asString())
+
+        mvc.delete("/api/v1/packages/$slug") { header("Authorization", "Bearer $token") }
+            .andExpect { status { isOk() } }
+        showcase.runOnce(later())
+        val after = mvc.get("/api/v1/me/packages") { header("Authorization", "Bearer $token") }
+            .andExpect { status { isOk() } }.body().first { it["slug"].asString() == slug }
+        assertTrue(after["discordUrl"].let { it == null || it.isNull }, "the link goes with the post")
     }
 
     // ── Was an Discord geht ─────────────────────────────────────────────

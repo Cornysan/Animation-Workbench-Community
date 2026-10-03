@@ -186,6 +186,10 @@ const CLIP_SCRIPT = document.currentScript ? document.currentScript.src : locati
   });
   bar.append(share);
 
+  //  Geredet wird ueber einen Clip im Thread seines Schaufenster-Posts -
+  //  falls sein Ersteller ihn beim Teilen dorthin geschickt hat.
+  if (clip.discordUrl) bar.append(AW.discordButton(clip.discordUrl, clip.isOwner));
+
   if (clip.isOwner) {
     //  Was nicht Bewegung ist, laesst sich hier aendern. Die Bewegung selbst
     //  kommt als neue Fassung aus der Workbench.

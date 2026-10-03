@@ -97,6 +97,11 @@ data class PackageSummary(
     /** Figur und Look, in denen die Karte den Clip zeigt ([FigureLooks]). */
     val figure: String = FigureLooks.DEFAULT_FIGURE,
     val look: String = FigureLooks.DEFAULT_LOOK,
+    /**
+     * Der Thread seines Schaufenster-Posts, oder null - "Discuss on Discord"
+     * ([com.playmation.motionlabsbackend.showcase.ShowcaseLinks]).
+     */
+    val discordUrl: String? = null,
 )
 
 /** Titel und Adresse eines Packs, wie sie an einem seiner Clips stehen. */
@@ -147,6 +152,8 @@ data class PackageDetail(
     /** Figur und Look, in denen alle den Clip sehen ([FigureLooks]). */
     val figure: String = FigureLooks.DEFAULT_FIGURE,
     val look: String = FigureLooks.DEFAULT_LOOK,
+    /** Der Thread seines Schaufenster-Posts - nur, solange der Clip oeffentlich ist. */
+    val discordUrl: String? = null,
 )
 
 /** Die Herkunft eines Starter-Clips, wie die Clip-Seite sie nennt. */
@@ -185,6 +192,8 @@ class CatalogService(
     private val clipPacks: ClipPackRepository,
     /** Figur und Look, die der Ersteller waehlt - und ob er sie tragen darf. */
     private val looks: LookService,
+    /** Wo ueber einen Clip geredet wird: sein Thread im Discord-Schaufenster. */
+    private val discussion: com.playmation.motionlabsbackend.showcase.ShowcaseLinks,
     private val properties: PortalProperties,
     private val clock: Clock,
 ) {
@@ -940,6 +949,7 @@ class CatalogService(
         val unlockedByMe = principal?.let { me -> unlocks.unlockedAmong(me.accountId, found.map { it.id }) } ?: emptySet()
         val savedByMe = principal?.takeIf { found.isNotEmpty() }
             ?.let { me -> savedCollections.savedAmong(me.accountId, found.map { it.id }).toSet() } ?: emptySet()
+        val threads = discussion.forClips(found.map { it.id })
 
         return found.mapNotNull { pkg ->
             val version = currentVersions[pkg.currentVersionId] ?: return@mapNotNull null
@@ -961,7 +971,8 @@ class CatalogService(
                 pkg.id in unlockedByMe, version.previewBlobKey != null, pkg.createdAt,
                 isOwner = principal?.accountId == pkg.ownerId,
                 pack = pkg.packId?.let(packRefs::get),
-                figure = pkg.figure, look = pkg.look)
+                figure = pkg.figure, look = pkg.look,
+                discordUrl = threads[pkg.id])
         }
     }
 
@@ -1210,6 +1221,11 @@ class CatalogService(
             hasCard = version.cardBlobKey != null,
             figure = pkg.figure,
             look = pkg.look,
+            //  Ein versteckter oder privater Clip hat seinen Post schon
+            //  verloren oder verliert ihn im naechsten Takt - bis dahin
+            //  zeigte der Link auf etwas, das gleich weg ist.
+            discordUrl = if (pkg.status == PackageStatus.PUBLISHED && pkg.license == AwclipSchema.LICENSE_PUBLIC)
+                discussion.forClip(pkg.id) else null,
         )
     }
 

@@ -61,6 +61,8 @@ class ShowcaseService(
     private val accounts: AccountRepository,
     private val cards: PreviewCards,
     private val channel: ShowcaseChannel,
+    /** Die Thread-Adressen brauchen die Guild - der Takt holt sie ([ShowcaseLinks.refreshGuild]). */
+    private val links: ShowcaseLinks,
     private val properties: PortalProperties,
     private val clock: Clock,
 ) {
@@ -132,6 +134,7 @@ class ShowcaseService(
     fun runOnce(now: Instant) {
         postDue(now)
         retractGone(now)
+        links.refreshGuild()
     }
 
     private fun postDue(now: Instant) {
@@ -308,6 +311,12 @@ interface ShowcaseChannel {
 
     /** true = weg (auch: war schon weg). */
     fun delete(messageId: String, threadId: String?): Boolean
+
+    /**
+     * Der Discord-Server, in dem gepostet wird - fuer die Adresse eines
+     * Threads ([ShowcaseLinks]). Null = unbekannt.
+     */
+    fun guildId(): String? = null
 }
 
 /**
@@ -349,6 +358,20 @@ class DiscordShowcaseChannel(private val properties: PortalProperties) : Showcas
     } catch (ex: Exception) {
         log.warn("Showcase delete failed: {}", ex.message)
         false
+    }
+
+    /**
+     * Ein GET auf den Webhook selbst liefert ihn als Objekt, samt `guild_id`.
+     * Kostet nichts, darf aber dauern - deshalb nur aus dem Takt.
+     */
+    override fun guildId(): String? = try {
+        val request = HttpRequest.newBuilder(URI.create(webhook)).timeout(Duration.ofSeconds(10)).GET().build()
+        val response = http.send(request, HttpResponse.BodyHandlers.ofString())
+        if (response.statusCode() in 200..299) json.readTree(response.body()).path("guild_id").asString("").ifEmpty { null }
+        else null.also { log.warn("Showcase: reading the webhook failed: HTTP {}", response.statusCode()) }
+    } catch (ex: Exception) {
+        log.warn("Showcase: reading the webhook failed: {}", ex.message)
+        null
     }
 
     private fun send(body: String): HttpResponse<String> {

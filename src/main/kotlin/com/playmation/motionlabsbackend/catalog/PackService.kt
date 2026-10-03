@@ -50,6 +50,8 @@ data class PackSummary(
     val createdAt: Instant,
     val updatedAt: Instant,
     val isOwner: Boolean,
+    /** Der Thread seines Schaufenster-Posts, oder null ([com.playmation.motionlabsbackend.showcase.ShowcaseLinks]). */
+    val discordUrl: String? = null,
 )
 
 data class PackDetail(
@@ -70,6 +72,7 @@ data class PackDetail(
     val isOwner: Boolean,
     /** Die Clips in der Reihenfolge des Packs. */
     val items: List<PackageSummary>,
+    val discordUrl: String? = null,
 )
 
 /**
@@ -95,6 +98,8 @@ class PackService(
     private val packs: ClipPackRepository,
     private val packages: AnimationPackageRepository,
     private val catalog: CatalogService,
+    /** Wo ueber einen Pack geredet wird: sein Thread im Discord-Schaufenster. */
+    private val discussion: com.playmation.motionlabsbackend.showcase.ShowcaseLinks,
     private val accounts: AccountRepository,
     private val accountService: AccountService,
     /** Nur fuer die Nachricht an die Follower, wenn ein Pack erscheint. */
@@ -145,6 +150,7 @@ class PackService(
             owner?.avatarPath(), summary.clips, summary.tags, summary.durationSeconds, summary.downloads,
             summary.likes, summary.source, summary.createdAt, summary.updatedAt, summary.isOwner,
             items = catalog.cardsFor(shown.map { it.first }, principal),
+            discordUrl = if (shown.isEmpty()) null else discussion.forPack(pack.id),
         )
     }
 
@@ -201,9 +207,12 @@ class PackService(
         if (found.isEmpty()) return emptyList()
         val shown = shownClipsOf(found)
         val authors = authorsOf(found)
+        val threads = discussion.forPacks(found.map { it.id })
         return found.mapNotNull { pack ->
             val clips = shown[pack.id].orEmpty()
-            if (clips.isEmpty() && !keepEmpty) null else summarize(pack, clips, authors[pack.ownerId], principal)
+            if (clips.isEmpty() && !keepEmpty) null
+            else summarize(pack, clips, authors[pack.ownerId], principal)
+                .copy(discordUrl = if (clips.isEmpty()) null else threads[pack.id])
         }
     }
 

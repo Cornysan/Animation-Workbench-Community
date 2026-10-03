@@ -73,6 +73,11 @@ data class PortalProperties(
         val waitForCard: java.time.Duration = java.time.Duration.ofMinutes(10),
         /** Kennungen von Forum-Tags, komma-getrennt - noetig, wenn das Forum Tags verlangt. */
         val forumTags: String = "",
+        /**
+         * Der Discord-Server des Forums - fuer die Adresse eines Threads
+         * (`showcase/ShowcaseLinks.kt`). Leer = beim Webhook erfragen.
+         */
+        val discordGuildId: String = "",
     )
 
     /** Pro Zeitfenster; die Fenster stehen an den Namen. */

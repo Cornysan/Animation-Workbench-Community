@@ -41,6 +41,23 @@ interface ShowcasePostRepository : JpaRepository<ShowcasePost, UUID> {
     /** Was noch auf seinen Post wartet. */
     fun findByPostedAtIsNullAndOutcomeIsNullOrderByRequestedAtAsc(): List<ShowcasePost>
 
+    /**
+     * Gepostete, nicht zurueckgezogene Threads dieser Clips - fuer "Discuss on
+     * Discord" ([ShowcaseLinks]). Eine Abfrage fuer eine ganze Kartenseite.
+     */
+    @Query(
+        "select s from ShowcasePost s where s.packageId in :ids " +
+            "and s.postedAt is not null and s.retractedAt is null and s.threadId is not null"
+    )
+    fun liveThreadsForClips(@Param("ids") ids: Collection<UUID>): List<ShowcasePost>
+
+    /** Dasselbe fuer Packs. */
+    @Query(
+        "select s from ShowcasePost s where s.packId in :ids " +
+            "and s.postedAt is not null and s.retractedAt is null and s.threadId is not null"
+    )
+    fun liveThreadsForPacks(@Param("ids") ids: Collection<UUID>): List<ShowcasePost>
+
     /** Was Discord zeigt - fuer den Export eines Kontos. */
     fun findByAccountIdOrderByRequestedAtAsc(accountId: UUID): List<ShowcasePost>
 

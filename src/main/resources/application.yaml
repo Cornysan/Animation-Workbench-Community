@@ -128,6 +128,8 @@ portal:
   showcase:
     discord-webhook-url: ${PORTAL_SHOWCASE_WEBHOOK:}
     forum-tags: ${PORTAL_SHOWCASE_TAGS:}
+    # Leer = der Server fragt den Webhook selbst danach (ShowcaseLinks).
+    discord-guild-id: ${PORTAL_SHOWCASE_GUILD_ID:}
 ---
 spring:
   config:

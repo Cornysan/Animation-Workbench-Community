@@ -127,6 +127,9 @@
     onClick: () => copyLink(location.origin + "/pack.html?k=" + encodeURIComponent(pack.slug)),
   }));
 
+  //  Der Thread seines Schaufenster-Posts - wie auf der Clip-Seite.
+  if (pack.discordUrl) actions.append(AW.discordButton(pack.discordUrl, pack.isOwner));
+
   if (pack.isOwner) {
     const starter = pack.authorHandle === "starter-clips";
 
