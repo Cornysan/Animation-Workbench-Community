@@ -68,6 +68,9 @@ class ApiTokenService(
 ) {
     companion object {
         const val PREFIX = "awc_"
+
+        /** Siehe [workbenchSignedIn]. */
+        val WORKBENCH_IDLE: Duration = Duration.ofDays(30)
     }
 
     data class IssuedToken(val token: String, val expiresAt: Instant)
@@ -102,6 +105,32 @@ class ApiTokenService(
     fun revokeAll(accountId: UUID) {
         val now = clock.instant()
         tokens.findByAccountIdAndRevokedAtIsNull(accountId).forEach { it.revokedAt = now }
+    }
+
+    /**
+     * Meldet genau dieses Token ab - die Workbench beim Abmelden. Bis
+     * 2026-10-04 vergass sie es nur bei sich, und das Portal hielt sie weiter
+     * fuer angemeldet ([workbenchSignedIn]).
+     */
+    @Transactional
+    fun revoke(raw: String): Boolean {
+        val token = tokens.findByTokenHash(Crypto.sha256Hex(raw)) ?: return false
+        if (token.revokedAt == null) token.revokedAt = clock.instant()
+        return true
+    }
+
+    /**
+     * Ob mit diesem Konto eine Workbench angemeldet ist - davon haengt "Open
+     * in Unity" auf der Clip-Seite ab. Ein Token, das seit [WORKBENCH_IDLE]
+     * niemand benutzt hat, zaehlt nicht: das ist ein alter Rechner, und der
+     * Knopf liefe ins Leere. Oeffnet jemand dort wieder Unity, fragt die
+     * Workbench beim Portal an, und der Knopf ist zurueck.
+     */
+    fun workbenchSignedIn(accountId: UUID): Boolean {
+        val now = clock.instant()
+        return tokens.findByAccountIdAndRevokedAtIsNull(accountId).any {
+            it.expiresAt.isAfter(now) && Duration.between(it.lastUsedAt ?: it.createdAt, now) <= WORKBENCH_IDLE
+        }
     }
 }
 

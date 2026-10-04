@@ -167,6 +167,31 @@ const CLIP_SCRIPT = document.currentScript ? document.currentScript.src : locati
 
   const user = await userRequest;
 
+  // ── In Unity oeffnen ─────────────────────────────────────────────────
+  //  Unter "Download", nur wenn mit diesem Konto eine Workbench angemeldet ist
+  //  (`workbench` aus /api/v1/me) - sonst holte niemand die Bitte ab. Die
+  //  Seite kann Unity nicht nach vorne holen; sie legt die Bitte beim Portal
+  //  ab (unity/OpenInUnity.kt), und die Workbench zeigt den Clip, sobald man
+  //  hinueberwechselt. Wer die Workbench schon hat, braucht den Satz darunter
+  //  nicht, der sie empfiehlt.
+  if (user && user.workbench) {
+    const toUnity = el("button", { type: "button", class: "button open-in-unity" }, "Open in Unity");
+    toUnity.addEventListener("click", async () => {
+      toUnity.disabled = true;
+      try {
+        await ensureCsrf();
+        await api("POST", "/api/v1/me/unity/open", { kind: "clip", slug });
+        toast("Switch to Unity: the clip is waiting in the Animation Workbench.", { kind: "ok", duration: 6000 });
+      } catch (e) {
+        toastError(e);
+      } finally {
+        toUnity.disabled = false;
+      }
+    });
+    document.getElementById("downloads").after(toUnity);
+    document.querySelector(".get-hint")?.remove();
+  }
+
   // ── Herz, Stern, Link, Meldung ───────────────────────────────────────
   //  Was man an einer fremden Animation tun kann, steht nebeneinander unter
   //  dem Titel - und zwar als ZEICHEN mit Zahl, dieselben wie auf der Karte

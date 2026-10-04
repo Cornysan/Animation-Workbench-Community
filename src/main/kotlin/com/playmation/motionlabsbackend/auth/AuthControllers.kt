@@ -9,6 +9,7 @@ import com.playmation.motionlabsbackend.moderation.NotificationRepository
 import com.playmation.motionlabsbackend.notification.NotificationView
 import com.playmation.motionlabsbackend.notification.Notifier
 import com.playmation.motionlabsbackend.system.AuditService
+import com.playmation.motionlabsbackend.unity.OpenInUnityService
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.slf4j.LoggerFactory
@@ -85,6 +86,7 @@ class MeController(
     private val tokens: ApiTokenService,
     private val providers: SignInProviders,
     private val audit: AuditService,
+    private val openInUnity: OpenInUnityService,
 ) {
     data class MeResponse(
         val id: UUID,
@@ -94,6 +96,12 @@ class MeController(
         val unreadNotifications: Long,
         /** Das eigene Profilbild, fuer das Feld zum Kommentieren. */
         val avatarUrl: String? = null,
+        /**
+         * Ob eine Workbench dieses Kontos angemeldet ist und Clips abholt
+         * ([OpenInUnityService.ready]) - nur dann steht "Open in Unity" auf
+         * der Clip-Seite.
+         */
+        val workbench: Boolean = false,
     )
 
     @GetMapping
@@ -101,7 +109,8 @@ class MeController(
         val principal = authentication.requirePrincipal()
         val account = accounts.get(principal.accountId)
         return MeResponse(account.id, account.displayName, account.role.name, account.status.name,
-            notifications.countByAccountIdAndReadAtIsNull(account.id), account.avatarPath())
+            notifications.countByAccountIdAndReadAtIsNull(account.id), account.avatarPath(),
+            openInUnity.ready(account.id))
     }
 
     /** Das Postfach - und damit gelesen. Was eine Zeile traegt, steht bei [Notifier.inbox]. */
@@ -113,6 +122,19 @@ class MeController(
     @PostMapping("/tokens/revoke-all")
     fun revokeAll(authentication: Authentication?): Map<String, String> {
         tokens.revokeAll(authentication.requirePrincipal().accountId)
+        return mapOf("status" to "revoked")
+    }
+
+    /**
+     * Meldet die Workbench ab, die fragt - "Sign out" in Unity. Geht nur mit
+     * ihrem Token: eine Browser-Sitzung hat keins, das sie abgeben koennte.
+     */
+    @PostMapping("/tokens/revoke-current")
+    fun revokeCurrent(authentication: Authentication?, request: HttpServletRequest): Map<String, String> {
+        authentication.requirePrincipal()
+        val raw = request.getHeader("Authorization")?.takeIf { it.startsWith("Bearer ") }?.removePrefix("Bearer ")?.trim()
+        if (raw.isNullOrEmpty() || !tokens.revoke(raw))
+            throw PortalException.badRequest("no-token", "Only a Workbench sign-in can sign itself out.")
         return mapOf("status" to "revoked")
     }
 
