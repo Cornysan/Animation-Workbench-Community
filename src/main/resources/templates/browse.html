@@ -21,14 +21,12 @@
   <div th:replace="~{fragments/shell :: paused}"></div>
 
   <!-- Der Seitenkopf der Vorlage (2026-11-21): der Titel sagt, wo man ist -
-       auf einer Schlagwort-Seite deren Name -, rechts der eine Weg, selbst
-       etwas beizutragen. Von 2026-09-24 bis hierher stand die h1 nur fuer
-       Screenreader da, weil der helle Reiter oben den Ort nannte. -->
+       auf einer Schlagwort-Seite deren Name. Von 2026-09-24 bis hierher stand
+       die h1 nur fuer Screenreader da, weil der helle Reiter oben den Ort
+       nannte. KEIN Knopf rechts: "Share an animation" stand hier kurz und ist
+       auf Pablos Wunsch weg - der Weg zum Teilen ist "Share" in der Spalte. -->
   <div class="page-head">
     <h1 th:text="${catalogHeading} ?: 'Animations'">Animations</h1>
-    <div class="page-head-actions">
-      <a class="button primary" href="/share.html">Share an animation</a>
-    </div>
   </div>
 
   <div class="filters">
