@@ -2426,38 +2426,38 @@ dialog.bone-sheet .bone-scroll { overflow-y: auto; flex: 1 1 auto; padding-right
   to { opacity: 1; transform: none; }
 }
 
-/* Karten kommen gestaffelt, je 35 ms spaeter - ab der zwoelften alle
-   zugleich, wer 24 Karten laedt, soll nicht zusehen muessen. `backwards`,
-   nicht `both`: ein stehengebliebenes Endbild (`transform: none`) schlaege
-   sonst das Anheben beim Hovern. */
-.grid > .card { animation: aw-rise var(--dur-slow) var(--ease-out) backwards; }
-.grid > .card:nth-child(2) { animation-delay: 35ms; }
-.grid > .card:nth-child(3) { animation-delay: 70ms; }
-.grid > .card:nth-child(4) { animation-delay: 105ms; }
-.grid > .card:nth-child(5) { animation-delay: 140ms; }
-.grid > .card:nth-child(6) { animation-delay: 175ms; }
-.grid > .card:nth-child(7) { animation-delay: 210ms; }
-.grid > .card:nth-child(8) { animation-delay: 245ms; }
-.grid > .card:nth-child(9) { animation-delay: 280ms; }
-.grid > .card:nth-child(10) { animation-delay: 315ms; }
-.grid > .card:nth-child(11) { animation-delay: 350ms; }
-.grid > .card:nth-child(12) { animation-delay: 385ms; }
+/* KEIN GESTAFFELTER AUFTRITT MEHR (2026-11-21). Bis hierher stieg jede
+   Karte einzeln auf, je 35 ms spaeter - und war bis zu ihrem Einsatz
+   unsichtbar. Beim Laden standen damit Loecher in der Wand, und das
+   zweimal: erst fuer die Karten aus dem HTML, dann fuer die lebenden, die
+   sie ersetzen (Pablo: "das sieht doch nicht gut aus"). Jetzt steht jede
+   Karte sofort an ihrem Platz, in derselben Form wie spaeter; nur ihr Bild
+   blendet ein, sobald es gezeichnet ist (unten). */
 
 /* Die Vorschau blendet ein, sobald ihr erstes Bild steht (`is-drawn` setzen
-   card-stage.js und viewer.js). Darunter liegt derselbe Verlauf, den die
-   Leinwand sonst selbst traegt - so blitzt beim Einblenden nichts auf. Solange
-   sie laedt, zieht ein Schimmer darueber. */
+   card-stage.js und viewer.js). Bis dahin ist die Buehne eine graue Flaeche
+   mit Schimmer - derselbe Platzhalter wie ueberall (`--skeleton`) - und die
+   Leinwand legt sich mit ihrem eigenen Verlauf darueber (`.card canvas`). */
 .card-stage { background: var(--stage-bg-card); overflow: hidden; }
 .card canvas.fade-in { opacity: 0; transition: opacity var(--dur-slow) var(--ease-out); }
 .card canvas.fade-in.is-drawn { opacity: 1; }
-.card-stage:has(> canvas.fade-in:not(.is-drawn))::after {
+.card-stage:has(> canvas.fade-in:not(.is-drawn)) { background: var(--skeleton); }
+.card-stage:has(> canvas.fade-in:not(.is-drawn))::after,
+.static-card .card-stage::after {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(100deg, transparent 30%, var(--stage-sheen) 50%, transparent 70%);
+  background: linear-gradient(100deg, transparent 30%, var(--skeleton-sheen) 50%, transparent 70%);
   animation: aw-sheen 1.5s var(--ease-in-out) infinite;
 }
+
+/* DIE KARTEN AUS DEM HTML (PageController, browse.html) - fuer Suchmaschinen
+   und fuer den ersten Blick, bevor browse.js sie durch die lebenden ersetzt.
+   Sie hatten keine Buehne, nur Titel und Person, und waren deshalb halb so
+   hoch: beim Ersetzen sprang die ganze Wand. Jetzt tragen sie dieselbe
+   Buehne wie eine lebende Karte, als graue Flaeche. */
+.static-card .card-stage { height: 206px; background: var(--skeleton); }
 
 /* Platzhalter, solange eine Wand laedt (AW.placeholderCards und dieselbe
    Form im HTML von Profil, Sammlung und Pack): eine Karte in Grau, wie bei
