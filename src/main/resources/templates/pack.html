@@ -15,6 +15,22 @@
   <div th:replace="~{fragments/shell :: paused}"></div>
   <div id="state"></div>
 
+  <!-- Bis die Daten da sind: Kopf und Wand in Grau (app.css, "Platzhalter
+       beim Laden"). Weicht, sobald #pack sichtbar wird. -->
+  <div class="page-skeleton" aria-hidden="true">
+    <div class="sk-head-lines">
+      <span class="sk sk-title"></span>
+      <span class="sk sk-line short"></span>
+    </div>
+    <div class="grid">
+      <div class="card placeholder"><div class="card-stage"></div><div class="card-body"><span class="ph-line"></span><span class="ph-line short"></span></div></div>
+      <div class="card placeholder"><div class="card-stage"></div><div class="card-body"><span class="ph-line"></span><span class="ph-line short"></span></div></div>
+      <div class="card placeholder"><div class="card-stage"></div><div class="card-body"><span class="ph-line"></span><span class="ph-line short"></span></div></div>
+      <div class="card placeholder"><div class="card-stage"></div><div class="card-body"><span class="ph-line"></span><span class="ph-line short"></span></div></div>
+      <div class="card placeholder"><div class="card-stage"></div><div class="card-body"><span class="ph-line"></span><span class="ph-line short"></span></div></div>
+      <div class="card placeholder"><div class="card-stage"></div><div class="card-body"><span class="ph-line"></span><span class="ph-line short"></span></div></div>
+    </div>
+  </div>
   <div id="pack" class="hidden">
     <section class="collection-head pack-head">
       <div class="collection-copy">

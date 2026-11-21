@@ -36,6 +36,14 @@
   <div th:replace="~{fragments/shell :: paused}"></div>
   <div id="state"></div>
 
+  <!-- Nur wenn der Server den Clip nicht kannte (#clip ist dann versteckt,
+       bis clip.js ihn geholt hat): Titel, Buehne und Spalte in Grau. -->
+  <div class="clip-skeleton" aria-hidden="true">
+    <span class="sk sk-title"></span>
+    <span class="sk sk-stage"></span>
+    <span class="sk sk-side"></span>
+  </div>
+
   <!-- Sichtbar, sobald der Server den Clip kennt (`clipPage`); sonst wie bisher
        erst, wenn clip.js ihn geholt hat. Die Schleifen darunter lesen
        `clipPage?.…`: th:each laeuft VOR th:if, ein th:if daneben schuetzt nicht. -->
@@ -49,7 +57,16 @@
     </div>
 
     <section class="clip-main">
-      <div class="viewer" id="viewer" th:attr="data-rig=${clipRig}"></div>
+      <!-- Bis die Buehne steht: dieselbe Flaeche in Grau mit ihrer Leiste
+           darunter. mountViewer (viewer-ui.js) ersetzt den Inhalt. -->
+      <div class="viewer" id="viewer" th:attr="data-rig=${clipRig}">
+        <div class="viewer-skeleton" role="img" aria-label="Loading the preview">
+          <span class="sk sk-stage"></span>
+          <div class="viewer-controls">
+            <span class="sk sk-control"></span><span class="sk sk-scrub"></span><span class="sk sk-control"></span>
+          </div>
+        </div>
+      </div>
       <div class="clip-byline">
         <img class="avatar" id="author-initial" alt="" width="28" height="28"
              th:if="${clipPage != null and clipPage.authorAvatar != null}" th:src="${clipPage.authorAvatar}">
@@ -108,7 +125,7 @@
           schreibt genau die Pose heraus, die sie zeigt), sagen selbst, wenn
           sie gerade nicht gehen.
         -->
-        <div id="downloads"></div>
+        <div id="downloads"><span class="sk sk-button" aria-hidden="true"></span></div>
         <!-- Die .awclip ist das Format der Workbench - wer sie laedt, braucht sie. -->
         <p class="get-hint faint small">In Unity? The free <a th:href="${store.free}" rel="noopener">Animation
           Workbench</a> imports clips straight from the Community.</p>

@@ -22,7 +22,9 @@ function message(text) {
 
 (async () => {
   if (!box || !slug) return;
-  message('Loading the preview...');
+  //  Bis die Buehne steht, zeigt der Kasten ihre Form in Grau - sie steht
+  //  schon im HTML (clip.html, `.viewer-skeleton`). Vorher stand hier der
+  //  Satz "Loading the preview...".
 
   let preview;
   try {

@@ -485,6 +485,22 @@ const AW = (() => {
           el("span", { class: "ph-line short" })))));
   }
 
+  /**
+   * Graue Zeilen mit Bild davor, solange eine Liste laedt (app.css,
+   * "Platzhalter beim Laden") - im Kasten unter der Glocke, in der Auswahl
+   * unter dem Stern, auf einem Profil-Reiter. Wer die Liste fuellt, ersetzt
+   * sie mit `replaceChildren`.
+   */
+  function skeletonRows(count) {
+    return el("div", { class: "sk-rows", "aria-hidden": "true" },
+      ...Array.from({ length: count }, () =>
+        el("div", { class: "sk-row" },
+          el("span", { class: "sk sk-circle" }),
+          el("span", { class: "sk-row-lines" },
+            el("span", { class: "sk sk-line" }),
+            el("span", { class: "sk sk-line short" })))));
+  }
+
   function releasePreviews(root) {
     root.querySelectorAll("canvas").forEach((canvas) => {
       if (canvas.__observer) canvas.__observer.unobserve(canvas);
@@ -882,7 +898,7 @@ const AW = (() => {
    * heraus. Kein Speichern-Knopf - die Zeile IST die Handlung.
    */
   async function collectionPicker(anchor, slug, savedNow, onChange, onError) {
-    const list = el("div", { class: "picker-list" }, el("p", { class: "faint small" }, "Loading…"));
+    const list = el("div", { class: "picker-list" }, skeletonRows(3));
     const search = el("input", { type: "search", placeholder: "Find a collection", "aria-label": "Find a collection" });
 
     const create = el("button", { class: "picker-new", type: "button" },
@@ -1626,7 +1642,7 @@ const AW = (() => {
    * die Zahl an der Glocke weg, sobald die Liste da ist.
    */
   async function fillNotifications(panel) {
-    const scroll = el("div", { class: "notifications-scroll" }, el("p", { class: "notifications-empty" }, "Loading…"));
+    const scroll = el("div", { class: "notifications-scroll" }, skeletonRows(3));
     panel.replaceChildren(
       el("div", { class: "notifications-head" },
         el("strong", {}, "Notifications"),
@@ -1705,7 +1721,7 @@ const AW = (() => {
     previewObserver,
     icon, iconButton, discordButton, setIconState, popover, closePopover, signInHint, signedIn,
     likeButton, saveButton, collectionDialog, profileHref, releasePreviews,
-    toast, toastError, confirmDialog, copyLink, pulse, placeholderCards, avatar,
+    toast, toastError, confirmDialog, copyLink, pulse, placeholderCards, skeletonRows, avatar,
     notificationRow, profileLink,
   };
 })();

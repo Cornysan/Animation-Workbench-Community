@@ -341,7 +341,15 @@
       return;
     }
 
-    panel.replaceChildren(el("p", { class: "faint small" }, "Loading…"));
+    //  Bis der Reiter da ist, seine Form in Grau: Karten fuer Clips und
+    //  Sammlungen, Zeilen fuer Menschen und Auszeichnungen.
+    if (tab.id === "clips" || tab.id === "collections") {
+      const grid = el("div", { class: "grid" });
+      AW.placeholderCards(grid, 6);
+      panel.replaceChildren(grid);
+    } else {
+      panel.replaceChildren(AW.skeletonRows(4));
+    }
     try {
       const node = await tab.load();
       loaded[tab.id] = node;

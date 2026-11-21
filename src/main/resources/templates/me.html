@@ -43,13 +43,23 @@
   <div id="state"></div>
 
   <h2 id="notifications">Notifications</h2>
-  <div id="notification-list"></div>
+  <!-- Die grauen Zeilen ersetzt me.js, sobald die Nachrichten da sind. -->
+  <div id="notification-list">
+    <div class="notification-page sk-rows" aria-hidden="true">
+      <div class="sk-row"><span class="sk sk-circle"></span><span class="sk-row-lines"><span class="sk sk-line"></span><span class="sk sk-line short"></span></span></div>
+      <div class="sk-row"><span class="sk sk-circle"></span><span class="sk-row-lines"><span class="sk sk-line"></span><span class="sk sk-line short"></span></span></div>
+      <div class="sk-row"><span class="sk sk-circle"></span><span class="sk-row-lines"><span class="sk sk-line"></span><span class="sk sk-line short"></span></span></div>
+    </div>
+  </div>
 
   <h2 id="clips-title">Your clips</h2>
   <p class="muted small">All of them, withdrawn and hidden ones included.</p>
   <!-- "New pack" (me.js) - hier stehen alle eigenen Clips, also entsteht hier auch der Pack. -->
   <div class="filters" id="clip-actions" hidden></div>
-  <table class="list" id="clips"><thead><tr><th>Title</th><th>Status</th><th>Version</th><th>Views</th><th>Downloads</th><th></th></tr></thead><tbody></tbody></table>
+  <table class="list" id="clips"><thead><tr><th>Title</th><th>Status</th><th>Version</th><th>Views</th><th>Downloads</th><th></th></tr></thead><tbody>
+    <tr class="sk-tr" aria-hidden="true"><td><span class="sk sk-line"></span></td><td><span class="sk sk-line"></span></td><td><span class="sk sk-line short"></span></td><td><span class="sk sk-line short"></span></td><td><span class="sk sk-line short"></span></td><td></td></tr>
+    <tr class="sk-tr" aria-hidden="true"><td><span class="sk sk-line"></span></td><td><span class="sk sk-line"></span></td><td><span class="sk sk-line short"></span></td><td><span class="sk sk-line short"></span></td><td><span class="sk sk-line short"></span></td><td></td></tr>
+  </tbody></table>
 
   <!--
     Die Wege hinein. Verbinden geht ueber den Anbieter (me.js legt dafuer einen
@@ -84,7 +94,7 @@
     ohne das Gespraech oder das Profil zu suchen. Aufheben geht hier.
   -->
   <h2 id="blocked">Blocked</h2>
-  <div id="blocked-list"></div>
+  <div id="blocked-list"><span class="sk sk-line short" aria-hidden="true"></span></div>
 
   <h2>Workbench sign-ins</h2>
   <p class="muted small">Signed in on a computer you no longer use?</p>
