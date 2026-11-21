@@ -1,0 +1,39 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "portal",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "D:\\Projekte\\Animation-Workbench-Community\\gradlew.bat",
+        "bootRun",
+        "--args=--spring.profiles.active=dev"
+      ],
+      "port": 8080
+    },
+    {
+      "name": "portal-admin",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "D:\\Projekte\\Animation-Workbench-Community\\gradlew.bat",
+        "bootRun",
+        "--args=--spring.profiles.active=dev --portal.admin-discord-ids=dev:admin"
+      ],
+      "port": 8080
+    },
+    {
+      "name": "model-lab",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8791",
+        "--directory",
+        "C:\\Users\\pablo\\AppData\\Local\\Temp\\claude\\D--Projekte-Animation-Works\\941e1c97-0f3a-45d1-a351-5dffb71e3154\\scratchpad\\lab"
+      ],
+      "port": 8791
+    }
+  ]
+}

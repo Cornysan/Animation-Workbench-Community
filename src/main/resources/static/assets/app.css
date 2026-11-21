@@ -1759,18 +1759,17 @@ table.list tr:hover td { background: var(--row-hover); }
 }
 .edition-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
 .edition-card { display: flex; flex-direction: column; gap: 10px; }
-.edition-card h2 { margin: 0; font-size: 18px; }
+/* Flex statt Inline: mit dem vollen Namen bricht die Pille um und steht dann buendig links. */
+.edition-card h2 { margin: 0; font-size: 18px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
 .edition-card p { margin: 0; color: var(--text-dim); flex: 1; }
 .edition-card .button { align-self: flex-start; }
 .edition-tag {
-  margin-left: 6px;
   padding: 2px 9px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--line-strong);
   color: var(--text-dim);
   font-size: 12px;
   font-weight: 600;
-  vertical-align: middle;
 }
 
 /* Unter dem Download-Knopf der Clip-Seite: wo es das Werkzeug fuer die .awclip gibt. */

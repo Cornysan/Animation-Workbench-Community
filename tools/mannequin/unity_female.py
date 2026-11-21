@@ -7,12 +7,12 @@
 
 Schreibt in den Ordner:
 
-    AW_Female_Mannequin_Mesh.mesh   Kopie des Default-Meshes mit neuer Form:
-                                    Ecken, Dreiecke und Grenzen neu, Gewichte
-                                    nur, wo female.py sie aendert
-    AW_Female_Mannequin.prefab      Kopie des Default-Prefabs, das auf das neue
-                                    Mesh zeigt; Avatar, Controller, Materialien
-                                    und Skelett sind dieselben
+    AW_Default_Mannequin_F_Mesh.mesh  Kopie des Default-Meshes mit neuer Form:
+                                      Ecken, Dreiecke und Grenzen neu, Gewichte
+                                      nur, wo female.py sie aendert
+    AW_Default_Mannequin_F.prefab     Kopie des Default-Prefabs, das auf das neue
+                                      Mesh zeigt; Avatar, Controller, Materialien
+                                      und Skelett sind dieselben
 
 Die Form kommt aus `female.py`: die Differenz zwischen `aw-mannequin.glb` und
 `aw-mannequin-f.glb`, zurueck in den Mesh-Raum von Unity gerechnet. Das geht,
@@ -49,8 +49,8 @@ except AttributeError:
 FOLDER, WEB_DEFAULT, WEB_FEMALE = (Path(a) for a in sys.argv[1:4])
 SRC_MESH = FOLDER / 'AW_Default_Mannequin_Mesh.mesh'
 SRC_PREFAB = FOLDER / 'AW_Default_Mannequin.prefab'
-DST_MESH = FOLDER / 'AW_Female_Mannequin_Mesh.mesh'
-DST_PREFAB = FOLDER / 'AW_Female_Mannequin.prefab'
+DST_MESH = FOLDER / 'AW_Default_Mannequin_F_Mesh.mesh'
+DST_PREFAB = FOLDER / 'AW_Default_Mannequin_F.prefab'
 FLIP = np.array([1.0, 1.0, -1.0])
 
 def write_like(src, dst, content):
@@ -286,7 +286,7 @@ def sub_each(pattern, values, s):
 
 first_byte = np.concatenate([[0], np.cumsum([len(sub) for sub in new_subs])[:-1]]) * 2
 out = text
-out = sub_once(r'^  m_Name: AW_Default_Mannequin_Mesh$', '  m_Name: AW_Female_Mannequin_Mesh', out)
+out = sub_once(r'^  m_Name: AW_Default_Mannequin_Mesh$', '  m_Name: AW_Default_Mannequin_F_Mesh', out)
 out = sub_once(r'^    _typelessdata: [0-9a-f]+$', '    _typelessdata: ' + bytes(data).hex(), out)
 out = sub_once(r'^    m_VertexCount: \d+$', '    m_VertexCount: %d' % total, out)
 out = sub_once(r'^    m_DataSize: \d+$', '    m_DataSize: %d' % len(data), out)
@@ -343,7 +343,7 @@ labels = [l.replace('AWDefaultCharacter', 'AWCharacter')
 prefab = SRC_PREFAB.read_text(encoding='utf-8')
 prefab = sub_once(r'^  m_Mesh: \{fileID: 4300000, guid: %s, type: 2\}$' % src_mesh_guid,
                   '  m_Mesh: {fileID: 4300000, guid: %s, type: 2}' % mesh_guid, prefab)
-prefab = sub_once(r'^  m_Name: AW_Default_Mannequin$', '  m_Name: AW_Female_Mannequin', prefab)
+prefab = sub_once(r'^  m_Name: AW_Default_Mannequin$', '  m_Name: AW_Default_Mannequin_F', prefab)
 write_like(SRC_PREFAB, DST_PREFAB, prefab)
 prefab_guid = guid_of(DST_PREFAB.with_name(DST_PREFAB.name + '.meta'))
 write_meta(SRC_PREFAB.with_name(SRC_PREFAB.name + '.meta'), DST_PREFAB.with_name(DST_PREFAB.name + '.meta'),

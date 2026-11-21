@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController
 import java.text.Normalizer
 import java.util.Locale
 import java.util.UUID
+import kotlin.math.abs
 import kotlin.math.hypot
 import kotlin.math.ln
 import kotlin.math.min
@@ -431,7 +432,7 @@ class TagService(
         } catch (_: Exception) {
             null
         } ?: return null
-        return ClipFacts(doc.loops, motionOf(doc))
+        return ClipFacts(doc.loops || loopsSeamlessly(doc), motionOf(doc))
     }
 
     /** Eine Fassung aendert sich nie - was einmal gelesen ist, gilt. */
@@ -458,6 +459,57 @@ class TagService(
          * Schritt.
          */
         private const val TRAVEL_THRESHOLD = 0.3
+
+        /**
+         * Wie weit ein Muskel am Ende von seinem Anfang abweichen darf, und
+         * wie sehr sein Tempo am Uebergang springen darf (Einheiten je
+         * Sekunde). Gemessen 2026-10-03 an 7 Idle-Schleifen und 18 Gesten
+         * aus dem Starter-Pack: Schleifen hoechstens 0.006 / 0.19, Gesten
+         * ab 0.009 / 0.54. Das ruhigste Idle bewegt sich um 0.053.
+         */
+        private const val LOOP_POSE_TOLERANCE = 0.02f
+        private const val LOOP_SPEED_TOLERANCE = 0.3f
+
+        /**
+         * Schliesst das Ende nahtlos an den Anfang an - dieselbe Pose UND
+         * dasselbe Tempo, ohne dass jemand `loopTime` angekreuzt hat.
+         *
+         * DIE POSE ALLEIN REICHT NICHT. Fast jede Geste beginnt und endet in
+         * derselben Ruhehaltung - "Come Here, Waving Over" weicht am Ende um
+         * 0.009 ab -, springt am Uebergang aber um 20 Einheiten je Sekunde:
+         * als Schleife gespielt, ruckt sie. Erst das Tempo trennt die beiden.
+         *
+         * Nur die Muskeln: die Wurzel wandert bei einem Gehzyklus und dreht
+         * sich bei einer Wendung, und IK-Ziele und TDOF folgen aus den
+         * Muskeln. Ein Clip, der sich gar nicht bewegt, ist eine Pose und
+         * keine Schleife.
+         */
+        fun loopsSeamlessly(doc: AwclipDocument): Boolean {
+            if (doc.manifest.rig != AwclipSchema.RIG_HUMANOID) return false
+            val end = doc.manifest.duration - AwclipSchema.KEY_TIME_TOLERANCE
+
+            //  Vor dem ersten und nach dem letzten Key haelt Unity den Wert -
+            //  dort steht der Muskel still, egal was die Tangente sagt.
+            fun speed(tangent: Float, held: Boolean) = if (held || !tangent.isFinite()) 0f else tangent
+
+            var moves = false
+            for (curve in doc.curves) {
+                if (!isMuscle(curve.attribute)) continue
+                val first = curve.keys.first()
+                val last = curve.keys.last()
+                if (abs(last.value - first.value) > LOOP_POSE_TOLERANCE) return false
+
+                val startSpeed = speed(first.outTangent, first.time > AwclipSchema.KEY_TIME_TOLERANCE)
+                val endSpeed = speed(last.inTangent, last.time < end)
+                if (abs(endSpeed - startSpeed) > LOOP_SPEED_TOLERANCE) return false
+
+                if (!moves) moves = curve.keys.any { abs(it.value - first.value) > LOOP_POSE_TOLERANCE }
+            }
+            return moves
+        }
+
+        /** `Spine Front-Back`, `LeftHand.Index.Spread` - nicht `RootT.x`, `LeftFootQ.w`, `SpineTDOF.y`. */
+        private fun isMuscle(attribute: String) = ' ' in attribute || attribute.endsWith(".Spread")
 
         /** Bleibt er auf der Stelle oder wandert er - null, wenn der Clip keine Wurzelkurve hat. */
         fun motionOf(doc: AwclipDocument): String? {

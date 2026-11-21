@@ -57,8 +57,12 @@ class TagFlowTest {
     private fun awclip(
         seed: Double, tags: List<String>, license: String = AwclipSchema.LICENSE_PUBLIC,
         loops: Boolean = false, travel: Double? = null,
+        /** Die Keys von `Head Nod Down-Up` - ohne: vom Seed zu 0.25, keine Schleife. */
+        nod: String? = null,
     ): ByteArray {
         val settings = if (loops) """"settings":{"loopTime":true},""" else ""
+        val muscles = if (nod == null) """{"attribute":"Head Nod Down-Up","keys":[[0,$seed,0,0],[1,0.25,0,0]]}"""
+            else """{"attribute":"Head Nod Down-Up","keys":$nod},{"attribute":"Jaw Close","keys":[[0,$seed,0,0]]}"""
         val root = if (travel == null) "" else """,
              {"attribute":"RootT.x","keys":[[0,0,0,0],[1,0,0,0]]},
              {"attribute":"RootT.z","keys":[[0,0,0,0],[1,$travel,0,0]]}"""
@@ -67,7 +71,7 @@ class TagFlowTest {
              "manifest":{"title":"Tag test","tags":[${tags.joinToString(",") { "\"$it\"" }}],"license":"$license","rig":"humanoid","frameRate":30,"duration":1},
              $settings
              "origin":"own",
-             "curves":[{"attribute":"Head Nod Down-Up","keys":[[0,$seed,0,0],[1,0.25,0,0]]}$root],
+             "curves":[$muscles$root],
              "preview":{"frameRate":15,"bones":["Hips","Spine"],"parents":[-1,0],"rest":[[0,1,0],[0,0.1,0]],
                         "hips":[[0,1,0]],"rotations":[[0,0,0,1,0,0,0,1]]}}
         """.trimIndent()
@@ -200,6 +204,29 @@ class TagFlowTest {
         val still = suggest(owner) { param("slug", inPlace) }
         assertEquals("It stays in place", still.find("in-place")!!["reason"].asString())
         assertNull(still.find("loop"), "no loop flag, no loop tag")
+    }
+
+    @Test
+    fun `a clip that ends where it starts, at the same pace, loops without the flag`() {
+        val u = "l" + unique()
+        val owner = login("tags-seam-$u")
+        fun loopOf(seed: Double, nod: String, travel: Double? = null) =
+            suggest(owner) { param("slug", uploadOk(owner, awclip(seed, listOf("$u-x"), travel = travel, nod = nod))) }
+
+        val cycle = loopOf(0.7401, "[[0,0.1,0.5,0.5],[0.5,0.4,0,0],[1,0.1,0.5,0.5]]")
+        assertEquals("The clip loops", cycle.find("loop")!!["reason"].asString())
+
+        //  Dieselbe Ruhehaltung am Ende, aber mit Schwung hinein: eine Geste.
+        val gesture = loopOf(0.7402, "[[0,0.1,0,0],[0.5,0.4,0,0],[1,0.1,-2,-2]]")
+        assertNull(gesture.find("loop"), "same pose, different pace - it would jerk at the seam")
+
+        val pose = loopOf(0.7403, "[[0,0.1,0,0],[1,0.1,0,0]]")
+        assertNull(pose.find("loop"), "a clip that never moves is a pose, not a loop")
+
+        //  Der Gehzyklus wandert - die Wurzel zaehlt fuer die Schleife nicht.
+        val walk = loopOf(0.7404, "[[0,0.1,0.5,0.5],[0.5,0.4,0,0],[1,0.1,0.5,0.5]]", travel = 2.0)
+        assertEquals("The clip loops", walk.find("loop")!!["reason"].asString())
+        assertEquals("It moves through the scene", walk.find("root-motion")!!["reason"].asString())
     }
 
     /**

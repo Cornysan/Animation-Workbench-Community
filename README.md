@@ -103,7 +103,7 @@ sie sich auch jetzt nicht.
 |---|---|
 | `static/models/aw-mannequin.glb` | Die Figur, 326 KiB. Erzeugt mit `docs-site/tools/unity-mesh-to-glb.py` im Workbench-Repo - hier liegt nur die Kopie. |
 | `static/models/aw-mannequin-f.glb` | Die weibliche Variante: dasselbe Skelett, dieselben Ecken, andere Form. Erzeugt mit `tools/mannequin/female.py` aus der Datei darueber. |
-| `tools/mannequin/unity_female.py` | Schreibt dieselbe Form als `AW_Female_Mannequin` (Mesh + Prefab, URP und HDRP) neben das Default-Mannequin der Workbench. |
+| `tools/mannequin/unity_female.py` | Schreibt dieselbe Form als `AW_Default_Mannequin_F` (Mesh + Prefab, URP und HDRP) neben das Default-Mannequin der Workbench. |
 | `static/assets/stage.js` | Die Buehne: laedt das Modell, rechnet die Vorschau auf seine Knochen um, zeichnet Boden, Licht und Schatten. |
 | `static/assets/card-stage.js` | Dieselbe Buehne auf den Karten des Katalogs - ein Renderer fuer alle. |
 | `static/assets/viewer-ui.js` | Wiedergabe, Zeitleiste und die Sichtschalter drumherum. |
