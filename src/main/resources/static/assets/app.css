@@ -334,21 +334,29 @@ a:focus-visible, button:focus-visible, summary:focus-visible, [tabindex]:focus-v
   z-index: 30;
 }
 
+/* DREI SPALTEN WIE BEI YOUTUBE: links Schublade und Marke, in der Mitte die
+   Suche, rechts das Konto. Die beiden Seiten teilen sich den Rest zu
+   gleichen Teilen (`1fr`), deshalb steht die Suche genau in der Mitte des
+   Balkens. Jede Seite bekommt aber mindestens, was sie braucht
+   (`max-content`): wird es eng, gibt die Suche nach - nicht der Name im
+   Konto und nicht der Anmeldeknopf. */
 .topbar {
   height: var(--top-h);
-  padding: 0 14px 0 20px;
-  display: flex;
+  padding: 0 16px;
+  display: grid;
+  grid-template-columns: minmax(max-content, 1fr) minmax(0, 640px) minmax(max-content, 1fr);
   align-items: center;
-  gap: 8px;
+  column-gap: 24px;
   background: var(--topbar-bg);
   color: var(--topbar-ink);
 }
+
+.topbar-start { display: flex; align-items: center; gap: 8px; min-width: 0; justify-self: start; }
 
 .brand {
   display: flex;
   align-items: center;
   flex: none;
-  margin-right: 28px;
 }
 .brand:hover { text-decoration: none; }
 .brand-lockup { width: 123px; height: auto; display: block; }
@@ -416,7 +424,7 @@ a:focus-visible, button:focus-visible, summary:focus-visible, [tabindex]:focus-v
 --------------------------------------------------------------------------- */
 
 .header-search {
-  flex: 0 1 420px;
+  width: 100%;
   min-width: 0;
   position: relative;
   display: flex;
@@ -457,8 +465,8 @@ a:focus-visible, button:focus-visible, summary:focus-visible, [tabindex]:focus-v
 .header-search input:focus ~ kbd,
 .header-search input:not(:placeholder-shown) ~ kbd { display: none; }
 
-.header-account { flex: none; display: flex; align-items: center; gap: 4px; margin-left: auto; }
-.header-account > .button { min-height: 34px; padding: 0 16px; }
+.header-account { display: flex; align-items: center; gap: 4px; justify-self: end; }
+.header-account > .button { min-height: 34px; padding: 0 16px; white-space: nowrap; }
 .header-account > .faint { color: var(--topbar-dim); }
 
 /* `position: relative` HIER und nicht an Glocke und Name: beide Kaesten
@@ -654,7 +662,7 @@ main.wide { max-width: calc(var(--page-wide) + 2 * var(--gutter)); }
 --------------------------------------------------------------------------- */
 
 @media (max-width: 1080px) {
-  .brand { margin-right: 16px; }
+  .topbar { column-gap: 16px; }
   .account-name { max-width: 200px; }
 }
 
@@ -694,13 +702,15 @@ main.wide { max-width: calc(var(--page-wide) + 2 * var(--gutter)); }
 @media (max-width: 620px) {
   :root { --top-h: 96px; }
   .topbar {
-    flex-wrap: wrap;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "start end" "search search";
     align-content: center;
     row-gap: 8px;
     padding: 0 10px 0 14px;
   }
-  .brand { margin-right: 0; }
-  .header-search { order: 3; flex: 1 1 100%; }
+  .topbar-start { grid-area: start; }
+  .header-account { grid-area: end; }
+  .header-search { grid-area: search; }
   .header-search kbd { display: none; }
   .account-who { display: none; }
   .account-name { gap: 4px; padding: 3px 4px; }

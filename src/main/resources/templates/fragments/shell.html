@@ -140,37 +140,44 @@
   -->
   <div class="topbar">
 
-    <!--
-      Nur auf schmalen Fenstern sichtbar: oeffnet die Spalte als Schublade.
-      Der Punkt daran sagt, dass in der zugeklappten Spalte eine ungelesene
-      Nachricht wartet - sonst saehe man die Zahl dort erst nach dem Oeffnen.
-    -->
-    <button type="button" class="side-toggle" aria-controls="site-side" aria-expanded="false"
-            aria-label="Menu" title="Menu">
-      <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
-           stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round">
-        <path d="M4 7h16"></path><path d="M4 12h16"></path><path d="M4 17h16"></path>
-      </svg>
-      <span class="side-toggle-dot" th:if="${user != null and user.unreadMessages > 0}"></span>
-    </button>
+    <!-- Links: Schublade und Marke. Eine Spalte des Rasters, damit die Suche
+         daneben genau in der Mitte des Balkens stehen kann. -->
+    <div class="topbar-start">
+      <!--
+        Nur auf schmalen Fenstern sichtbar: oeffnet die Spalte als Schublade.
+        Der Punkt daran sagt, dass in der zugeklappten Spalte eine ungelesene
+        Nachricht wartet - sonst saehe man die Zahl dort erst nach dem Oeffnen.
+      -->
+      <button type="button" class="side-toggle" aria-controls="site-side" aria-expanded="false"
+              aria-label="Menu" title="Menu">
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
+             stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M4 7h16"></path><path d="M4 12h16"></path><path d="M4 17h16"></path>
+        </svg>
+        <span class="side-toggle-dot" th:if="${user != null and user.unreadMessages > 0}"></span>
+      </button>
 
-    <!--
-      OBEN STEHT PLAYMATIONS. Das Portal laeuft unter playmations.com, also
-      traegt der Balken diese Marke; Animation Workbench Community ist seit
-      2026-09-27 das, worauf es laeuft, und steht als "Powered by" im Fuss.
-      Der Balken ist in beiden Themen schwarz - die Marke ist hier also immer
-      die weisse.
-    -->
-    <a class="brand" href="/" title="Playmations">
-      <img class="brand-lockup" th:src="|${@buildStamp.assets}/brand/playmations-lockup-weiss.svg|"
-           alt="Playmations" width="123" height="20">
-    </a>
+      <!--
+        OBEN STEHT PLAYMATIONS. Das Portal laeuft unter playmations.com, also
+        traegt der Balken diese Marke; Animation Workbench Community ist seit
+        2026-09-27 das, worauf es laeuft, und steht als "Powered by" im Fuss.
+        Der Balken ist in beiden Themen schwarz - die Marke ist hier also immer
+        die weisse.
+      -->
+      <a class="brand" href="/" title="Playmations">
+        <img class="brand-lockup" th:src="|${@buildStamp.assets}/brand/playmations-lockup-weiss.svg|"
+             alt="Playmations" width="123" height="20">
+      </a>
+    </div>
 
     <!--
       Ein gewoehnliches GET-Formular auf den Katalog: es braucht kein
       JavaScript, funktioniert im neuen Tab und in der Verlaufsliste, und der
       Katalog liest `q` ohnehin schon aus der Adresse. Die Taste "/" setzt den
       Fokus hierher (app.js).
+
+      MITTIG WIE BEI YOUTUBE (Pablo, 2026-11-21): die Suche ist die mittlere
+      Spalte des Balkens, nicht ein Feld gleich hinter der Marke.
     -->
     <form class="header-search" action="/" method="get" role="search">
       <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
