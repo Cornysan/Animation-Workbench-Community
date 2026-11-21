@@ -476,7 +476,32 @@ const AW = (() => {
    * eine Karte, damit beim Eintreffen nichts springt. Die echten Karten
    * ersetzen sie mit `replaceChildren`, dafuer braucht es keinen eigenen Schritt.
    */
+  /**
+   * EIN TAKT FUER ALLE SCHIMMER. Jede CSS-Animation beginnt, wenn ihr Element
+   * entsteht - ersetzt eine lebende Karte einen Platzhalter, sprang der
+   * Schimmer deshalb an den Anfang zurueck, und die Wand zuckte, obwohl
+   * dort dasselbe Grau stand. Hier bekommen alle `aw-sheen`-Animationen
+   * denselben Nullpunkt (den Beginn der Seite): der Schimmer laeuft ueber
+   * jede neue Karte an genau der Stelle weiter, an der er gerade ist.
+   *
+   * `getAnimations()` rechnet ausstehende Stile selbst aus, deshalb genuegt
+   * ein Takt spaeter - ohne requestAnimationFrame, das in einem
+   * verdeckten Tab nie kaeme.
+   */
+  let sheenQueued = false;
+  function syncSheen() {
+    if (sheenQueued || !document.getAnimations) return;
+    sheenQueued = true;
+    setTimeout(() => {
+      sheenQueued = false;
+      for (const animation of document.getAnimations()) {
+        if (animation.animationName === "aw-sheen" && animation.startTime !== 0) animation.startTime = 0;
+      }
+    }, 0);
+  }
+
   function placeholderCards(container, count) {
+    syncSheen();
     container.replaceChildren(...Array.from({ length: count }, () =>
       el("div", { class: "card placeholder", "aria-hidden": "true" },
         el("div", { class: "card-stage" }),
@@ -1113,6 +1138,12 @@ const AW = (() => {
       "data-slug": item.slug, "data-rig": item.rig || "humanoid", width: 560, height: 420,
     });
     if (item.hasPreview && observer) {
+      //  Gleich unsichtbar, bis das erste Bild steht (cardPreview setzt es
+      //  sonst erst, wenn der Beobachter feuert): vorher stand die neue
+      //  Leinwand einen Augenblick als dunkler Verlauf ueber dem grauen
+      //  Platzhalter - die Wand flackerte zweimal, bevor die Figur kam.
+      canvas.classList.add("fade-in");
+      syncSheen();
       observer.observe(canvas);
       canvas.__observer = observer;
     }
@@ -1253,7 +1284,11 @@ const AW = (() => {
       })
       : el("div", { class: "viewer-empty" }, "Empty");
 
-    if (item.cover && observer) observer.observe(cover);
+    if (item.cover && observer) {
+      cover.classList.add("fade-in");  // wie bei clipCard: kein dunkler Augenblick
+      syncSheen();
+      observer.observe(cover);
+    }
 
     const author = item.ownerHandle
       ? el("a", { class: "card-author", href: "/u.html?u=" + encodeURIComponent(item.ownerHandle),
@@ -1295,6 +1330,8 @@ const AW = (() => {
       })
       : el("div", { class: "viewer-empty" }, "No preview");
     if (item.cover && observer) {
+      cover.classList.add("fade-in");  // wie bei clipCard: kein dunkler Augenblick
+      syncSheen();
       observer.observe(cover);
       cover.__observer = observer;
     }
@@ -1712,6 +1749,8 @@ const AW = (() => {
     (panel) => panel.querySelector(".menu-row")?.focus());
   bindSearchShortcut();
   bindSideDrawer();
+  //  Die Platzhalter, die schon im HTML stehen, auf denselben Takt.
+  syncSheen();
   resumePendingLink();
 
   return {
