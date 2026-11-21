@@ -114,7 +114,7 @@
      dunkel und haben deshalb eigene Marken - mit `--text` und `--surface`
      wuerden sie in Hell weiss. */
   --top-h: 52px;
-  --side-w: 192px;
+  --side-w: 176px;
   --topbar-bg: #000000;
   --topbar-ink: #ffffff;
   --topbar-dim: #a9a9a9;
@@ -528,7 +528,7 @@ a:focus-visible, button:focus-visible, summary:focus-visible, [tabindex]:focus-v
 }
 
 /* ── Die Spalte ────────────────────────────────────────────────────────
-   Gruppen, die nur Abstand trennt; jeder Eintrag Zeichen und Wort. Der
+   Gruppen, die nur Abstand trennt; jeder Eintrag ein Wort. Der
    aktive ist eine hellere, leicht gerundete Flaeche - kein Akzentstrich,
    keine Farbe: die Spalte bleibt grau.
 --------------------------------------------------------------------------- */
@@ -557,7 +557,7 @@ a:focus-visible, button:focus-visible, summary:focus-visible, [tabindex]:focus-v
   align-items: center;
   gap: 10px;
   min-height: 36px;
-  padding: 0 10px;
+  padding: 0 12px;
   border-radius: var(--radius-sm);
   color: var(--side-ink);
   font-size: 14px;
@@ -569,8 +569,6 @@ a:focus-visible, button:focus-visible, summary:focus-visible, [tabindex]:focus-v
 .side-item.active { background: var(--side-active); }
 .side-item:focus-visible { outline: 2px solid var(--side-ink); outline-offset: -2px; }
 .side-item > span:not(.bell-count) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.side-icon { width: 19px; height: 19px; flex: none; color: var(--side-dim); }
-.side-item:hover .side-icon, .side-item.active .side-icon { color: var(--side-ink); }
 /* "Fuehrt hinaus": klein am rechten Rand, wie das Zeichen an "Resources". */
 .side-external { width: 14px; height: 14px; flex: none; margin: 0 -2px 0 auto; color: var(--side-dim); }
 /* Die Zahl an "Messages" steht in der Zeile, nicht als Marke am Zeichen. */

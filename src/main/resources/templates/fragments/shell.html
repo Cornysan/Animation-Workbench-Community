@@ -12,10 +12,10 @@
 
   DIE NAVIGATION STEHT WIEDER LINKS (2026-11-21, Pablos Wunsch). Vorbild ist
   das Unity Publisher Portal: oben ein schmaler schwarzer Balken mit Marke und
-  Konto, links eine feste graue Spalte, in der jeder Eintrag Zeichen UND Wort
-  traegt, in Gruppen, die nur Abstand trennt. Bis hierher lag die Navigation
+  Konto, links eine feste graue Spalte mit Worten, in Gruppen, die nur Abstand
+  trennt. Bis hierher lag die Navigation
   oben ("das Portal ist das Schaufenster vor der App") - die Spalte kostet
-  192 px, dafuer findet man jeden Ort mit einem Blick, auch die, die vorher in
+  176 px, dafuer findet man jeden Ort mit einem Blick, auch die, die vorher in
   Menues steckten (Nachrichten, Profil, Konto).
 
   Auf schmalen Fenstern klappt die Spalte zu einer Schublade ein: der Knopf
@@ -303,9 +303,13 @@
   <!--
     DIE SPALTE. Gruppen wie im Publisher Portal, getrennt durch Abstand statt
     Linien: was man beitraegt, was es gibt, was einem selbst gehoert, die
-    Moderation, und was ausserhalb des Portals liegt. Jeder Eintrag traegt
-    Zeichen und Wort - die Regel "Zeichen statt Text" gilt fuer Knoepfe an
-    Karten und Clips, nicht fuer die Orte des Portals.
+    Moderation, und was ausserhalb des Portals liegt.
+
+    NUR WORTE (Pablo, 2026-11-21). Bis hierher trug jeder Eintrag ein
+    Strichsymbol davor - selbst gezeichnet, ungleich in Strich und Groesse,
+    und fuer Characters gab es nur ein Strichmaennchen. Die Worte sind kurz
+    und unterscheiden sich; geblieben sind nur Zeichen, die etwas sagen: der
+    Pfeil "fuehrt hinaus" und die Zahl an Messages.
   -->
   <nav class="site-side" id="site-side" aria-label="Main">
 
@@ -316,10 +320,6 @@
     <div class="side-group">
       <a href="/share.html" class="side-item"
          th:classappend="${active == 'share'} ? ' active'" th:attr="aria-current=${active == 'share'} ? 'page'">
-        <svg viewBox="0 0 24 24" class="side-icon" aria-hidden="true" fill="none" stroke="currentColor"
-             stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
-          <path d="M12 4v11"></path><path d="m8 8 4-4 4 4"></path><path d="M5 14v5.5h14V14"></path>
-        </svg>
         <span>Share</span>
       </a>
     </div>
@@ -337,28 +337,14 @@
     <div class="side-group">
       <a href="/" class="side-item"
          th:classappend="${active == 'animations'} ? ' active'" th:attr="aria-current=${active == 'animations'} ? 'page'">
-        <svg viewBox="0 0 24 24" class="side-icon" aria-hidden="true" fill="none" stroke="currentColor"
-             stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
-          <path d="M4 4h6v6H4z"></path><path d="M14 4h6v6h-6z"></path>
-          <path d="M4 14h6v6H4z"></path><path d="M14 14h6v6h-6z"></path>
-        </svg>
         <span>Community</span>
       </a>
       <a href="/collections.html" class="side-item"
          th:classappend="${active == 'collections'} ? ' active'" th:attr="aria-current=${active == 'collections'} ? 'page'">
-        <svg viewBox="0 0 24 24" class="side-icon" aria-hidden="true" fill="none" stroke="currentColor"
-             stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
-          <path d="m12 4.5 2.3 4.7 5.2.8-3.8 3.6.9 5.2-4.6-2.5-4.6 2.5.9-5.2-3.8-3.6 5.2-.8z"></path>
-        </svg>
         <span>Collections</span>
       </a>
       <a href="/characters.html" class="side-item"
          th:classappend="${active == 'characters'} ? ' active'" th:attr="aria-current=${active == 'characters'} ? 'page'">
-        <svg viewBox="0 0 24 24" class="side-icon" aria-hidden="true" fill="none" stroke="currentColor"
-             stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
-          <circle cx="12" cy="6" r="2.6"></circle>
-          <path d="M12 8.6v6M12 10.4 8 12M12 10.4l4 1.6M12 14.6 9.2 20M12 14.6 14.8 20"></path>
-        </svg>
         <span>Characters</span>
       </a>
     </div>
@@ -375,10 +361,6 @@
          th:classappend="${active == 'messages'} ? ' active'" th:attr="aria-current=${active == 'messages'} ? 'page'"
          th:aria-label="${user.unreadMessages > 0} ? ${'Messages, ' + user.unreadMessages + ' new'} : 'Messages'"
          th:title="${user.unreadMessages > 0} ? ${'Messages (' + user.unreadMessages + ' new)'} : 'Messages'">
-        <svg viewBox="0 0 24 24" class="side-icon" aria-hidden="true" fill="none" stroke="currentColor"
-             stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
-          <path d="M20.5 3.5 3.5 10.6l6.8 2.6 2.6 6.8z"></path><path d="m20.5 3.5-10.2 9.7"></path>
-        </svg>
         <span>Messages</span>
         <span class="bell-count" th:if="${user.unreadMessages > 0}"
               th:text="${user.unreadMessages > 99} ? '99+' : ${user.unreadMessages}">1</span>
@@ -386,19 +368,10 @@
       <a class="side-item" th:if="${user.handle != null}" th:href="${'/u.html?u=' + user.handle}"
          th:with="own=${active == 'profile' and param.u != null and param.u[0] == user.handle}"
          th:classappend="${own} ? ' active'" th:attr="aria-current=${own} ? 'page'">
-        <svg viewBox="0 0 24 24" class="side-icon" aria-hidden="true" fill="none" stroke="currentColor"
-             stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
-          <circle cx="12" cy="8.5" r="3.6"></circle><path d="M5 20c0-3.8 3.1-6 7-6s7 2.2 7 6"></path>
-        </svg>
         <span>Profile</span>
       </a>
       <a class="side-item" href="/me.html"
          th:classappend="${active == 'account'} ? ' active'" th:attr="aria-current=${active == 'account'} ? 'page'">
-        <svg viewBox="0 0 24 24" class="side-icon" aria-hidden="true" fill="none" stroke="currentColor"
-             stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
-          <path d="M4 7h9"></path><path d="M18 7h2"></path><path d="M4 17h3"></path><path d="M11 17h9"></path>
-          <circle cx="15.5" cy="7" r="2.3"></circle><circle cx="8.5" cy="17" r="2.3"></circle>
-        </svg>
         <span>Account</span>
       </a>
     </div>
@@ -413,10 +386,6 @@
     <div class="side-group" th:if="${user != null and user.admin}">
       <a href="/admin.html" class="side-item admin-link"
          th:classappend="${active == 'admin'} ? ' active'" th:attr="aria-current=${active == 'admin'} ? 'page'">
-        <svg viewBox="0 0 24 24" class="side-icon" aria-hidden="true" fill="none" stroke="currentColor"
-             stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
-          <path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z"></path>
-        </svg>
         <span>Moderation</span>
       </a>
     </div>
@@ -424,11 +393,6 @@
     <!-- Was ausserhalb des Portals liegt - mit dem Zeichen fuer "fuehrt hinaus". -->
     <div class="side-group">
       <a href="https://docs.playmations.com/docs/tools/community" class="side-item" rel="noopener" target="_blank">
-        <svg viewBox="0 0 24 24" class="side-icon" aria-hidden="true" fill="none" stroke="currentColor"
-             stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
-          <path d="M5 5.5A1.5 1.5 0 0 1 6.5 4H18v13H6.5A1.5 1.5 0 0 0 5 18.5z"></path>
-          <path d="M5 18.5A1.5 1.5 0 0 0 6.5 20H18v-3"></path><path d="M9 8h5"></path>
-        </svg>
         <span>Documentation</span>
         <svg viewBox="0 0 24 24" class="side-external" aria-label="opens in a new tab" role="img" fill="none"
              stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round">
