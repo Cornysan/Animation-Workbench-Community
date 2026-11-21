@@ -17,8 +17,15 @@
 <header th:replace="~{fragments/shell :: header}"></header>
 <main id="main">
   <div th:replace="~{fragments/shell :: paused}"></div>
-  <div class="prose share-page">
+  <!-- Der Seitenkopf steht ueber dem Lesemass: der Knopf gehoert an den
+       rechten Rand des Inhalts, nicht an den eines Absatzes. -->
+  <div class="page-head">
     <h1>Share your animations</h1>
+    <div class="page-head-actions">
+      <a class="button primary" href="/upload.html" th:if="${webUploadEnabled}">Upload an animation</a>
+    </div>
+  </div>
+  <div class="prose share-page">
     <p class="lead">Clips come into the Community from Unity. The Animation Workbench shares any humanoid
       clip in your project in two clicks - and brings the Community's clips into your project the same way.</p>
 

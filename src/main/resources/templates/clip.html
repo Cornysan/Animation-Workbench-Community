@@ -40,10 +40,16 @@
        erst, wenn clip.js ihn geholt hat. Die Schleifen darunter lesen
        `clipPage?.…`: th:each laeuft VOR th:if, ein th:if daneben schuetzt nicht. -->
   <div id="clip" class="clip-layout" th:classappend="${clipPage == null} ? 'hidden'">
+    <!-- Der Seitenkopf ueber beiden Spalten (2026-11-21): der Name zuerst,
+         wie jeder Titel im Portal; rechts darunter beginnt die Spalte mit dem
+         Download. Bis hierher stand der Name unter der Buehne, wie bei einem
+         Video. -->
+    <div class="page-head clip-head">
+      <h1 id="title" th:text="${clipTitle}"></h1>
+    </div>
+
     <section class="clip-main">
       <div class="viewer" id="viewer" th:attr="data-rig=${clipRig},data-figure=${clipFigure},data-look=${clipLook}"></div>
-
-      <h1 id="title" th:text="${clipTitle}"></h1>
       <div class="clip-byline">
         <img class="avatar" id="author-initial" alt="" width="28" height="28"
              th:if="${clipPage != null and clipPage.authorAvatar != null}" th:src="${clipPage.authorAvatar}">

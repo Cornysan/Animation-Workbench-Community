@@ -12,11 +12,13 @@
 <header th:replace="~{fragments/shell :: header}"></header>
 <main id="main" class="wide">
   <div th:replace="~{fragments/shell :: paused}"></div>
+  <div class="page-head">
+    <h1>Stats</h1>
+  </div>
   <nav class="segmented admin-tabs" aria-label="Administration">
     <a href="/admin.html">Moderation</a>
     <a href="/admin-stats.html" class="active" aria-current="page">Stats</a>
   </nav>
-  <h1>Stats</h1>
   <p class="lead" id="stats-lead">Members, clips and what people look at. Counted from what the portal stores
     anyway &ndash; no visitor log.</p>
   <div id="state"></div>

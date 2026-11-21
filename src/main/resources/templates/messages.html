@@ -17,7 +17,11 @@
 <header th:replace="~{fragments/shell :: header}"></header>
 <main id="main" class="messages-main">
   <div th:replace="~{fragments/shell :: paused}"></div>
-  <h1 class="visually-hidden">Messages</h1>
+  <!-- Auf dem Telefon nur fuer Screenreader (app.css): dort zaehlt jede Zeile
+       fuer das Gespraech. -->
+  <div class="page-head">
+    <h1>Messages</h1>
+  </div>
   <div id="state"></div>
 
   <div class="messages-layout" id="layout">

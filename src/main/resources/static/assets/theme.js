@@ -40,9 +40,10 @@
   var root = document.documentElement;
   var media = window.matchMedia('(prefers-color-scheme: light)');
 
-  //  Die Farbe der Browserleiste auf dem Telefon - dieselben zwei Werte wie
-  //  `--bg` im Stylesheet. Steht ein drittes Mal nirgends.
-  var BAR = { light: '#f7f6fa', dark: '#0e0d12' };
+  //  Die Farbe der Browserleiste auf dem Telefon - das Schwarz des Balkens
+  //  oben (`--topbar-bg` im Stylesheet). Seit 2026-11-21 ist der Balken in
+  //  beiden Themen schwarz, die Leiste also auch.
+  var BAR = { light: '#000000', dark: '#000000' };
 
   /**
    * Die gespeicherte Wahl, oder `null`.

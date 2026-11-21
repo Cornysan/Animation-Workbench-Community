@@ -1729,6 +1729,47 @@ const AW = (() => {
     }
   }
 
+  // ── Die Spalte als Schublade ─────────────────────────────────────────
+
+  /**
+   * Auf schmalen Fenstern liegt die Navigationsspalte links ausserhalb des
+   * Bildes; der Knopf mit den drei Strichen im Balken holt sie herein.
+   * Escape, ein Klick daneben oder ein breiter werdendes Fenster schliessen
+   * sie wieder. Ob sie offen steht, sagt EINE Klasse an <html> - das
+   * Stylesheet entscheidet, was das heisst (auf breiten Fenstern: nichts).
+   */
+  function bindSideDrawer() {
+    const toggle = document.querySelector(".side-toggle");
+    const side = document.getElementById("site-side");
+    const scrim = document.querySelector(".side-scrim");
+    if (!toggle || !side) return;
+
+    const root = document.documentElement;
+    const isOpen = () => root.classList.contains("side-open");
+    const set = (open) => {
+      root.classList.toggle("side-open", open);
+      toggle.setAttribute("aria-expanded", String(open));
+      if (scrim) scrim.hidden = !open;
+    };
+
+    toggle.addEventListener("click", () => {
+      set(!isOpen());
+      //  Der Fokus folgt in die Schublade, damit die Tastatur dort weitergeht.
+      if (isOpen()) side.querySelector("a")?.focus();
+    });
+    scrim?.addEventListener("click", () => set(false));
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape" || !isOpen()) return;
+      set(false);
+      toggle.focus();
+    });
+    //  Wird das Fenster breit genug fuer die feste Spalte, gibt es keine
+    //  Schublade mehr - und keinen Schleier, der dann noch darueber laege.
+    window.matchMedia("(min-width: 901px)").addEventListener("change", (event) => {
+      if (event.matches) set(false);
+    });
+  }
+
   //  Die Skripte stehen am Ende des <body>, der Rahmen ist also schon da.
   const signOutButton = document.getElementById("sign-out");
   if (signOutButton) signOutButton.addEventListener("click", signOut);
@@ -1736,6 +1777,7 @@ const AW = (() => {
   headerDrop(document.getElementById("account-button"), document.getElementById("account-panel"),
     (panel) => panel.querySelector(".menu-row")?.focus());
   bindSearchShortcut();
+  bindSideDrawer();
   resumePendingLink();
 
   return {

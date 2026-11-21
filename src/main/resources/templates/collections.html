@@ -17,13 +17,15 @@
 <main id="main" class="wide">
   <div th:replace="~{fragments/shell :: paused}"></div>
 
-  <!-- Wie im Katalog: der Reiter oben benennt die Seite, die h1 steht nur
-       noch fuer Screenreader da. -->
-  <h1 class="visually-hidden">Collections</h1>
+  <!-- Wie im Katalog: Titel links, die Hauptaktion rechts - "New collection"
+       setzt collections.js hinein, aber nur fuer Angemeldete. -->
+  <div class="page-head">
+    <h1>Collections</h1>
+    <div class="page-head-actions" id="make"></div>
+  </div>
 
   <div class="filters" id="filters">
     <div class="segmented" id="show" role="group" aria-label="Show"></div>
-    <div id="make"></div>
   </div>
 
   <div id="results" class="grid"></div>

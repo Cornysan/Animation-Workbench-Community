@@ -20,10 +20,16 @@
 <main id="main" class="wide">
   <div th:replace="~{fragments/shell :: paused}"></div>
 
-  <!-- Keine sichtbare Ueberschrift, keine Erklaerzeile (Pablo, 2026-09-24):
-       der helle Reiter oben sagt, wo man ist, und darunter steht gleich die
-       Ware - wie bei Mixamo. Die h1 bleibt fuer Screenreader im Dokument. -->
-  <h1 class="visually-hidden" th:text="${catalogHeading} ?: 'Animations'">Animations</h1>
+  <!-- Der Seitenkopf der Vorlage (2026-11-21): der Titel sagt, wo man ist -
+       auf einer Schlagwort-Seite deren Name -, rechts der eine Weg, selbst
+       etwas beizutragen. Von 2026-09-24 bis hierher stand die h1 nur fuer
+       Screenreader da, weil der helle Reiter oben den Ort nannte. -->
+  <div class="page-head">
+    <h1 th:text="${catalogHeading} ?: 'Animations'">Animations</h1>
+    <div class="page-head-actions">
+      <a class="button primary" href="/share.html">Share an animation</a>
+    </div>
+  </div>
 
   <div class="filters">
     <div class="segmented" id="sort" role="group" aria-label="Sort"></div>

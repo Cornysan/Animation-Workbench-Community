@@ -10,14 +10,19 @@
   HTML, den angemeldeten Nutzer eingeschlossen: der Server weiss ohnehin, wer da
   ist, und muss nicht erst gefragt werden.
 
-  DER KOPF LIEGT OBEN, NICHT LINKS. Die feste Spalte links war das Muster einer
-  App (ElevenLabs) - aber die App ist hier Unity, und das Portal ist das
-  Schaufenster davor. Sie kostete 244 px auf JEDER Seite, und der Katalog ist
-  die eine Ansicht, bei der Breite unmittelbar mehr Ware pro Reihe bedeutet.
-  Beide Vorbilder - Meshy Creative Lab und Mixamo - tragen ihre Navigation oben.
+  DIE NAVIGATION STEHT WIEDER LINKS (2026-11-21, Pablos Wunsch). Vorbild ist
+  das Unity Publisher Portal: oben ein schmaler schwarzer Balken mit Marke und
+  Konto, links eine feste graue Spalte, in der jeder Eintrag Zeichen UND Wort
+  traegt, in Gruppen, die nur Abstand trennt. Bis hierher lag die Navigation
+  oben ("das Portal ist das Schaufenster vor der App") - die Spalte kostet
+  192 px, dafuer findet man jeden Ort mit einem Blick, auch die, die vorher in
+  Menues steckten (Nachrichten, Profil, Konto).
 
-  DIE SUCHE STEHT IM KOPF. Vorher lag sie ausschliesslich ueber dem Gitter im
-  Katalog: wer auf einer Clip-Seite etwas anderes suchen wollte, musste erst
+  Auf schmalen Fenstern klappt die Spalte zu einer Schublade ein: der Knopf
+  mit den drei Strichen links im Balken oeffnet sie (app.js, `bindSideDrawer`).
+
+  DIE SUCHE STEHT IM BALKEN. Vorher lag sie ausschliesslich ueber dem Gitter
+  im Katalog: wer auf einer Clip-Seite etwas anderes suchen wollte, musste erst
   zurueck. Ein Katalog ohne staendig erreichbare Suche macht aus jeder Suche
   zwei Schritte.
 -->
@@ -52,10 +57,10 @@
     traegt `script-src 'self'` ohne Nonce. Die laengere Fassung dieser
     Begruendung steht in theme.js selbst.
 
-    Die Startfarbe des Meta-Felds ist die dunkle - das Skript setzt sie
-    sofort um, wenn es hell wird.
+    Das Meta-Feld traegt das Schwarz des Balkens - in beiden Themen, denn der
+    Balken ist in beiden schwarz.
   -->
-  <meta name="theme-color" content="#0e0d12">
+  <meta name="theme-color" content="#000000">
   <script th:src="|${@buildStamp.assets}/theme.js|"></script>
   <!--
     Die Schrift VOR dem Stylesheet anfordern: sonst entdeckt der Browser sie
@@ -121,115 +126,45 @@
 <body>
 
 <!--
-  Die Strichsymbole der Navigation - 20x20, erben die Textfarbe. Sie standen als
+  Die Strichsymbole - 24er Raster, erben die Textfarbe. Sie standen als
   Pfadlisten in JavaScript; hier stehen dieselben Pfade als Markup.
 -->
 <header class="site-header" th:fragment="header">
   <!-- Fuer die Tastatur: am Kopf vorbei direkt zum Inhalt. Unsichtbar, bis er Fokus hat. -->
   <a class="skip-link" href="#main">Skip to content</a>
-  <div class="header-inner">
+
+  <!--
+    DER BALKEN. Schwarz in beiden Themen, wie im Publisher Portal: er traegt
+    die Marke, die Suche und wer angemeldet ist - und sonst nichts. Alles, was
+    ein Ort ist, steht in der Spalte darunter.
+  -->
+  <div class="topbar">
+
+    <!--
+      Nur auf schmalen Fenstern sichtbar: oeffnet die Spalte als Schublade.
+      Der Punkt daran sagt, dass in der zugeklappten Spalte eine ungelesene
+      Nachricht wartet - sonst saehe man die Zahl dort erst nach dem Oeffnen.
+    -->
+    <button type="button" class="side-toggle" aria-controls="site-side" aria-expanded="false"
+            aria-label="Menu" title="Menu">
+      <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
+           stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round">
+        <path d="M4 7h16"></path><path d="M4 12h16"></path><path d="M4 17h16"></path>
+      </svg>
+      <span class="side-toggle-dot" th:if="${user != null and user.unreadMessages > 0}"></span>
+    </button>
 
     <!--
       OBEN STEHT PLAYMATIONS. Das Portal laeuft unter playmations.com, also
-      traegt der Kopf diese Marke; Animation Workbench Community ist seit
+      traegt der Balken diese Marke; Animation Workbench Community ist seit
       2026-09-27 das, worauf es laeuft, und steht als "Powered by" im Fuss.
-
-      Bis 2026-09-25 stand hier noch eine Marke "Beta". Pablo wollte sie aus
-      dem Kopf; dass es eine Beta ist, sagen weiter die Nutzungsbedingungen
-      und der Titel im Browser-Reiter.
+      Der Balken ist in beiden Themen schwarz - die Marke ist hier also immer
+      die weisse.
     -->
     <a class="brand" href="/" title="Playmations">
       <img class="brand-lockup" th:src="|${@buildStamp.assets}/brand/playmations-lockup-weiss.svg|"
            alt="Playmations" width="123" height="20">
-      <img class="brand-mark" th:src="|${@buildStamp.assets}/brand/playmations-mark-dark.svg|"
-           alt="Playmations" width="28" height="28">
     </a>
-
-    <!--
-      ZWEI REITER WIE BEI MIXAMO: "Community" ist der Katalog und zugleich
-      die Startseite, "Collections" die Sammlungen. Bis 2026-10-02 hiess der
-      erste "Animations", davor "Browse" auf /browse.html, davor stand eine
-      eigene Startseite.
-      Der Stern ist dasselbe Zeichen wie an jeder Karte - "in eine Sammlung".
-    -->
-    <nav class="site-nav">
-      <a href="/" title="Community" class="nav-item"
-         th:classappend="${active == 'animations'} ? ' active'">
-        <svg viewBox="0 0 24 24" class="nav-icon" aria-hidden="true" fill="none" stroke="currentColor"
-             stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
-          <path d="M4 4h6v6H4z"></path><path d="M14 4h6v6h-6z"></path>
-          <path d="M4 14h6v6H4z"></path><path d="M14 14h6v6h-6z"></path>
-        </svg>
-        <span>Community</span>
-      </a>
-
-      <a href="/collections.html" title="Collections" class="nav-item"
-         th:classappend="${active == 'collections'} ? ' active'">
-        <svg viewBox="0 0 24 24" class="nav-icon" aria-hidden="true" fill="none" stroke="currentColor"
-             stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
-          <path d="m12 4.5 2.3 4.7 5.2.8-3.8 3.6.9 5.2-4.6-2.5-4.6 2.5.9-5.2-3.8-3.6 5.2-.8z"></path>
-        </svg>
-        <span>Collections</span>
-      </a>
-
-      <!--
-        Clips kommen aus Unity. Der dritte Reiter sagt, wie - und wo es das
-        Werkzeug gibt. Bis 2026-09-26 stand das nirgends auf dem Portal.
-      -->
-      <a href="/share.html" title="Share your animations" class="nav-item"
-         th:classappend="${active == 'share'} ? ' active'">
-        <svg viewBox="0 0 24 24" class="nav-icon" aria-hidden="true" fill="none" stroke="currentColor"
-             stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
-          <path d="M12 4v11"></path><path d="m8 8 4-4 4 4"></path><path d="M5 14v5.5h14V14"></path>
-        </svg>
-        <span>Share</span>
-      </a>
-
-      <!--
-        Nur wenn der Schalter an ist (Admin-Ansicht). Aus heisst hier wirklich
-        aus: kein Eintrag, kein grauer Platzhalter. Die Adresse selbst bleibt
-        erreichbar und erklaert sich, weil die Workbench-Doku auf sie zeigt.
-      -->
-      <a href="/characters.html" title="Characters" class="nav-item"
-         th:if="${charactersEnabled}"
-         th:classappend="${active == 'characters'} ? ' active'">
-        <svg viewBox="0 0 24 24" class="nav-icon" aria-hidden="true" fill="none" stroke="currentColor"
-             stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
-          <circle cx="12" cy="6" r="2.6"></circle>
-          <path d="M12 8.6v6M12 10.4 8 12M12 10.4l4 1.6M12 14.6 9.2 20M12 14.6 14.8 20"></path>
-        </svg>
-        <span>Characters</span>
-      </a>
-
-      <!--
-        HIER STAND "My clips". Es ist weg, seit es Profile gibt: dieselbe Person
-        hatte damit zwei Adressen in derselben Leiste - den eigenen Namen rechts
-        (das Profil, die oeffentliche Seite) und diesen Eintrag (das private
-        Fach). Wer beides sieht, muss jedes Mal raten, welches von beiden er
-        gerade meint.
-
-        Das private Fach gibt es weiter, nur nicht mehr als dritten
-        Navigationspunkt: es haengt am eigenen Profil, dort wo man es
-        bearbeitet. Und wenn eine Nachricht wartet, fuehrt die Sprechblase
-        rechts direkt hinein.
-      -->
-
-      <!--
-        Der Moderations-Eintrag wird weggelassen statt versteckt. Vorher stand er
-        mit der Klasse "hidden" im Dokument und JavaScript nahm sie weg, sobald
-        /api/v1/me die Rolle nannte - ein Aufblitzen fuer alle anderen war damit
-        eine Frage des Zeitpunkts.
-      -->
-      <a href="/admin.html" title="Moderation" class="nav-item admin-link"
-         th:if="${user != null and user.admin}"
-         th:classappend="${active == 'admin'} ? ' active'">
-        <svg viewBox="0 0 24 24" class="nav-icon" aria-hidden="true" fill="none" stroke="currentColor"
-             stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
-          <path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z"></path>
-        </svg>
-        <span>Moderation</span>
-      </a>
-    </nav>
 
     <!--
       Ein gewoehnliches GET-Formular auf den Katalog: es braucht kein
@@ -274,37 +209,19 @@
       </button>
 
       <!--
-        Angemeldet: eine Glocke und der eigene Name, beide mit einem Kasten
-        darunter (app.js, `headerDrop`).
+        Angemeldet: eine Glocke und der Kontoblock, beide mit einem Kasten
+        darunter (app.js, `headerDrop`). Die Glocke bleibt im Balken, weil ihr
+        Kasten ein schneller Blick ist und kein Ort; die Direktnachrichten sind
+        eine Seite und stehen deshalb seit 2026-11-21 in der Spalte.
 
-        Vorher standen hier der Name (-> Profil), eine Sprechblase nur bei
-        ungelesenen Nachrichten und ein Abmeldeknopf aus dem Zeichen U+23FB.
-        Zwei Befunde: das Zeichen fehlt in vielen Schriften und stand dann als
-        Kasten mit Hexzahl da, und die Kontoseite war nur ueber Profil, Stift
-        und einen Satz im Dialog zu finden. Jetzt liegt alles, was das eigene
-        Konto betrifft, an EINER Stelle - dem Menue unter dem Namen - und die
-        Zeichen sind SVG wie alle anderen.
+        Der Kontoblock wie im Publisher Portal: rundes Bild, daneben Name und
+        Rolle in zwei Zeilen, dazu der Pfeil. Die Rolle ist "Moderator" oder
+        der Handle - das, was die Person von anderen unterscheidet.
 
         Ohne Skript bleiben es gewoehnliche Links: die Glocke fuehrt auf die
         Kontoseite, der Name aufs Profil.
-
-        Davor die Direktnachrichten (seit 2026-10-03): ein Papierflieger, weil
-        die Sprechblase schon "Kommentar" heisst. Er ist ein schlichter Link
-        ohne Kasten - eine Liste von Gespraechen in einem Kasten waere eine
-        zweite, schlechtere Nachrichtenseite. Seine Zahl zaehlt GESPRAECHE mit
-        Neuem, nicht Nachrichten, und steht nicht zusaetzlich unter der Glocke.
       -->
       <div class="account" th:if="${user != null}">
-        <a class="header-icon" id="messages-button" href="/messages.html"
-           th:aria-label="${user.unreadMessages > 0} ? ${'Messages, ' + user.unreadMessages + ' new'} : 'Messages'"
-           th:title="${user.unreadMessages > 0} ? ${'Messages (' + user.unreadMessages + ' new)'} : 'Messages'">
-          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
-               stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
-            <path d="M20.5 3.5 3.5 10.6l6.8 2.6 2.6 6.8z"></path><path d="m20.5 3.5-10.2 9.7"></path>
-          </svg>
-          <span class="bell-count" th:if="${user.unreadMessages > 0}"
-                th:text="${user.unreadMessages > 99} ? '99+' : ${user.unreadMessages}">1</span>
-        </a>
         <a class="header-icon bell" id="bell-button" href="/me.html#notifications"
            aria-haspopup="true" aria-expanded="false" aria-controls="bell-panel"
            th:aria-label="${user.unread > 0} ? ${'Notifications, ' + user.unreadLabel} : 'Notifications'"
@@ -322,9 +239,12 @@
            th:href="${user.handle != null} ? ${'/u.html?u=' + user.handle} : '/me.html'"
            aria-haspopup="true" aria-expanded="false" aria-controls="account-panel" title="Your account">
           <img class="avatar" th:if="${user.avatar != null}" th:src="${user.avatar}"
-               th:attr="data-initial=${user.initial}" alt="" width="28" height="28">
+               th:attr="data-initial=${user.initial}" alt="" width="30" height="30">
           <span class="avatar" th:unless="${user.avatar != null}" th:text="${user.initial}">?</span>
-          <span class="account-label" th:text="${user.displayName}">Name</span>
+          <span class="account-who">
+            <span class="account-label" th:text="${user.displayName}">Name</span>
+            <span class="account-role" th:text="${user.admin} ? 'Moderator' : (${user.handle != null} ? ${'@' + user.handle} : 'Member')">Member</span>
+          </span>
           <svg class="account-chevron" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
                stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round">
             <path d="m7 10 5 5 5-5"></path>
@@ -381,6 +301,148 @@
       </th:block>
     </div>
   </div>
+
+  <!--
+    DIE SPALTE. Gruppen wie im Publisher Portal, getrennt durch Abstand statt
+    Linien: was man beitraegt, was es gibt, was einem selbst gehoert, die
+    Moderation, und was ausserhalb des Portals liegt. Jeder Eintrag traegt
+    Zeichen und Wort - die Regel "Zeichen statt Text" gilt fuer Knoepfe an
+    Karten und Clips, nicht fuer die Orte des Portals.
+  -->
+  <nav class="site-side" id="site-side" aria-label="Main">
+
+    <!--
+      Clips kommen aus Unity. Der erste Eintrag sagt, wie - und wo es das
+      Werkzeug gibt. Bis 2026-09-26 stand das nirgends auf dem Portal.
+    -->
+    <div class="side-group">
+      <a href="/share.html" class="side-item"
+         th:classappend="${active == 'share'} ? ' active'" th:attr="aria-current=${active == 'share'} ? 'page'">
+        <svg viewBox="0 0 24 24" class="side-icon" aria-hidden="true" fill="none" stroke="currentColor"
+             stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M12 4v11"></path><path d="m8 8 4-4 4 4"></path><path d="M5 14v5.5h14V14"></path>
+        </svg>
+        <span>Share</span>
+      </a>
+    </div>
+
+    <!--
+      "Community" ist der Katalog und zugleich die Startseite, "Collections"
+      die Sammlungen. Bis 2026-10-02 hiess der erste "Animations", davor
+      "Browse" auf /browse.html, davor stand eine eigene Startseite. Der Stern
+      ist dasselbe Zeichen wie an jeder Karte - "in eine Sammlung".
+
+      "Characters" nur, wenn der Schalter an ist (Admin-Ansicht). Aus heisst
+      hier wirklich aus: kein Eintrag, kein grauer Platzhalter. Die Adresse
+      selbst bleibt erreichbar und erklaert sich, weil die Workbench-Doku auf
+      sie zeigt.
+    -->
+    <div class="side-group">
+      <a href="/" class="side-item"
+         th:classappend="${active == 'animations'} ? ' active'" th:attr="aria-current=${active == 'animations'} ? 'page'">
+        <svg viewBox="0 0 24 24" class="side-icon" aria-hidden="true" fill="none" stroke="currentColor"
+             stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M4 4h6v6H4z"></path><path d="M14 4h6v6h-6z"></path>
+          <path d="M4 14h6v6H4z"></path><path d="M14 14h6v6h-6z"></path>
+        </svg>
+        <span>Community</span>
+      </a>
+      <a href="/collections.html" class="side-item"
+         th:classappend="${active == 'collections'} ? ' active'" th:attr="aria-current=${active == 'collections'} ? 'page'">
+        <svg viewBox="0 0 24 24" class="side-icon" aria-hidden="true" fill="none" stroke="currentColor"
+             stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
+          <path d="m12 4.5 2.3 4.7 5.2.8-3.8 3.6.9 5.2-4.6-2.5-4.6 2.5.9-5.2-3.8-3.6 5.2-.8z"></path>
+        </svg>
+        <span>Collections</span>
+      </a>
+      <a href="/characters.html" class="side-item" th:if="${charactersEnabled}"
+         th:classappend="${active == 'characters'} ? ' active'" th:attr="aria-current=${active == 'characters'} ? 'page'">
+        <svg viewBox="0 0 24 24" class="side-icon" aria-hidden="true" fill="none" stroke="currentColor"
+             stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
+          <circle cx="12" cy="6" r="2.6"></circle>
+          <path d="M12 8.6v6M12 10.4 8 12M12 10.4l4 1.6M12 14.6 9.2 20M12 14.6 14.8 20"></path>
+        </svg>
+        <span>Characters</span>
+      </a>
+    </div>
+
+    <!--
+      Was einem selbst gehoert. Die Direktnachrichten standen bis 2026-11-21
+      als Papierflieger im Kopf; die Zahl daran zaehlt GESPRAECHE mit Neuem,
+      nicht Nachrichten (messages.js haelt sie aktuell, `#messages-button`).
+      Profil und Konto stehen zusaetzlich im Menue unter dem Namen - dort mit
+      dem Abmelden zusammen, hier als Orte, die man ansteuert.
+    -->
+    <div class="side-group" th:if="${user != null}">
+      <a class="side-item" id="messages-button" href="/messages.html"
+         th:classappend="${active == 'messages'} ? ' active'" th:attr="aria-current=${active == 'messages'} ? 'page'"
+         th:aria-label="${user.unreadMessages > 0} ? ${'Messages, ' + user.unreadMessages + ' new'} : 'Messages'"
+         th:title="${user.unreadMessages > 0} ? ${'Messages (' + user.unreadMessages + ' new)'} : 'Messages'">
+        <svg viewBox="0 0 24 24" class="side-icon" aria-hidden="true" fill="none" stroke="currentColor"
+             stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M20.5 3.5 3.5 10.6l6.8 2.6 2.6 6.8z"></path><path d="m20.5 3.5-10.2 9.7"></path>
+        </svg>
+        <span>Messages</span>
+        <span class="bell-count" th:if="${user.unreadMessages > 0}"
+              th:text="${user.unreadMessages > 99} ? '99+' : ${user.unreadMessages}">1</span>
+      </a>
+      <a class="side-item" th:if="${user.handle != null}" th:href="${'/u.html?u=' + user.handle}"
+         th:with="own=${active == 'profile' and param.u != null and param.u[0] == user.handle}"
+         th:classappend="${own} ? ' active'" th:attr="aria-current=${own} ? 'page'">
+        <svg viewBox="0 0 24 24" class="side-icon" aria-hidden="true" fill="none" stroke="currentColor"
+             stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
+          <circle cx="12" cy="8.5" r="3.6"></circle><path d="M5 20c0-3.8 3.1-6 7-6s7 2.2 7 6"></path>
+        </svg>
+        <span>Profile</span>
+      </a>
+      <a class="side-item" href="/me.html"
+         th:classappend="${active == 'account'} ? ' active'" th:attr="aria-current=${active == 'account'} ? 'page'">
+        <svg viewBox="0 0 24 24" class="side-icon" aria-hidden="true" fill="none" stroke="currentColor"
+             stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M4 7h9"></path><path d="M18 7h2"></path><path d="M4 17h3"></path><path d="M11 17h9"></path>
+          <circle cx="15.5" cy="7" r="2.3"></circle><circle cx="8.5" cy="17" r="2.3"></circle>
+        </svg>
+        <span>Account</span>
+      </a>
+    </div>
+
+    <!--
+      Der Moderations-Eintrag wird weggelassen statt versteckt. Vorher stand er
+      mit der Klasse "hidden" im Dokument und JavaScript nahm sie weg, sobald
+      /api/v1/me die Rolle nannte - ein Aufblitzen fuer alle anderen war damit
+      eine Frage des Zeitpunkts. Moderation und Stats sind zwei Reiter EINER
+      Seite; der Eintrag gilt fuer beide.
+    -->
+    <div class="side-group" th:if="${user != null and user.admin}">
+      <a href="/admin.html" class="side-item admin-link"
+         th:classappend="${active == 'admin'} ? ' active'" th:attr="aria-current=${active == 'admin'} ? 'page'">
+        <svg viewBox="0 0 24 24" class="side-icon" aria-hidden="true" fill="none" stroke="currentColor"
+             stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z"></path>
+        </svg>
+        <span>Moderation</span>
+      </a>
+    </div>
+
+    <!-- Was ausserhalb des Portals liegt - mit dem Zeichen fuer "fuehrt hinaus". -->
+    <div class="side-group">
+      <a href="https://docs.playmations.com/docs/tools/community" class="side-item" rel="noopener" target="_blank">
+        <svg viewBox="0 0 24 24" class="side-icon" aria-hidden="true" fill="none" stroke="currentColor"
+             stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M5 5.5A1.5 1.5 0 0 1 6.5 4H18v13H6.5A1.5 1.5 0 0 0 5 18.5z"></path>
+          <path d="M5 18.5A1.5 1.5 0 0 0 6.5 20H18v-3"></path><path d="M9 8h5"></path>
+        </svg>
+        <span>Documentation</span>
+        <svg viewBox="0 0 24 24" class="side-external" aria-label="opens in a new tab" role="img" fill="none"
+             stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M14 5h5v5"></path><path d="m19 5-8 8"></path><path d="M17 14v5H5V7h5"></path>
+        </svg>
+      </a>
+    </div>
+  </nav>
+
+  <!-- Hinter der offenen Schublade: ein Klick daneben schliesst sie. -->
+  <div class="side-scrim" hidden></div>
 </header>
 
 <!--

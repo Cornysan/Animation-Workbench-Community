@@ -47,7 +47,8 @@
     }, label));
   }
 
-  const make = el("button", { class: "button", type: "button" }, "New collection");
+  //  Die Hauptaktion der Seite - im Seitenkopf rechts, deshalb blau.
+  const make = el("button", { class: "button primary", type: "button" }, "New collection");
   make.addEventListener("click", async () => {
     const made = await collectionDialog();
     if (made) location.href = "/collection.html?c=" + encodeURIComponent(made.slug);

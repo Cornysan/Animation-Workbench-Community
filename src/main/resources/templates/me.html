@@ -20,12 +20,18 @@
 <header th:replace="~{fragments/shell :: header}"></header>
 <main id="main">
   <div th:replace="~{fragments/shell :: paused}"></div>
-  <h1>Your account</h1>
+  <!-- Rechts der Weg zur oeffentlichen Seite - stand bis 2026-11-21 als erster
+       Eintrag in der Zeile darunter, zwischen den Abschnitten DIESER Seite. -->
+  <div class="page-head">
+    <h1>Your account</h1>
+    <div class="page-head-actions">
+      <a class="button" th:if="${user != null and user.handle != null}" th:href="${'/u.html?u=' + user.handle}">Public profile</a>
+    </div>
+  </div>
   <p class="lead">Only you see this page.</p>
 
   <!-- Was hier alles liegt, auf einen Blick - die Seite ist lang geworden. -->
   <nav class="page-sections" aria-label="On this page">
-    <a th:if="${user != null and user.handle != null}" th:href="${'/u.html?u=' + user.handle}">Public profile</a>
     <a href="#notifications">Notifications</a>
     <a href="#clips-title">Your clips</a>
     <a href="#sign-ins" th:if="${signIns != null}">Ways to sign in</a>

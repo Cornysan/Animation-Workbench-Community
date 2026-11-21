@@ -338,7 +338,9 @@ class PageController(
             ))
         }
 
-        return view(model, "user")
+        //  "profile" hebt den Eintrag in der Spalte nur auf dem EIGENEN Profil
+        //  hervor - welches das ist, prueft die Vorlage am Handle.
+        return view(model, "user", active = "profile")
     }
 
     /**
@@ -414,10 +416,8 @@ class PageController(
     }
 
     /**
-     * Das private Fach. KEIN `active`-Eintrag mehr: seit es Profile gibt,
-     * steht es nicht in der Navigation - man kommt ueber das eigene Profil
-     * hierher, und was nicht in der Leiste steht, kann dort auch nichts
-     * hervorheben.
+     * Das private Fach. Seit 2026-11-21 steht es als "Account" in der Spalte
+     * links (fragments/shell.html) und wird dort hervorgehoben.
      */
     @GetMapping("/me.html")
     fun me(model: Model, authentication: Authentication?): String {
@@ -428,20 +428,19 @@ class PageController(
         authentication.portalPrincipal()?.let {
             model.addAttribute("signIns", providers.rows(accounts.signIns(it.accountId)))
         }
-        return view(model, "me")
+        return view(model, "me", active = "account")
     }
 
     /**
      * Direktnachrichten. Die Seite ist ein leerer Rahmen; Liste und Gespraech
      * holt messages.js. `?c=<id>` oeffnet ein Gespraech, `?to=<handle>` das mit
      * einer Person (auch ein noch nicht begonnenes) - so kommt man vom Profil
-     * hierher. Kein `active`: die Seite steht nicht in der Navigation, sondern
-     * hinter dem Briefsymbol im Kopf.
+     * hierher. Seit 2026-11-21 steht sie als "Messages" in der Spalte links.
      */
     @GetMapping("/messages.html")
     fun messages(model: Model): String {
         model.addAttribute("meta", ShellModel.PageMeta("Messages", "Your direct messages.", noindex = true))
-        return view(model, "messages")
+        return view(model, "messages", active = "messages")
     }
 
     /**
