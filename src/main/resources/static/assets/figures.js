@@ -281,27 +281,82 @@ export async function figureForStage(id) {
   };
 }
 
-// ── Welche Figur zuletzt gewaehlt war ─────────────────────────────────────
+// ── Die eigene Standardfigur ──────────────────────────────────────────────
+//
+// WIE IN UNITY: jeder waehlt fuer sich, auf welcher Figur er die Clips sieht -
+// eines der zwei Mannequins in einem seiner Looks, oder eine eigene Figur von
+// oben. Bis 2026-11-21 trug jeder Clip die Figur und den Look, die sein
+// Ersteller beim Teilen gewaehlt hatte; Pablo wollte das umgekehrt: die Wahl
+// gehoert dem, der schaut, nicht dem, der hochlaedt.
+//
+// Die Wahl liegt in diesem Browser (`localStorage`), wie die eigenen Figuren
+// selbst - ohne Konto, ohne Server. Ein anderes Geraet beginnt mit dem
+// Standard-Mannequin.
 
-const CHOICE_KEY = 'aw.viewer.figure';
+const DEFAULT_KEY = 'aw.character';
+
+/** Bis 2026-11-21: die zuletzt an der Buehne gewaehlte eigene Figur. */
+const OLD_CHOICE_KEY = 'aw.viewer.figure';
+
+/** Was gilt, solange niemand etwas gewaehlt hat. */
+export const STANDARD_CHARACTER = Object.freeze({ kind: 'mannequin', figure: 'default', look: 'classic' });
 
 /**
+ * Die gewaehlte Standardfigur: `{ kind: 'mannequin', figure, look }` oder
+ * `{ kind: 'own', id }`.
+ *
  * In try/catch, weil `localStorage` nicht nur leer sein, sondern WERFEN kann -
- * im privaten Fenster und bei gesperrten Seitendaten schon beim Lesen.
+ * im privaten Fenster und bei gesperrten Seitendaten schon beim Lesen. Dann
+ * gilt eben das Standard-Mannequin.
  */
-export function rememberedFigure() {
+export function defaultCharacter() {
   try {
-    return localStorage.getItem(CHOICE_KEY) || '';
+    const raw = localStorage.getItem(DEFAULT_KEY);
+    if (raw) {
+      const value = JSON.parse(raw);
+      if (value && value.kind === 'own' && typeof value.id === 'string' && value.id) {
+        return { kind: 'own', id: value.id };
+      }
+      if (value && value.kind === 'mannequin') {
+        return {
+          kind: 'mannequin',
+          figure: value.figure === 'female' ? 'female' : 'default',
+          //  Ob die Figur den Look tragen kann, entscheidet die Buehne
+          //  (`lookFor`) - ein Look der anderen Figur wird sein Gegenstueck.
+          look: typeof value.look === 'string' && value.look ? value.look : 'classic',
+        };
+      }
+    }
+    //  Wer vorher an der Buehne eine eigene Figur gewaehlt hatte, behaelt sie.
+    const old = localStorage.getItem(OLD_CHOICE_KEY);
+    if (old) return { kind: 'own', id: old };
   } catch {
-    return '';
+    /* gesperrter Speicher - dann das Standard-Mannequin */
+  }
+  return { ...STANDARD_CHARACTER };
+}
+
+export function setDefaultCharacter(choice) {
+  try {
+    localStorage.setItem(DEFAULT_KEY, JSON.stringify(choice));
+    localStorage.removeItem(OLD_CHOICE_KEY);
+  } catch {
+    /* dann gilt die Wahl nur, bis die Seite neu laedt */
   }
 }
 
-export function rememberFigure(id) {
-  try {
-    if (id) localStorage.setItem(CHOICE_KEY, id);
-    else localStorage.removeItem(CHOICE_KEY);
-  } catch {
-    /* dann eben nur fuer diesen Clip */
+/**
+ * Die Standardfigur so, wie eine Buehne sie braucht: `{ own, house, look }`.
+ * `own` ist die geladene eigene Figur (`figureForStage`) oder null. Liegt
+ * die gewaehlte eigene Figur nicht mehr in diesem Browser - vergessen, oder
+ * die Seitendaten geloescht -, steht das Standard-Mannequin da.
+ */
+export async function characterForStage() {
+  const choice = defaultCharacter();
+  if (choice.kind === 'own') {
+    const own = await figureForStage(choice.id).catch(() => null);
+    if (own) return { own, house: null, look: null };
+    return { own: null, house: STANDARD_CHARACTER.figure, look: STANDARD_CHARACTER.look };
   }
+  return { own: null, house: choice.figure, look: choice.look };
 }

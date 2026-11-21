@@ -1,15 +1,19 @@
 <!doctype html>
 <!--
-  Die eigenen Figuren.
+  Characters: auf welcher Figur man die Clips sieht.
 
-  DER SERVER HAT DAMIT NICHTS ZU TUN. Diese Seite ist ein leerer Rahmen; was
-  darin steht, liegt im Browser dessen, der sie aufruft (IndexedDB), und geht
-  nie irgendwohin. Ein Mesh ist Megabyte gross und gehoert jemandem - ein
+  SEIT 2026-11-21 WIE IN UNITY. Jeder waehlt hier seine Standardfigur - eines
+  der zwei Mannequins in einem seiner Looks, oder eine eigene Figur -, und
+  jede Karte, jede Clip-Seite und die Upload-Seite zeigen die Clips auf ihr.
+  Vorher trug jeder Clip die Figur und den Look, die sein Ersteller gewaehlt
+  hatte, und diese Seite verwaltete nur die eigenen Figuren (hinter einem
+  Admin-Schalter, der jetzt weg ist).
+
+  DER SERVER HAT DAMIT NICHTS ZU TUN. Die Wahl liegt im localStorage, die
+  eigenen Figuren in der IndexedDB dieses Browsers (figures.js) - beides geht
+  nie irgendwohin. Ein Mesh ist Megabyte gross und gehoert jemandem: ein
   gekauftes Synty- oder Mixamo-Modell auf unserem Server waere eine Kopie
   eines lizenzierten Assets.
-
-  Sie steht trotzdem in der Leiste. Eine Funktion, die man nur findet, wenn
-  man schon weiss, dass es sie gibt, ist keine.
 -->
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{fragments/shell :: head('Characters')}"></head>
@@ -18,33 +22,29 @@
 <main id="main">
   <div th:replace="~{fragments/shell :: paused}"></div>
 
-  <h1>Your characters</h1>
-
-  <!--
-    AUSGESCHALTET. Kein 404: die Workbench-Doku schickt Leute genau hierher,
-    und wer dem Satz folgt, soll eine Antwort finden. Der wichtigste Teil ist
-    der zweite Absatz - abgelegte Figuren sind NICHT weg, sie liegen weiter
-    im Browser. Ohne diesen Satz muesste jeder annehmen, dass sie geloescht
-    wurden, und genau das tut der Schalter nicht.
-  -->
-  <div th:unless="${charactersEnabled}" class="prose">
-    <p class="lead">This part of the portal is being reworked and is not available right now.</p>
-    <p>Clips run on the mannequin the Workbench ships with, as they did before.</p>
-    <p class="muted">If you had already put your own characters here, they are untouched. They live in this browser and were never uploaded anywhere, so they will be waiting when this comes back.</p>
+  <div class="page-head">
+    <h1>Characters</h1>
+    <div class="page-head-actions">
+      <button type="button" class="button primary" id="pick">Add a figure</button>
+    </div>
   </div>
-
-  <div th:if="${charactersEnabled}">
-  <p class="lead">Clips here run on the mannequin the Workbench ships with. Add your own characters and they run on those instead.</p>
-
-  <div id="drop" class="figure-drop">
-    <p><strong>Drop a figure here</strong></p>
-    <p class="muted small">An <code>.fbx</code> or a <code>.glb</code> - from the Animation Workbench, from Mixamo, out of Blender. It stays in this browser and is never uploaded.</p>
-    <button type="button" class="button" id="pick">Choose a file</button>
-    <input type="file" id="file" accept=".glb,.fbx,model/gltf-binary" hidden>
-  </div>
-
+  <p class="lead">Every clip on the portal plays on the character you choose here: on the cards, on
+    the clip pages and when you upload. Your choice stays in this browser.</p>
+  <p class="character-now" id="now" aria-live="polite"></p>
   <div id="note" class="notice" hidden></div>
 
+  <h2>Mannequin</h2>
+  <p class="muted small">The two mannequins the Workbench ships with, each in ten looks. Generic clips
+    (a door, a tail, a crane) always play on their own skeleton.</p>
+  <div id="mannequins" class="character-mannequins"></div>
+
+  <h2>Your figures</h2>
+  <div id="drop" class="figure-drop">
+    <p><strong>Drop a figure anywhere on this page</strong></p>
+    <p class="muted small">An <code>.fbx</code> or a <code>.glb</code> - from the Animation Workbench, from
+      Mixamo, out of Blender. It stays in this browser and is never uploaded.</p>
+    <input type="file" id="file" accept=".glb,.fbx,model/gltf-binary" hidden>
+  </div>
   <div id="figures" class="figure-grid"></div>
 
   <div class="prose figure-how">
@@ -53,11 +53,9 @@
     <p><strong>Or straight out of the Workbench.</strong> Open the <strong>Figures</strong> view, and in its <code>&#8943;</code> menu pick <strong>Use my figures on the portal</strong>. Every humanoid character in the project turns into a card; click the ones that should stay home, then press <strong>Export</strong> and pick a folder. Those files bring their own mapping, so there is nothing to check - and a character built from parts, like a Synty Sidekick, can only come this way.</p>
     <p class="muted">Two things to expect from a plain <code>.fbx</code>: it usually arrives grey, because FBX keeps its textures in files next to it rather than inside it, and it is measured in centimetres rather than metres - the page reads the unit out of the file and converts. What never travels either way: blend shapes, normal maps, LODs.</p>
   </div>
-  </div>
-
 </main>
 <footer th:replace="~{fragments/shell :: footer}"></footer>
 <script th:src="|${@buildStamp.assets}/app.js|"></script>
-<script type="module" th:src="|${@buildStamp.assets}/pages/characters.js|" th:if="${charactersEnabled}"></script>
+<script type="module" th:src="|${@buildStamp.assets}/pages/characters.js|"></script>
 </body>
 </html>

@@ -110,12 +110,19 @@ sie sich auch jetzt nicht.
 | `static/assets/viewer.js` | Das Strichmaennchen. Bleibt: als Skelettansicht und als Rueckfall ohne WebGL. |
 | `static/assets/vendor/three.module.js` | three.js r186 plus GLTFLoader und SkeletonUtils, gebuendelt. |
 
-**Zwei Mannequins.** Rechts unten auf der Buehne steht `Male / Female`, auch
-ohne die eigenen Figuren. Die Wahl haelt ueber den Clip hinaus
-(`aw.viewer.house`), und "With character" laedt das Mannequin herunter, das
-gerade dasteht. Beide haben dasselbe Skelett - BONE_MAP, Ruhepose und die
-Umrechnung gelten unveraendert. Katalogkarten und Discord-Bilder zeigen immer
-das Default-Mannequin. Aendert sich das Default-Mannequin, beide neu erzeugen:
+**Zwei Mannequins, und jeder waehlt selbst (seit 2026-11-21).** Auf welcher
+Figur man die Clips sieht, waehlt jeder Betrachter auf `/characters.html`:
+Male oder Female in einem der zehn Looks, oder eine eigene Figur. Karten,
+Clip-Seite und Upload-Seite zeigen alles auf dieser Standardfigur
+(`figures.js`, `defaultCharacter`, im `localStorage` unter `aw.character`).
+Ein Clip traegt keinen Look seines Erstellers mehr; der Server nimmt `figure`
+und `look` beim Hochladen weiter an (aeltere Workbench-Fassungen schicken
+sie), die Oberflaeche liest sie nicht mehr. Nur die Discord-Bilder zeigen
+fuer alle das Default-Mannequin in Classic. "With character" laedt das
+Mannequin herunter, das gerade dasteht - bei einer eigenen Figur gibt es
+diese Formate nicht. Beide Mannequins haben dasselbe Skelett - BONE_MAP,
+Ruhepose und die Umrechnung gelten unveraendert. Aendert sich das
+Default-Mannequin, beide neu erzeugen:
 
 ```
 python tools/mannequin/female.py src/main/resources/static/models/aw-mannequin.glb src/main/resources/static/models/aw-mannequin-f.glb
@@ -156,26 +163,23 @@ Der Kopf von `stage.js` erklaert es im Ganzen.
 
 ### Die eigene Figur
 
-Seit dem 21.09.2026 muss es nicht das Mannequin sein. Es gibt zwei Orte dafür,
-und die Trennung ist Absicht:
+Seit dem 21.09.2026 muss es nicht das Mannequin sein. **`/characters.html`**
+ist seit 2026-11-21 der EINE Ort dafür: oben die Mannequins in ihren Looks,
+darunter die eigenen Figuren. Dort kommen Figuren herein (ziehen oder
+"Add a figure"), dort stehen sie als Karten mit ihrem Bild und ihren Zahlen,
+dort wird die Standardfigur gewählt und dort wieder vergessen. Die Seite
+steht immer in der Spalte - der Admin-Schalter "Characters page" ist weg.
 
-**`/characters.html`** ist der Ort. Dort kommen Figuren herein (ziehen oder
-auswählen), dort stehen sie als Karten mit ihrem Bild und ihren Zahlen, dort
-wird eine gewählt und dort wieder vergessen. Die Seite steht in der
-Navigationsleiste, weil eine Funktion, die man nur findet, wenn man schon
-weiß, dass es sie gibt, keine ist.
-
-**Die Schalterreihe an der Bühne** ist der Schalter. Rechts unten, über den
-Proportionen: `Mannequin`, dann die abgelegten Figuren, dann ein Plus, das auf
-die Seite führt. Dort entscheidet man, auf WEM der Clip gerade läuft - mehr
-nicht. Hinzufügen und Löschen am Rand einer Bühne zu verstecken war der erste
-Entwurf und der falsche.
+Bis 2026-11-21 gab es zusätzlich eine Schalterreihe rechts unten an jeder
+Bühne (Male, Female, eigene Figuren, Plus). Sie ist raus: dieselbe Frage an
+zwei Stellen, und seit die Wahl für alle Karten gilt, gehört sie auf die
+Seite.
 
 | Datei | |
 |---|---|
-| `static/assets/figures.js` | Die Ablage: IndexedDB, Lesen des `extras`-Blocks, die Zahlen für die Karte, gemerkte Auswahl. |
-| `static/assets/pages/characters.js` | Die Seite: Ablegen, Karten, ein Bild je Figur, wählen und vergessen. |
-| `static/assets/viewer-ui.js` | Die Schalterreihe an der Bühne. |
+| `static/assets/figures.js` | Die Ablage: IndexedDB, Lesen des `extras`-Blocks, die Zahlen für die Karte, die Standardfigur (`defaultCharacter`, `characterForStage`). |
+| `static/assets/pages/characters.js` | Die Seite: Mannequin-Looks, Ablegen, Karten, ein Bild je Figur, wählen und vergessen. |
+| `static/assets/card-stage.js` | Die Karten: die Standardfigur einmal je Seite laden, jede Karte klont sie. |
 | `static/assets/stage.js` | `parseFigure()` und `options.figure` - dieselbe Bühne, andere Figur. |
 
 **Das Bild auf der Karte misst am Skelett, nicht am Mesh.**

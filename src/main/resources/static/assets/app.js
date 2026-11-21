@@ -418,9 +418,9 @@ const AW = (() => {
         const stage = canvas.dataset.rig === "generic" ? null : await cardStage();
         if (stage) {
           try {
-            viewer = await stage.mountCardStage(canvas, preview, {
-              autoplay: !stillPreviews, figure: canvas.dataset.figure, look: canvas.dataset.look,
-            });
+            //  Auf der Standardfigur des Betrachters (card-stage.js), nicht
+            //  auf der des Erstellers.
+            viewer = await stage.mountCardStage(canvas, preview, { autoplay: !stillPreviews });
           } catch (error) {
             //  Eine Vorschau, die sich nicht auf die Figur umrechnen laesst,
             //  bekommt ihr Strichmaennchen. Die Konsole bekommt eine Zeile,
@@ -1095,8 +1095,6 @@ const AW = (() => {
   function clipCard(item, observer, options = {}) {
     const canvas = el("canvas", {
       "data-slug": item.slug, "data-rig": item.rig || "humanoid", width: 560, height: 420,
-      //  Wie der Ersteller den Clip zeigt - figure-looks.js.
-      "data-figure": item.figure || "default", "data-look": item.look || "classic",
     });
     if (item.hasPreview && observer) {
       observer.observe(canvas);
@@ -1236,7 +1234,6 @@ const AW = (() => {
     const cover = item.cover
       ? el("canvas", {
         "data-slug": item.cover.slug, "data-rig": item.cover.rig || "humanoid", width: 560, height: 420,
-        "data-figure": item.cover.figure || "default", "data-look": item.cover.look || "classic",
       })
       : el("div", { class: "viewer-empty" }, "Empty");
 
@@ -1279,7 +1276,6 @@ const AW = (() => {
     const cover = item.cover
       ? el("canvas", {
         "data-slug": item.cover.slug, "data-rig": item.cover.rig || "humanoid", width: 560, height: 420,
-        "data-figure": item.cover.figure || "default", "data-look": item.cover.look || "classic",
       })
       : el("div", { class: "viewer-empty" }, "No preview");
     if (item.cover && observer) {
@@ -1498,88 +1494,10 @@ const AW = (() => {
     });
   }
 
-  /** Figuren und Looks (`/api/v1/looks`) - einmal je Seite geholt. */
-  let looksPromise = null;
-  const looksRequest = () => {
-    if (!looksPromise) looksPromise = api("GET", "/api/v1/looks").catch((e) => { looksPromise = null; throw e; });
-    return looksPromise;
-  };
-
-  /**
-   * Figur und Look eines Clips waehlen - im Bearbeiten-Dialog und beim
-   * Hochladen aus einer Datei. Dieselbe Wahl wie beim Teilen in der Workbench
-   * (`AWCommunityLooks`): oben die Figur, darunter ihre Looks als Bilder.
-   * Wechselt die Figur, wird der Look zu seinem Gegenstueck (Gold -> Rose
-   * Gold), wie in Unity und auf dem Server (`FigureLooks.kt`). Jeder Look ist
-   * fuer jeden waehlbar: die Pro-Sperre, die hier vom 2026-10-04 an einen
-   * halben Tag stand, lief anders als die in Unity - Pablo hat sie ueberall
-   * gestrichen.
-   *
-   * @param figure / look  die geltende Wahl
-   * @param onChange       ({ figure, look }) nach jedem Wechsel
-   * Antwort: { element, value() }.
-   */
-  function lookPicker({ figure = "default", look = "classic", onChange = null } = {}) {
-    let chosen = { figure, look };
-    const element = el("div", { class: "look-picker" }, el("p", { class: "faint small" }, "Loading the looks…"));
-
-    looksRequest().then((data) => {
-      const byKey = new Map(data.looks.map((entry) => [entry.key, entry]));
-      const kept = byKey.get(look);
-
-      const set = (next) => {
-        chosen = next;
-        draw();
-        if (onChange) onChange({ ...chosen });
-      };
-
-      const draw = () => {
-        const figures = el("div", { class: "segmented look-figures", role: "radiogroup", "aria-label": "Figure" },
-          ...data.figures.map((entry) => {
-            const on = entry.key === chosen.figure;
-            const button = el("button", { type: "button", class: on ? "active" : null, role: "radio",
-              "aria-checked": String(on) }, entry.label);
-            button.addEventListener("click", () => {
-              if (on) return;
-              const current = byKey.get(chosen.look);
-              const fits = current && current.figures.includes(entry.key);
-              set({ figure: entry.key, look: fits ? current.key : current ? current.twin : entry.defaultLook });
-            });
-            return button;
-          }));
-
-        const tiles = el("div", { class: "look-grid", role: "radiogroup", "aria-label": "Look" },
-          ...data.looks.filter((entry) => entry.figures.includes(chosen.figure)).map((entry) => {
-            const on = entry.key === chosen.look;
-            const tile = el("button", {
-              type: "button",
-              class: "look-tile" + (on ? " on" : ""),
-              role: "radio",
-              "aria-checked": String(on),
-            },
-              el("img", { src: (entry.images && entry.images[chosen.figure]) || entry.image, alt: "",
-                width: "72", height: "72", loading: "lazy" }),
-              el("span", { class: "look-name" }, entry.label));
-            tile.addEventListener("click", () => {
-              if (!on) set({ figure: chosen.figure, look: entry.key });
-            });
-            return tile;
-          }));
-
-        element.replaceChildren(figures, tiles);
-      };
-
-      //  Ein Look, den diese Figur nicht hat (aeltere Daten), wird zu seinem
-      //  Gegenstueck - so, wie der Server ihn ohnehin speichern wuerde.
-      if (kept && !kept.figures.includes(chosen.figure)) chosen = { ...chosen, look: kept.twin };
-      if (!kept) chosen = { ...chosen, look: data.defaultLook };
-      draw();
-    }).catch(() => {
-      element.replaceChildren(el("p", { class: "faint small" }, "The looks could not be loaded. The clip keeps its own."));
-    });
-
-    return { element, value: () => ({ ...chosen }) };
-  }
+  //  HIER STAND `lookPicker`: Figur und Look eines Clips waehlen, beim
+  //  Hochladen und im Bearbeiten-Dialog. Seit 2026-11-21 waehlt jeder seine
+  //  eigene Standardfigur auf der Characters-Seite (figures.js), und ein Clip
+  //  traegt keinen Look mehr, den alle sehen.
 
   /**
    * "/" springt in die Suche - das Kuerzel, das jeder Katalog hat.
@@ -1783,7 +1701,7 @@ const AW = (() => {
   return {
     api, ApiError, ensureCsrf, me, el, notice, formatDuration, formatDate, formatRelative,
     copyText, param, signInUrl, signInButton, clipCard, collectionCard, packCard, entryCard, packDialog,
-    packCandidates, lookPicker,
+    packCandidates,
     previewObserver,
     icon, iconButton, discordButton, setIconState, popover, closePopover, signInHint, signedIn,
     likeButton, saveButton, collectionDialog, profileHref, releasePreviews,

@@ -160,8 +160,16 @@ function previewBlocked() {
 //  Faellt die Buehne auf das Strichmaennchen zurueck (kein WebGL, ein
 //  generischer Clip, eine Vorschau, die sich nicht umrechnen laesst), gibt es
 //  keine Figur herauszuschreiben.
+//
+//  Steht eine EIGENE Figur da (Standardfigur auf der Characters-Seite), geht
+//  es auch nicht: geschrieben wird das Mannequin, und die Bewegung wird von
+//  der Buehne abgelesen - von Knochen, die das Mannequin nicht hat. Die eigene
+//  Figur verlaesst den Browser ohnehin nicht.
 function characterBlocked() {
-  return previewBlocked() || (staged.viewer && staged.viewer.mode === 'mannequin' ? null : 'No character');
+  const blocked = previewBlocked();
+  if (blocked) return blocked;
+  if (!staged.viewer || staged.viewer.mode !== 'mannequin') return 'No character';
+  return staged.viewer.stage && staged.viewer.stage.own ? 'Mannequin only' : null;
 }
 
 async function downloadAwclip() {

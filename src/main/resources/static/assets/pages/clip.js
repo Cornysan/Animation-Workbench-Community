@@ -79,7 +79,7 @@ const CLIP_SCRIPT = document.currentScript ? document.currentScript.src : locati
     setTimeout(async () => {
       try {
         const { refreshClipCard } = await import(new URL("../og-card.js", CLIP_SCRIPT).href);
-        await refreshClipCard(slug, null, { figure: clip.figure, look: clip.look });
+        await refreshClipCard(slug);
       } catch (error) {
         console.warn("[clip] preview image not rendered", error);
       }
@@ -227,13 +227,11 @@ const CLIP_SCRIPT = document.currentScript ? document.currentScript.src : locati
       //  Was sich aendern laesst, zeigt der Dialog.
       tip: "Edit this clip",
       onClick: async () => {
-        const before = clip;
         const saved = await editDialog(clip);
         if (!saved) return;
         clip = saved;
         showClip();
         toast("Saved.", { kind: "ok" });
-        if (saved.figure !== before.figure || saved.look !== before.look) redressed();
       },
     });
     bar.append(edit);
@@ -367,19 +365,6 @@ const CLIP_SCRIPT = document.currentScript ? document.currentScript.src : locati
     } catch { /* Nachbarschaft ist Zugabe. */ }
   }
 
-  /**
-   * Figur oder Look haben gewechselt: die Buehne zieht um (clip-viewer.js),
-   * und das Vorschaubild fuer Discord & Co. entsteht neu - der Server hat das
-   * alte beim Speichern verworfen. Derselbe Weg wie beim ersten Laden, oben.
-   */
-  function redressed() {
-    document.dispatchEvent(new CustomEvent("aw:dress", { detail: { figure: clip.figure, look: clip.look } }));
-    if (clip.license !== "CC0-1.0" || clip.rig !== "humanoid" || !clip.hasPreview || clip.status !== "PUBLISHED") return;
-    import(new URL("../og-card.js", CLIP_SCRIPT).href)
-      .then(({ refreshClipCard }) => refreshClipCard(slug, null, { figure: clip.figure, look: clip.look }))
-      .catch((error) => console.warn("[clip] preview image not rendered", error));
-  }
-
   // ── In einen Pack ────────────────────────────────────────────────────
   //  Gibt es schon eigene Packs, fragt ein kleiner Dialog, in welchen - oder
   //  ob ein neuer entsteht. Ohne eigene Packs geht es gleich zum neuen, mit
@@ -505,10 +490,8 @@ const CLIP_SCRIPT = document.currentScript ? document.currentScript.src : locati
       title.addEventListener("input", refreshTags);
       description.addEventListener("input", refreshTags);
 
-      //  Figur und Look (app.js, lookPicker). Ein generischer Clip laeuft
-      //  auf seinem eigenen Skelett, nicht auf dem Mannequin - fuer ihn gibt
-      //  es nichts zu waehlen.
-      const looks = current.rig === "humanoid" ? AW.lookPicker({ figure: current.figure, look: current.look }) : null;
+      //  HIER STAND DIE WAHL VON FIGUR UND LOOK. Seit 2026-11-21 sieht jeder
+      //  die Clips auf seiner eigenen Standardfigur (Characters-Seite).
 
       const publicChoice = el("input", { type: "radio", name: "visibility", value: PUBLIC, checked: wasPublic });
       const privateChoice = el("input", { type: "radio", name: "visibility", value: PRIVATE, checked: !wasPublic });
@@ -550,7 +533,6 @@ const CLIP_SCRIPT = document.currentScript ? document.currentScript.src : locati
           el("label", { class: "field-label", for: tags.inputId },
             "Tags ", el("span", { class: "faint small" }, "up to " + AWTags.MAX_TAGS)),
           tags.element),
-        looks ? el("div", { class: "field" }, el("span", { class: "field-label" }, "Figure"), looks.element) : null,
         el("fieldset", { class: "choices" },
           el("legend", {}, "Who can see it"),
           el("label", {}, publicChoice,
@@ -608,9 +590,6 @@ const CLIP_SCRIPT = document.currentScript ? document.currentScript.src : locati
             declarationAccepted: goingPublic && declared.checked,
             declarationText: declaration ? declaration.declarationText : null,
             declarationVersion: declaration ? declaration.declarationVersion : null,
-            //  Ohne Auswahl null - dann bleibt, was der Clip traegt.
-            figure: looks ? looks.value().figure : null,
-            look: looks ? looks.value().look : null,
           }));
         } catch (e) {
           notice(error, e.message, "error");

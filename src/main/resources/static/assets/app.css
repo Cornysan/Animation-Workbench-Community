@@ -1478,47 +1478,14 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
   background: var(--on-stage-accent-veil);
 }
 
-/* Die Proportionen liegen rechts unten - was links liegt, schaltet die
-   ANSICHT um, was hier steht, aendert die FIGUR. Waagerecht, weil die vier
-   nebeneinander eine Reihe zum Durchgehen sind und keine Liste von Schaltern. */
-.stage-figures {
-  position: absolute;
-  right: 12px;
-  bottom: 12px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
-}
-
-/* Zwei Reihen uebereinander: oben, auf WEM der Clip laeuft, darunter die
-   Masse des Mannequins. Bei einer eigenen Figur faellt die untere weg - sie
-   hat ihre Proportionen. */
-.stage-row {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  max-width: min(62vw, 420px);
-}
-
-
-/* Ein Schalter mit Wort statt Zeichen: dieselbe Schale wie `.hud-toggle`, nur
-   so breit, wie das Wort es braucht. */
-.hud-chip {
-  width: auto;
-  min-width: 34px;
-  padding: 0 10px;
-  font-size: 12px;
-  letter-spacing: 0.02em;
-}
+/* Hier standen die Regeln fuer die Reihen rechts unten an der Buehne
+   (`.stage-figures`, `.stage-row`, `.hud-chip`): erst die Proportionen, bis
+   2026-11-21 die Figurenwahl. Beide sind raus - die Figur waehlt man auf der
+   Characters-Seite. */
 
 @media (max-width: 720px) {
   .viewer canvas { height: 360px; }
   .stage-hud { left: 8px; bottom: 8px; }
-  .stage-figures { right: 8px; bottom: 8px; gap: 4px; }
-  .stage-row { gap: 4px; max-width: 70vw; }
-  .hud-chip { padding: 0 8px; font-size: 11px; }
 }
 .viewer-controls {
   display: flex;
@@ -2219,10 +2186,9 @@ dialog.sheet form > p:last-of-type { margin-bottom: 20px; }
 #clips .chip .icon { width: 14px; height: 14px; }
 .starter-packs { margin: 6px 0 10px; padding-left: 18px; }
 
-/* Figur und Look eines Clips (lookPicker in app.js): oben die Figur, darunter
-   ihre Looks als Bilder. Das Bild ist die Vorschau - im Bearbeiten-Dialog
-   liegt die Buehne unter dem Schleier. */
-.look-picker { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+/* Die Looks der Mannequins als Kacheln - seit 2026-11-21 nur noch auf der
+   Characters-Seite, wo jeder seine Standardfigur waehlt (characters.js).
+   Vorher standen sie beim Hochladen und im Bearbeiten-Dialog (lookPicker). */
 .look-grid {
   align-self: stretch;
   display: grid;
@@ -2246,6 +2212,35 @@ dialog.sheet form > p:last-of-type { margin-bottom: 20px; }
 .look-tile:hover { color: var(--text); }
 .look-tile.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); color: var(--text); }
 .look-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Characters ───────────────────────────────────────────────────────────
+   Oben, was gerade gilt; darunter je Mannequin seine Looks, dann die eigenen
+   Figuren. Die gewaehlte Kachel traegt den blauen Rand und "Default". */
+.character-now { margin: -14px 0 8px; color: var(--text); font-weight: 600; font-size: 14.5px; }
+.character-now:empty { display: none; }
+.character-mannequins { display: flex; flex-direction: column; gap: 22px; margin: 0 0 8px; }
+.character-figure h3 { margin: 0 0 10px; font-size: 14px; font-weight: 650; color: var(--text-dim); }
+.character-looks { grid-template-columns: repeat(auto-fill, minmax(108px, 1fr)); gap: 10px; }
+.character-looks .look-tile { padding: 8px 6px 10px; font-size: 13px; background: var(--surface); }
+.character-looks .look-tile img { max-width: 96px; }
+.character-looks .look-tile:hover { border-color: var(--line-strong); }
+.character-looks .look-tile.on { border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
+/* Auf dem Telefon drei je Reihe statt zwei grosser - zehn Looks sollen auf einen Blick passen. */
+@media (max-width: 620px) {
+  .character-looks { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+}
+.look-default {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--primary);
+  color: var(--primary-ink);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
 
 @media (max-width: 720px) {
   .profile-head { gap: 16px; }

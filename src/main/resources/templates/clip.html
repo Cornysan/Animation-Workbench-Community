@@ -49,7 +49,7 @@
     </div>
 
     <section class="clip-main">
-      <div class="viewer" id="viewer" th:attr="data-rig=${clipRig},data-figure=${clipFigure},data-look=${clipLook}"></div>
+      <div class="viewer" id="viewer" th:attr="data-rig=${clipRig}"></div>
       <div class="clip-byline">
         <img class="avatar" id="author-initial" alt="" width="28" height="28"
              th:if="${clipPage != null and clipPage.authorAvatar != null}" th:src="${clipPage.authorAvatar}">

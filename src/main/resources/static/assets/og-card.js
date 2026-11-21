@@ -103,11 +103,13 @@ function blank() {
  * damit die Zwischenposen blass werden koennen, ohne den Boden mitzunehmen.
  *
  * `shiftX` schiebt die Figur um so viele Bildpunkte nach rechts (die Seite
- * braucht links Platz fuer Text), `zoom` holt sie naeher heran. `figure` und
- * `look` sind die des Clips (figure-looks.js) - das Bild zeigt ihn so, wie
- * ihn alle auf der Seite sehen.
+ * braucht links Platz fuer Text), `zoom` holt sie naeher heran. Die Figur ist
+ * immer das Standard-Mannequin in Classic: das Bild sieht jeder, der den Link
+ * bekommt (seit 2026-11-21; vorher Figur und Look des Erstellers).
  */
-async function paintStage(ctx, preview, { shiftX = 0, zoom = 1, figure, look } = {}) {
+async function paintStage(ctx, preview, { shiftX = 0, zoom = 1 } = {}) {
+  const figure = 'default';
+  const look = 'classic';
   const gltf = await loadModel(figure);
   const renderer = sharedRenderer();
   //  Die Buehne leiht sich den Renderer, wie eine Karte im Katalog - dann
@@ -210,9 +212,9 @@ function toPng(canvas) {
  * Das Bild eines Clips: die Figur in der Mitte, das Logo klein unten links.
  * Kein Text - Titel und Beschreibung setzt Discord ohnehin daneben.
  */
-export async function renderClipCard(preview, dress = {}) {
+export async function renderClipCard(preview) {
   const { canvas, ctx } = blank();
-  await paintStage(ctx, preview, dress);
+  await paintStage(ctx, preview);
 
   const mark = await logo();
   const h = 30;
@@ -294,20 +296,16 @@ export async function fetchPreview(slug) {
   return response.json();
 }
 
-/** Figur und Look eines Clips, wie der Ersteller sie gewaehlt hat. */
-async function fetchDress(slug) {
-  const response = await fetch('/api/v1/packages/' + encodeURIComponent(slug), { credentials: 'same-origin' });
-  if (!response.ok) return {};
-  const clip = await response.json();
-  return { figure: clip.figure, look: clip.look };
-}
-
 /**
  * Rendern und hochladen, in einem - fuer die Seite des Besitzers und die
- * Admin-Liste. Ohne `dress` holt es sich Figur und Look des Clips selbst.
+ * Admin-Liste.
+ *
+ * Immer auf dem Standard-Mannequin in Classic: das Bild sieht jeder, der den
+ * Link bekommt, also zeigt es keine persoenliche Standardfigur. Bis
+ * 2026-11-21 trug es Figur und Look, die der Ersteller gewaehlt hatte.
  */
-export async function refreshClipCard(slug, preview, dress) {
-  const blob = await renderClipCard(preview || await fetchPreview(slug), dress || await fetchDress(slug));
+export async function refreshClipCard(slug, preview) {
+  const blob = await renderClipCard(preview || await fetchPreview(slug));
   await uploadCard('/api/v1/packages/' + encodeURIComponent(slug) + '/card', blob);
   return blob;
 }

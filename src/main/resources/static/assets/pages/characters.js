@@ -1,21 +1,21 @@
 /**
- * Die Seite mit den eigenen Figuren.
+ * Characters: die eigene Standardfigur waehlen.
  *
- * Sie holt nichts vom Server und schickt nichts hin: alles, was hier steht,
- * liegt in der IndexedDB dieses Browsers (`figures.js`). Der Server liefert
- * nur den Rahmen.
+ * Oben die zwei Mannequins des Hauses in ihren Looks, darunter die eigenen
+ * Figuren. Was hier gewaehlt ist, traegt jeden Clip auf dem Portal - auf den
+ * Karten, auf der Clip-Seite, beim Hochladen (figures.js, `defaultCharacter`).
+ * Das ist seit 2026-11-21 der EINE Ort dafuer: die Schalterreihe an jeder
+ * Buehne ist weg, und ein Clip bringt keinen Look seines Erstellers mehr mit.
  *
- * WARUM ES DIESE SEITE GIBT. Die Auswahl steht als Schalterreihe an der
- * Buehne, und das bleibt auch so - dort entscheidet man, auf WEM der Clip
- * gerade laeuft. Aber ein Schalter ist kein Ort: Figuren hinzufuegen,
- * ansehen, wieder loswerden, nachsehen wie gross sie sind und wie viele
- * Knochen sie tragen - das braucht eine Seite, und die braucht einen Eintrag
- * in der Leiste, sonst findet die Funktion niemand.
+ * Vom Server kommt nur die Liste der Looks (`/api/v1/looks`, Namen und
+ * Bilder). Alles andere liegt in diesem Browser.
  */
 
 import {
-  addFigure, getFigure, listFigures, rememberFigure, rememberedFigure, removeFigure, saveMapping,
+  STANDARD_CHARACTER, addFigure, defaultCharacter, getFigure, listFigures, removeFigure, saveMapping,
+  setDefaultCharacter,
 } from '../figures.js';
+import { lookFor } from '../figure-looks.js';
 import { editBoneMap } from '../bone-map.js';
 import { BONES, REQUIRED, label } from '../humanoid.js';
 import { parseFigure } from '../stage.js';
@@ -28,8 +28,8 @@ const grid = document.getElementById('figures');
 const drop = document.getElementById('drop');
 const picker = document.getElementById('file');
 const note = document.getElementById('note');
-
-if (grid) start();
+const mannequins = document.getElementById('mannequins');
+const now = document.getElementById('now');
 
 // ── Meldungen ─────────────────────────────────────────────────────────────
 
@@ -208,13 +208,13 @@ function card(entry, active) {
 
   const actions = el('div', 'figure-actions');
 
-  const use = el('button', 'button' + (active ? '' : ' primary'), active ? 'In use' : 'Use this one');
+  const use = el('button', 'button' + (active ? '' : ' primary'), active ? 'Default' : 'Use this one');
   use.type = 'button';
   use.disabled = !!active || gaps.length > 0;
   use.addEventListener('click', () => {
-    rememberFigure(entry.id);
+    setDefaultCharacter({ kind: 'own', id: entry.id });
     say(entry.name + ' will carry the clips from now on.');
-    draw();
+    redraw();
   });
 
   const check = el('button', 'button', entry.checked === false || gaps.length ? 'Check bones' : 'Bones');
@@ -231,9 +231,11 @@ function card(entry, active) {
     });
     if (!sure) return;
     await removeFigure(entry.id);
-    if (rememberedFigure() === entry.id) rememberFigure('');
-    say(entry.name + ' is gone from this browser.');
-    draw();
+    const wasDefault = isOwnDefault(entry.id);
+    if (wasDefault) setDefaultCharacter({ ...STANDARD_CHARACTER });
+    say(entry.name + ' is gone from this browser.'
+      + (wasDefault ? ' Clips play on the male mannequin again.' : ''));
+    redraw();
   });
 
   actions.append(use, check, forget);
@@ -255,26 +257,119 @@ function card(entry, active) {
 
 function empty() {
   const box = el('div', 'figure-empty');
-  box.append(el('p', null, 'No characters here yet.'));
+  box.append(el('p', null, 'No figures of your own yet.'));
   box.append(el('p', 'muted small',
-    'Until you add one, every clip runs on the mannequin the Workbench ships with.'));
+    'Add one with the button at the top, or drop the file anywhere on this page.'));
   return box;
 }
 
+function isOwnDefault(id) {
+  const choice = defaultCharacter();
+  return choice.kind === 'own' && choice.id === id;
+}
+
+/** Die eigenen Figuren - die gewaehlte zuerst. */
 async function draw() {
   const figures = await listFigures();
-  const active = rememberedFigure();
+  const choice = defaultCharacter();
+  const active = choice.kind === 'own' ? choice.id : '';
 
   grid.replaceChildren();
   if (!figures.length) {
     grid.append(empty());
-    return;
+    return figures;
   }
 
   //  Die gewaehlte Figur zuerst: sie ist die Antwort auf die Frage, mit der
   //  man hierherkommt.
   figures.sort((a, b) => (b.id === active) - (a.id === active) || a.added - b.added);
   for (const entry of figures) grid.append(card(entry, entry.id === active));
+  return figures;
+}
+
+// ── Die Mannequins des Hauses ─────────────────────────────────────────────
+
+/** Namen und Bilder der Looks (`/api/v1/looks`), einmal je Seite. */
+let looksPromise = null;
+const looks = () => {
+  if (!looksPromise) looksPromise = AW.api('GET', '/api/v1/looks').catch((e) => { looksPromise = null; throw e; });
+  return looksPromise;
+};
+
+/**
+ * Je Figur ihre Looks als Kacheln - dieselben Bilder wie in Unity unter
+ * Settings > Appearance > Mannequin. Ein Klick macht die Kachel zur
+ * Standardfigur; es gibt keinen zweiten Knopf "Set as default", weil es hier
+ * nichts anderes zu tun gibt als zu waehlen.
+ */
+async function drawMannequins() {
+  let data;
+  try {
+    data = await looks();
+  } catch {
+    mannequins.replaceChildren(el('p', 'muted small', 'The looks could not be loaded. Reload the page to try again.'));
+    return null;
+  }
+
+  const choice = defaultCharacter();
+  const chosenLook = choice.kind === 'mannequin' ? lookFor(choice.figure, choice.look) : null;
+
+  const groups = data.figures.map((figure) => {
+    const group = el('section', 'character-figure');
+    group.append(el('h3', null, figure.label));
+
+    const tiles = el('div', 'look-grid character-looks');
+    for (const look of data.looks.filter((entry) => entry.figures.includes(figure.key))) {
+      const on = choice.kind === 'mannequin' && choice.figure === figure.key && chosenLook === look.key;
+      const tile = el('button', 'look-tile' + (on ? ' on' : ''));
+      tile.type = 'button';
+      tile.setAttribute('aria-pressed', String(on));
+      tile.setAttribute('aria-label', figure.label + ' mannequin, ' + look.label + (on ? ' (your default)' : ''));
+
+      const image = document.createElement('img');
+      image.src = (look.images && look.images[figure.key]) || look.image;
+      image.alt = '';
+      image.width = 96;
+      image.height = 96;
+      image.loading = 'lazy';
+      tile.append(image, el('span', 'look-name', look.label));
+      if (on) tile.append(el('span', 'look-default', 'Default'));
+
+      tile.addEventListener('click', () => {
+        if (on) return;
+        setDefaultCharacter({ kind: 'mannequin', figure: figure.key, look: look.key });
+        say('Clips now play on the ' + figure.label.toLowerCase() + ' mannequin in ' + look.label + '.');
+        redraw();
+      });
+      tiles.append(tile);
+    }
+    group.append(tiles);
+    return group;
+  });
+
+  mannequins.replaceChildren(...groups);
+  return data;
+}
+
+/** "Now: …" ueber allem - auch dann lesbar, wenn die Wahl weiter unten steht. */
+function drawNow(data, figures) {
+  const choice = defaultCharacter();
+  let text = 'Now: the male mannequin in Classic.';
+  if (choice.kind === 'own') {
+    const entry = (figures || []).find((f) => f.id === choice.id);
+    text = entry ? 'Now: ' + entry.name + ', your own figure.' : text;
+  } else if (data) {
+    const figure = data.figures.find((f) => f.key === choice.figure);
+    const look = data.looks.find((l) => l.key === lookFor(choice.figure, choice.look));
+    if (figure && look) text = 'Now: the ' + figure.label.toLowerCase() + ' mannequin in ' + look.label + '.';
+  }
+  now.textContent = text;
+}
+
+/** Beide Teile neu - nach jeder Wahl, jedem Hinzufuegen und Vergessen. */
+async function redraw() {
+  const [data, figures] = await Promise.all([drawMannequins(), draw()]);
+  drawNow(data, figures);
 }
 
 // ── Die Knochen nachsehen ─────────────────────────────────────────────────
@@ -347,16 +442,18 @@ async function take(file) {
       const saved = await getFigure(entry.id);
       const ready = saved && !REQUIRED.some((bone) => !(saved.humanoid || {})[bone]);
       if (ready) {
-        rememberFigure(entry.id);
+        setDefaultCharacter({ kind: 'own', id: entry.id });
         say(saved.name + ' will carry the clips from now on.');
       }
-      await draw();
+      await redraw();
       return;
     }
 
-    rememberFigure(entry.id);
+    //  Wer eine Figur hereinholt, will sie sehen: sie wird gleich die
+    //  Standardfigur. Zurueck geht es mit einem Klick auf ein Mannequin.
+    setDefaultCharacter({ kind: 'own', id: entry.id });
     say(entry.name + ' is here now, and clips will run on it.');
-    await draw();
+    await redraw();
   } catch (error) {
     say(error.message || 'That file could not be read.', true);
     console.warn('[characters] import failed', error);
@@ -364,7 +461,7 @@ async function take(file) {
 }
 
 function start() {
-  draw();
+  redraw();
 
   document.getElementById('pick').addEventListener('click', () => picker.click());
   picker.addEventListener('change', () => {
@@ -389,3 +486,7 @@ function start() {
     take(event.dataTransfer && event.dataTransfer.files[0]);
   });
 }
+
+//  Erst hier, am Ende: `start` braucht die Konstanten weiter oben (`el`,
+//  `looks`), und ein Aufruf vor ihrer Zeile liefe in ihre "temporal dead zone".
+if (grid) start();

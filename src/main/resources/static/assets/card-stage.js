@@ -29,7 +29,8 @@
  * eine Vorschau, die sich nicht auf die Figur umrechnen laesst.
  */
 
-import { MannequinStage, loadModel } from './stage.js';
+import { MannequinStage, loadModel, parseFigure } from './stage.js';
+import { STANDARD_CHARACTER, characterForStage } from './figures.js';
 import { ACESFilmicToneMapping, WebGLRenderer } from './vendor/three.module.js';
 
 /** Bilder je Sekunde, die eine Karte zeichnet. */
@@ -344,21 +345,67 @@ class CardPreview {
 }
 
 /**
+ * DIE STANDARDFIGUR DES BETRACHTERS, einmal je Seite (figures.js). Jede Karte
+ * zeigt den Clip auf ihr - wie die Wand in Unity auf der Standardfigur des
+ * Projekts. Bis 2026-11-21 trug jede Karte Figur und Look ihres Erstellers.
+ *
+ * Eine eigene Figur wird EINMAL gelesen und geparst; jede Karte klont sie
+ * (`MannequinStage` haengt sich eine Kopie mit eigenem Skelett ein). 24-mal
+ * dieselbe Datei aus der IndexedDB zu holen und zu zerlegen, waere 24-mal
+ * dieselbe Arbeit.
+ */
+let pageCharacter = null;
+
+function cardCharacter() {
+  if (!pageCharacter) {
+    pageCharacter = characterForStage().then(async (character) => {
+      if (!character.own) return { ...character, gltf: await loadModel(character.house) };
+      const { own } = character;
+      return { ...character, gltf: await parseFigure(own.buffer, own.kind, own.scale) };
+    });
+  }
+  return pageCharacter;
+}
+
+function stageOptions(character, autoplay) {
+  const common = {
+    surface: sharedSurface(),
+    interactive: false,
+    autoplay,
+    //  Nur Boden und Horizont - das Raster gehoert der Clip-Seite.
+    grid: false,
+  };
+  const { own } = character;
+  return own
+    ? { ...common, own: true, boneMap: own.humanoid, unitScale: own.scale || 1, figureHeight: own.height || 0 }
+    : { ...common, house: character.house, look: character.look };
+}
+
+/**
  * Haengt die Figur in die Leinwand einer Karte. Wirft, wenn das nicht geht -
  * der Aufrufer nimmt dann das Strichmaennchen.
  */
 export async function mountCardStage(canvas, preview, options = {}) {
-  //  Figur und Look, die der Ersteller gewaehlt hat (figure-looks.js) - jede
-  //  Karte zeigt den Clip so, wie ihn alle sehen.
-  const gltf = await loadModel(options.figure);
-  const stage = new MannequinStage(canvas, thinPreview(preview), gltf, {
-    house: options.figure,
-    look: options.look,
-    surface: sharedSurface(),
-    interactive: false,
-    autoplay: options.autoplay,
-    //  Nur Boden und Horizont - das Raster gehoert der Clip-Seite.
-    grid: false,
-  });
+  const thin = thinPreview(preview);
+  let character = await cardCharacter().catch(() => null);
+
+  //  Traegt die eigene Figur diesen Clip nicht (eine Zuordnung mit Luecken,
+  //  eine kaputte Datei), steht das Mannequin da - nicht gleich das
+  //  Strichmaennchen auf jeder Karte.
+  if (character && character.own) {
+    try {
+      const stage = new MannequinStage(canvas, thin, character.gltf, stageOptions(character, options.autoplay));
+      return new CardPreview(stage.surface, canvas, stage);
+    } catch (error) {
+      console.warn('[cards] own figure failed, using the mannequin', error);
+      character = null;
+    }
+  }
+
+  if (!character) {
+    const house = STANDARD_CHARACTER.figure;
+    character = { own: null, house, look: STANDARD_CHARACTER.look, gltf: await loadModel(house) };
+  }
+  const stage = new MannequinStage(canvas, thin, character.gltf, stageOptions(character, options.autoplay));
   return new CardPreview(stage.surface, canvas, stage);
 }

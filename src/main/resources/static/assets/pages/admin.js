@@ -20,7 +20,6 @@ const ADMIN_SCRIPT = document.currentScript ? document.currentScript.src : locat
   // ── Schalter ─────────────────────────────────────────────────────────
   const community = document.getElementById("community-enabled");
   const uploads = document.getElementById("uploads-enabled");
-  const characters = document.getElementById("characters-enabled");
   const webUpload = document.getElementById("web-upload-enabled");
   const status = await api("GET", "/api/v1/status");
 
@@ -30,7 +29,6 @@ const ADMIN_SCRIPT = document.currentScript ? document.currentScript.src : locat
   const show = (s) => {
     community.checked = s.communityEnabled;
     uploads.checked = s.uploadsEnabled;
-    characters.checked = s.charactersEnabled;
     //  Haengt an `uploads` wie `uploads` an `community`: der Server meldet,
     //  was GILT, nicht was gespeichert ist.
     webUpload.checked = s.webUploadEnabled;
@@ -47,9 +45,6 @@ const ADMIN_SCRIPT = document.currentScript ? document.currentScript.src : locat
   };
   community.addEventListener("change", () => saveSwitch({ communityEnabled: community.checked }, community));
   uploads.addEventListener("change", () => saveSwitch({ uploadsEnabled: uploads.checked }, uploads));
-  //  Wirkt erst beim naechsten Seitenaufbau: der Schalter steht im Kopf
-  //  jeder Seite, und der wird auf dem Server gesetzt.
-  characters.addEventListener("change", () => saveSwitch({ charactersEnabled: characters.checked }, characters));
   webUpload.addEventListener("change", () => saveSwitch({ webUploadEnabled: webUpload.checked }, webUpload));
 
   // ── Vorschaubilder ──────────────────────────────────────────────────

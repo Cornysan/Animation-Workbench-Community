@@ -13,7 +13,7 @@
  */
 
 import { createMannequinStage } from './stage.js';
-import { figureForStage, listFigures, rememberFigure, rememberedFigure } from './figures.js';
+import { characterForStage } from './figures.js';
 
 const ICONS = {
   mesh: '<path d="M12 3.6 20 8v8l-8 4.4L4 16V8z"/><path d="M12 12 20 8M12 12v8.4M12 12 4 8"/>',
@@ -91,94 +91,18 @@ function rememberedProportions() {
 }
 
 
-/**
- * Die Reihe mit den eigenen Figuren: das Mannequin des Hauses, dann alles, was
- * jemand aus der Workbench hier abgelegt hat, dann ein Plus.
- *
- * WARUM SIE AN DER BUEHNE STEHT und nicht in einem Menue: es ist dieselbe
- * Frage wie die Proportionen darunter - auf WEM laeuft der Clip. Die Antwort
- * gehoert dorthin, wo man sie sieht.
- *
- * Die Dateien kommen aus der Figuren-Ansicht der Workbench ("Use my figures on
- * the portal", dann Export) und bleiben in diesem Browser.
+/*
+ * HIER STAND DIE SCHALTERREIHE AN DER BUEHNE: Male, Female, die eigenen
+ * Figuren und ein Plus zur Characters-Seite. Seit 2026-11-21 waehlt jeder
+ * seine Standardfigur an EINEM Ort - der Characters-Seite (figures.js,
+ * `defaultCharacter`) -, und jede Buehne und jede Karte zeigt die Clips auf
+ * ihr. Eine zweite Wahl am Rand jeder Buehne waere dieselbe Frage an zwei
+ * Stellen.
  */
-/**
- * Die Reihe mit den Figuren: die zwei Mannequins des Hauses, dann alles, was
- * jemand abgelegt hat, dann ein Plus, das zur Characters-Seite fuehrt.
- *
- * WARUM SIE HIER STEHT und nicht in einem Menue: es ist dieselbe Frage wie die
- * Proportionen darunter - auf WEM laeuft der Clip. Die Antwort gehoert dorthin,
- * wo man sie sieht. Hinzufuegen und Loeschen gehoeren dagegen auf eine Seite.
- */
-/**
- * Ob die eigenen Figuren ueberhaupt angeboten werden.
- *
- * Der Wert kommt aus dem gemeinsamen Kopf (`fragments/shell`), also vom
- * Server und ohne eine weitere Abfrage. Fehlt das Feld - eine alte Seite im
- * Cache, ein Rahmen ohne unseren Kopf -, gilt AUS: eine Reihe, die auf eine
- * Seite fuehrt, die es nicht mehr gibt, waere die schlechtere Antwort.
- */
-export function charactersEnabled() {
-  const meta = document.querySelector('meta[name="aw-characters"]');
-  return !!meta && meta.content === 'true';
-}
-
-/** Die Mannequins des Hauses, in der Reihenfolge der Reihe (`HOUSE_FIGURES`). */
-const HOUSE_CHIPS = [
-  ['default', 'Male', 'The male mannequin the Workbench ships with'],
-  ['female', 'Female', 'The female mannequin the Workbench ships with'],
-];
-
-async function mountFigureRow(row, activeId, house, remount, withOwn) {
-  const chip = (label, title, pressed) => {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'hud-toggle hud-chip';
-    button.textContent = label;
-    button.title = title;
-    button.setAttribute('aria-label', title);
-    if (pressed !== undefined) button.setAttribute('aria-pressed', String(pressed));
-    return button;
-  };
-
-  //  Die beiden Mannequins stehen immer da - auch ohne eigene Figuren. Beide
-  //  liefert die Workbench mit, und die Frage "traegt die Bewegung auch den
-  //  anderen Koerper" stellt sich jedem, nicht nur wem mit eigener Figur.
-  const stored = withOwn ? await listFigures() : [];
-  row.replaceChildren();
-
-  for (const [value, label, title] of HOUSE_CHIPS) {
-    const active = !activeId && house === value;
-    const one = chip(label, title, active);
-    one.addEventListener('click', () => { if (!active) remount('', value); });
-    row.append(one);
-  }
-
-  for (const entry of stored) {
-    const one = chip(entry.name, 'Run this clip on ' + entry.name, entry.id === activeId);
-    one.addEventListener('click', () => { if (entry.id !== activeId) remount(entry.id); });
-    row.append(one);
-  }
-
-  if (!withOwn) return;
-
-  //  Hinzufuegen und Verwalten stehen auf der Characters-Seite. Hier wird nur
-  //  gewaehlt: ein Schalter ist kein Ort, und wer eine Figur loswerden will,
-  //  sucht sie nicht am Rand einer Buehne.
-  const add = document.createElement('a');
-  add.className = 'hud-toggle hud-chip';
-  add.href = '/characters.html';
-  add.textContent = stored.length ? '+' : '+ My figure';
-  add.title = stored.length ? 'Add or manage your characters' : 'Run clips on your own character';
-  add.setAttribute('aria-label', add.title);
-  row.append(add);
-}
 
 /**
  * Haengt Buehne und Bedienung in `box`. Gibt einen Griff zurueck, der die
- * Buehne wieder abbauen (`destroy`) und umziehen (`dress`) kann; `mode` sagt,
- * was am Ende dort steht. Der Griff bleibt derselbe, wenn die Buehne fuer eine
- * andere Figur neu aufgebaut wird (`options.handle`, siehe [rebuild]).
+ * Buehne wieder abbauen kann (`destroy`); `mode` sagt, was am Ende dort steht.
  */
 export async function mountViewer(box, preview, options = {}) {
   const handle = options.handle || {};
@@ -242,43 +166,23 @@ export async function mountViewer(box, preview, options = {}) {
   const rig = options.rig || 'humanoid';
 
   /**
-   * DIE EIGENE FIGUR, WENN EINE ABGELEGT IST.
+   * DIE STANDARDFIGUR DES BETRACHTERS (figures.js): eines der Mannequins in
+   * seinem Look, oder eine eigene Figur aus diesem Browser. Bis 2026-11-21
+   * stand hier die Figur, die der Ersteller beim Teilen gewaehlt hatte.
    *
-   * Sie liegt im Browser (`figures.js`), nicht bei uns. Ist sie nicht mehr da
-   * oder laesst sie sich nicht laden, steht das Mannequin - eine leere Buehne
-   * waere die schlechtere Antwort auf eine geloeschte Datei.
+   * Laesst sich die eigene Figur nicht laden, steht das Mannequin - eine
+   * leere Buehne waere die schlechtere Antwort auf eine geloeschte Datei.
    */
-  //  AUSGESCHALTET HEISST AUCH: NICHT BENUTZT. Die zuletzt gewaehlte Figur
-  //  steht weiter im localStorage und ihre Datei weiter in der IndexedDB -
-  //  beides bleibt unangetastet. Sie wird nur nicht mehr aufgelegt, sonst
-  //  liefe der Clip weiter auf einer Figur, die nirgends mehr zu sehen oder
-  //  zu wechseln ist.
-  let ownId = charactersEnabled()
-    ? (options.figureId !== undefined ? options.figureId : rememberedFigure())
-    : '';
   let own = null;
-
-  if (rig === 'humanoid' && ownId) {
-    try {
-      own = await figureForStage(ownId);
-    } catch (error) {
-      console.warn('[viewer] own figure unavailable', error);
-    }
-    if (!own) ownId = '';
-  }
-
-  //  Welches Mannequin des Hauses - gilt, solange keine eigene Figur dasteht.
-  //
-  //  DIE WAHL DES ERSTELLERS, NICHT DIE GEMERKTE. Bis 2026-09-28 hielt ein
-  //  Klick auf Male/Female ueber den Clip hinaus (`aw.viewer.house`); seit
-  //  jeder Clip seine Figur und seinen Look mitbringt (figure-looks.js), saehe
-  //  wer einmal umgeschaltet hat die Wahl des Erstellers nie wieder. Der
-  //  Schalter gilt jetzt fuer diesen Besuch. Beim Wechsel traegt die andere
-  //  Figur das Gegenstueck des Looks (Gold -> Rose Gold, figure-looks.js).
-  let house = options.house || 'default';
-  const look = options.look;
-
+  let house = 'default';
+  let look = null;
   if (rig === 'humanoid') {
+    try {
+      ({ own, house, look } = await characterForStage());
+    } catch (error) {
+      console.warn('[viewer] default character unavailable', error);
+    }
+
     try {
       stage = await createMannequinStage(canvas, preview, {
         onFrame, autoplay: options.autoplay, proportions: rememberedProportions(),
@@ -292,7 +196,6 @@ export async function mountViewer(box, preview, options = {}) {
     //  Die eigene Figur oder das zweite Mannequin ist gescheitert - noch
     //  einmal mit dem Mannequin, bevor es das Strichmaennchen wird.
     if (!stage && (own || house !== 'default')) {
-      ownId = '';
       own = null;
       house = 'default';
       try {
@@ -394,48 +297,6 @@ export async function mountViewer(box, preview, options = {}) {
     if (stage.dispose) stage.dispose();
   };
 
-  /**
-   * Eine andere Figur heisst: alles noch einmal.
-   *
-   * Nicht aus Bequemlichkeit - eine Buehne haengt an ihrer Leinwand, und eine
-   * Leinwand gibt ihren WebGL-Kontext nicht wieder her. Der Aufbau ist
-   * ohnehin ein Ladevorgang; ihn zu wiederholen ist ehrlicher als einen
-   * halben Zustand weiterzureichen.
-   *
-   * Der neue Aufbau fuellt DENSELBEN Griff (`handle`): wer ihn haelt - die
-   * Ausgabe "mit Figur" (clip-download.js), die Upload-Seite - liest danach
-   * die neue Buehne, nicht die abgebaute.
-   */
-  const rebuild = async (next) => {
-    const playing = stage.playing;
-    //  Follow bleibt, wie man es gestellt hat - die neue Figur zeigt denselben Clip.
-    const follow = stage.cameraFollow;
-    destroy();
-    await mountViewer(box, preview, { ...next, autoplay: playing, follow, handle });
-  };
-
-  const remount = (nextId, nextHouse) => {
-    rememberFigure(nextId);
-    return rebuild({ ...options, figureId: nextId, house: nextHouse || house });
-  };
-
-  /**
-   * Figur und Look des Clips anziehen - nach dem Bearbeiten auf der
-   * Clip-Seite, beim Hochladen bei jeder Wahl. Ein anderer Look ist nur ein
-   * Materialwechsel; eine andere Figur heisst neu aufbauen. Steht gerade die
-   * eigene Figur des Besuchers da, weicht sie fuer diesen Blick, ohne dass
-   * die gemerkte Wahl verloren geht: gezeigt wird, was alle sehen.
-   */
-  const dress = async (nextHouse, nextLook) => {
-    if (mode !== 'mannequin') return;
-    options = { ...options, house: nextHouse, look: nextLook };
-    if (own || nextHouse !== house) {
-      await rebuild({ ...options, figureId: '' });
-      return;
-    }
-    stage.setLook(nextLook);
-  };
-
   if (mode === 'mannequin') {
     const hud = document.createElement('div');
     hud.className = 'stage-hud';
@@ -474,34 +335,15 @@ export async function mountViewer(box, preview, options = {}) {
     hud.append(meshToggle, gridToggle, followToggle, resetButton);
     wrap.append(hud);
 
-    /**
-     * HIER STAND EINE REIHE "Default / Tall / Short / Heavy".
-     *
-     * Sie aenderte die Proportionen des Mannequins, und sie ist raus. Der
-     * Clip wird dadurch nicht anders - sie beantwortete eine Frage, die auf
-     * einer Seite zum Ansehen und Mitnehmen niemand stellt, und stand dabei
-     * neben den Schaltern, die wirklich etwas tun.
-     *
-     * Die Buehne KANN es weiterhin (`stage.setProportions`), und die
-     * gemerkte Wahl wird beim Aufbau noch gelesen - wer sie frueher gesetzt
-     * hat, sieht seine Figur unveraendert. Nur zu bedienen ist sie nicht
-     * mehr.
+    /*
+     * HIER STANDEN ZWEI REIHEN rechts unten: "Default / Tall / Short / Heavy"
+     * (raus, die Buehne kann es noch: `stage.setProportions`, die gemerkte
+     * Wahl wird beim Aufbau gelesen) und bis 2026-11-21 die Figurenwahl -
+     * die steht jetzt auf der Characters-Seite.
      */
-    const figures = document.createElement('div');
-    figures.className = 'stage-figures';
-
-    const ownRow = document.createElement('div');
-    ownRow.className = 'stage-row';
-    figures.append(ownRow);
-
-    wrap.append(figures);
-    //  Die zwei Mannequins stehen immer in der Reihe. Ist der Schalter aus,
-    //  kommen die abgelegten Figuren und das Plus, das auf die Seite fuehren
-    //  wuerde, gar nicht erst dazu.
-    mountFigureRow(ownRow, ownId, house, remount, charactersEnabled());
   }
 
   document.addEventListener('keydown', onKey);
 
-  return Object.assign(handle, { stage, mode, destroy, dress });
+  return Object.assign(handle, { stage, mode, destroy });
 }
