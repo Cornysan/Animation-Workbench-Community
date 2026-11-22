@@ -555,7 +555,7 @@ class PageController(
     fun link(model: Model) = view(model, "link")
 
     @GetMapping(PortalPaths.RULES)
-    fun rules(model: Model) = view(model, "rules")
+    fun rules(model: Model) = view(model, "rules", active = "rules")
 
     @GetMapping(PortalPaths.TERMS)
     fun terms(model: Model) = view(model, "terms")

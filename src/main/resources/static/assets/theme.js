@@ -40,10 +40,10 @@
   var root = document.documentElement;
   var media = window.matchMedia('(prefers-color-scheme: light)');
 
-  //  Die Farbe der Browserleiste auf dem Telefon - das Schwarz des Balkens
-  //  oben (`--topbar-bg` im Stylesheet). Seit 2026-11-21 ist der Balken in
-  //  beiden Themen schwarz, die Leiste also auch.
-  var BAR = { light: '#000000', dark: '#000000' };
+  //  Die Farbe der Browserleiste auf dem Telefon - die des Balkens oben
+  //  (`--topbar-bg` im Stylesheet). Seit 2026-11-22 hat er die Farbe der
+  //  Seite: weiss in Hell, fast schwarz in Dunkel (vorher in beiden schwarz).
+  var BAR = { light: '#ffffff', dark: '#0c0c0d' };
 
   /**
    * Die gespeicherte Wahl, oder `null`.

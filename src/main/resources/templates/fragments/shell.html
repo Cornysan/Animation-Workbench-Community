@@ -57,10 +57,11 @@
     traegt `script-src 'self'` ohne Nonce. Die laengere Fassung dieser
     Begruendung steht in theme.js selbst.
 
-    Das Meta-Feld traegt das Schwarz des Balkens - in beiden Themen, denn der
-    Balken ist in beiden schwarz.
+    Das Meta-Feld traegt die Farbe des Balkens. Seit 2026-11-22 hat er die
+    Farbe der Seite - fast schwarz in Dunkel, weiss in Hell; theme.js setzt
+    den Wert beim Umschalten nach. Hier steht der dunkle als Vorgabe.
   -->
-  <meta name="theme-color" content="#000000">
+  <meta name="theme-color" content="#0c0c0d">
   <script th:src="|${@buildStamp.assets}/theme.js|"></script>
   <!--
     Die Schrift VOR dem Stylesheet anfordern: sonst entdeckt der Browser sie
@@ -152,8 +153,8 @@
         OBEN STEHT PLAYMATIONS. Das Portal laeuft unter playmations.com, also
         traegt der Balken diese Marke; Animation Workbench Community ist seit
         2026-09-27 das, worauf es laeuft, und steht als "Powered by" im Fuss.
-        Der Balken ist in beiden Themen schwarz - die Marke ist hier also immer
-        die weisse.
+        Im Markup steht die weisse Fassung; auf dem weissen Balken des hellen
+        Themas tauscht das Stylesheet sie gegen die dunkle (`.brand-lockup`).
       -->
       <a class="brand" href="/" title="Playmations">
         <img class="brand-lockup" th:src="|${@buildStamp.assets}/brand/playmations-lockup-weiss.svg|"
@@ -181,6 +182,22 @@
     </form>
 
     <div class="header-account">
+
+      <!--
+        "+ SHARE" WIE "+ ERSTELLEN" BEI YOUTUBE (Pablo, 2026-11-22). Teilen
+        ist eine Handlung, kein Ort - deshalb steht es nicht mehr als erster
+        Eintrag in der Spalte, sondern hier, wo jeder es von jeder Seite aus
+        findet, angemeldet oder nicht. Es fuehrt auf /share: dort steht, wie
+        es aus Unity geht, und - wenn eingeschaltet - der Upload einer Datei.
+      -->
+      <a class="button header-share" href="/share" title="Share an animation" aria-label="Share an animation"
+         th:classappend="${active == 'share'} ? ' active'" th:attr="aria-current=${active == 'share'} ? 'page'">
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
+             stroke-width="1.9" stroke-linecap="round">
+          <path d="M12 5.5v13"></path><path d="M5.5 12h13"></path>
+        </svg>
+        <span>Share</span>
+      </a>
 
       <!--
         Der Umschalter steht vor dem Kontoblock, weil er fuer JEDEN da ist -
@@ -301,28 +318,19 @@
   </div>
 
   <!--
-    DIE SPALTE. Gruppen wie im Publisher Portal, getrennt durch Abstand statt
-    Linien: was man beitraegt, was es gibt, was einem selbst gehoert, die
-    Moderation, und was ausserhalb des Portals liegt.
+    DIE SPALTE. Abschnitte wie bei YouTube (seit 2026-11-22), getrennt durch
+    eine Haarlinie, jeder ausser dem ersten mit einer kleinen Ueberschrift:
+    was es gibt, was einem selbst gehoert ("You"), die Moderation, und Hilfe.
+    "Share" stand bis hierher als erster Eintrag hier; es ist eine Handlung
+    und steht jetzt als "+ Share" oben rechts im Balken.
 
-    NUR WORTE (Pablo, 2026-11-21). Bis hierher trug jeder Eintrag ein
+    NUR WORTE (Pablo, 2026-11-21). Bis dahin trug jeder Eintrag ein
     Strichsymbol davor - selbst gezeichnet, ungleich in Strich und Groesse,
     und fuer Characters gab es nur ein Strichmaennchen. Die Worte sind kurz
     und unterscheiden sich; geblieben sind nur Zeichen, die etwas sagen: der
     Pfeil "fuehrt hinaus" und die Zahl an Messages.
   -->
   <nav class="site-side" id="site-side" aria-label="Main">
-
-    <!--
-      Clips kommen aus Unity. Der erste Eintrag sagt, wie - und wo es das
-      Werkzeug gibt. Bis 2026-09-26 stand das nirgends auf dem Portal.
-    -->
-    <div class="side-group">
-      <a href="/share" class="side-item"
-         th:classappend="${active == 'share'} ? ' active'" th:attr="aria-current=${active == 'share'} ? 'page'">
-        <span>Share</span>
-      </a>
-    </div>
 
     <!--
       "Community" ist der Katalog und zugleich die Startseite, "Collections"
@@ -357,6 +365,12 @@
       dem Abmelden zusammen, hier als Orte, die man ansteuert.
     -->
     <div class="side-group" th:if="${user != null}">
+      <p class="side-label">You</p>
+      <a class="side-item" th:if="${user.handle != null}" th:href="@{/u/{h}(h=${user.handle})}"
+         th:with="own=${active == 'profile' and profileHandle == user.handle}"
+         th:classappend="${own} ? ' active'" th:attr="aria-current=${own} ? 'page'">
+        <span>Profile</span>
+      </a>
       <a class="side-item" id="messages-button" href="/messages"
          th:classappend="${active == 'messages'} ? ' active'" th:attr="aria-current=${active == 'messages'} ? 'page'"
          th:aria-label="${user.unreadMessages > 0} ? ${'Messages, ' + user.unreadMessages + ' new'} : 'Messages'"
@@ -364,11 +378,6 @@
         <span>Messages</span>
         <span class="bell-count" th:if="${user.unreadMessages > 0}"
               th:text="${user.unreadMessages > 99} ? '99+' : ${user.unreadMessages}">1</span>
-      </a>
-      <a class="side-item" th:if="${user.handle != null}" th:href="@{/u/{h}(h=${user.handle})}"
-         th:with="own=${active == 'profile' and profileHandle == user.handle}"
-         th:classappend="${own} ? ' active'" th:attr="aria-current=${own} ? 'page'">
-        <span>Profile</span>
       </a>
       <a class="side-item" href="/account"
          th:classappend="${active == 'account'} ? ' active'" th:attr="aria-current=${active == 'account'} ? 'page'">
@@ -383,15 +392,37 @@
       eine Frage des Zeitpunkts. Moderation und Stats sind zwei Reiter EINER
       Seite; der Eintrag gilt fuer beide.
     -->
+    <!--
+      Wer nicht angemeldet ist, sieht hier, was die Anmeldung bringt - wie bei
+      YouTube ("Melde dich an, um Videos zu liken..."). Ohne den Satz wuesste
+      ein Gast nicht, dass es Sammlungen, Folgen und Nachrichten gibt. Ohne
+      eingerichtete Anmeldung steht er nicht da (siehe Balken).
+    -->
+    <div class="side-group side-signin" th:if="${user == null and !#strings.isEmpty(signInUrl)}">
+      <p>Sign in to like clips, save them to collections and follow creators.</p>
+      <a class="button" th:href="${signInUrl}">Sign in</a>
+    </div>
+
     <div class="side-group" th:if="${user != null and user.admin}">
+      <p class="side-label">Admin</p>
       <a href="/admin" class="side-item admin-link"
          th:classappend="${active == 'admin'} ? ' active'" th:attr="aria-current=${active == 'admin'} ? 'page'">
         <span>Moderation</span>
       </a>
     </div>
 
-    <!-- Was ausserhalb des Portals liegt - mit dem Zeichen fuer "fuehrt hinaus". -->
+    <!-- Was ausserhalb des Portals liegt - mit dem Zeichen fuer "fuehrt hinaus".
+         Dazu die zwei Seiten, die man liest, bevor man teilt. -->
     <div class="side-group">
+      <p class="side-label">Help</p>
+      <a href="/rules" class="side-item"
+         th:classappend="${active == 'rules'} ? ' active'" th:attr="aria-current=${active == 'rules'} ? 'page'">
+        <span>Community rules</span>
+      </a>
+      <a href="/licenses" class="side-item"
+         th:classappend="${active == 'licenses'} ? ' active'" th:attr="aria-current=${active == 'licenses'} ? 'page'">
+        <span>Licenses</span>
+      </a>
       <a href="https://docs.playmations.com/docs/tools/community" class="side-item" rel="noopener" target="_blank">
         <span>Documentation</span>
         <svg viewBox="0 0 24 24" class="side-external" aria-label="opens in a new tab" role="img" fill="none"

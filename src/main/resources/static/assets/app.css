@@ -1,20 +1,23 @@
 /* ---------------------------------------------------------------------------
    Community-Portal - Oberflaeche
 
-   Farben, Schrift und Mark kommen aus der Docs-Site
-   (docs-site/src/css/custom.css, Variante E vom 2026-08-16). Zwei Regeln von
-   dort gelten hier genauso:
+   EDEL UND RUHIG (seit 2026-11-22, Pablos Wunsch: "was Edles, professionell").
+   Vorbild fuer die ORDNUNG ist YouTube: oben ein Balken in der Farbe der
+   Seite mit Marke, Suche in der Mitte und rechts "+ Share", Glocke und Konto;
+   links eine Spalte in Abschnitten mit kleinen Ueberschriften; der Inhalt
+   beginnt sofort - keine Buehne vor der Ware. Vorbild fuer die ANMUTUNG sind
+   Werkzeuge wie Linear oder Vercel: fast schwarz bzw. weiss, Haarlinien statt
+   Kaesten, eine Schrift, kaum Farbe.
 
-     Violett (#8E77FF) ist die Marke - Logo und Figur -, keine Farbe fuer
-     Bedienelemente. Knoepfe, Reiter und Links tragen seit 2026-11-21 Blau.
+   DIE FARBEN. Bedient wird in Weiss und Grau: der Hauptknopf ist weiss auf
+   Schwarz (im hellen Thema schwarz auf Weiss), das gewaehlte Schlagwort
+   ebenso. Violett (#8E77FF) bleibt die Marke - Logo, Figur, und als einziger
+   Farbton fuer Links und Fokus. Davor: am selben Tag kurz ein "Neon-Studio"
+   mit Verlaeufen und Leuchten (verworfen, zu laut), am 2026-11-21 das Unity
+   Publisher Portal mit schwarzem Balken, grauer Spalte und blauen Knoepfen.
 
-     Inter Variable wird selbst ausgeliefert, nicht von Google geholt - die
-     Wortmarke ist aus dieser Schrift gebaut.
-
-   Aufbau und Anmutung folgen seit 2026-11-21 dem Unity Publisher Portal:
-   schwarzer Balken oben, graue Spalte links, heller Inhalt mit viel Luft -
-   sachlich, flach, ohne Schatten und ohne Verlaeufe. Davor standen Meshy
-   Creative Lab und die ElevenLabs-App Pate.
+   Inter Variable wird selbst ausgeliefert, nicht von Google geholt - die
+   Wortmarke ist aus dieser Schrift gebaut.
 --------------------------------------------------------------------------- */
 
 @font-face {
@@ -26,47 +29,49 @@
 }
 
 :root {
-  /* BEDIENFARBE - ein Blau wie im Publisher Portal. Violett ist die Marke
-     (Logo, Figur) und keine Farbe fuer Knoepfe, Reiter oder Links; bis
-     2026-11-21 trug es beides. `--accent` ist das Blau als Schrift und Linie
-     (Links, aktive Reiter, Fokus), `--primary` der Hauptknopf. */
-  --accent: #5ea9f2;
-  --accent-strong: #7db9f5;
-  --accent-soft: rgba(94, 169, 242, 0.14);
-  --accent-line: rgba(94, 169, 242, 0.42);
-  --accent-ink: #0b1a2a;
-  /* Weiss auf diesem Blau 4.6:1 - das hellere Blau der Vorlage (#2196F3)
-     hielte mit weisser Schrift nur 3.1:1. */
-  --primary: #1976d2;
-  --primary-hover: #1565c0;
-  --primary-ink: #ffffff;
+  /* LINKS UND FOKUS - das Violett der Marke, aufgehellt, damit es auf fast
+     Schwarz als Schrift traegt (9.2:1). `--accent` ist Schrift und Linie,
+     `--accent-soft` die Flaeche dahinter. */
+  --accent: #b6a9ff;
+  --accent-strong: #cfc6ff;
+  --accent-soft: rgba(142, 119, 255, 0.12);
+  --accent-line: rgba(160, 140, 255, 0.42);
+  --accent-ink: #0c0c0d;
+  /* DER HAUPTKNOPF ist weiss mit schwarzer Schrift - die eine helle Flaeche
+     der Seite. Als Farbe steht `--primary` auch fuer die Zahl an der Glocke,
+     die Marke "Default" und den Rand der gewaehlten Kachel. */
+  --primary: #f1f1f2;
+  --primary-hover: #ffffff;
+  --primary-ink: #0c0c0d;
 
-  /* Grund und Tinte - neutrales Grau, ohne den violetten Stich von vorher */
-  --bg: #1b1b1b;
-  --bg-soft: #252525;
-  --surface: #232323;
-  --surface-2: #2b2b2b;
-  --line: #333333;
-  --line-strong: #474747;
-  --text: #ececec;
-  --text-dim: #b3b3b3;
-  /* 5.3:1 auf dem Grund, 4.9:1 auf einer Flaeche - dieselbe Latte wie bisher
-     fuer den kleinen Text (Zahlen, Datum, Fuss), der diese Farbe traegt. */
-  --text-faint: #8f8f8f;
-  --surface-hover: #333333;
-  /* Eingabefelder liegen TIEFER als die Flaeche, wie in Unity. */
-  --field-bg: #161616;
-  --field-line: #474747;
+  /* Grund und Tinte - neutral, fast schwarz. Flaechen heben sich um wenige
+     Stufen ab; getrennt wird mit Haarlinien. */
+  --bg: #0c0c0d;
+  --bg-soft: #161618;
+  --surface: #131315;
+  --surface-2: #1b1b1e;
+  --line: #232326;
+  --line-strong: #34343a;
+  --text: #ededef;
+  --text-dim: #a3a3aa;
+  /* 5.1:1 auf dem Grund, 4.8:1 auf einer Flaeche - die Latte fuer den kleinen
+     Text (Zahlen, Datum, Fuss), der diese Farbe traegt. */
+  --text-faint: #818189;
+  --surface-hover: #222226;
+  /* Eingabefelder liegen TIEFER als die Flaeche. */
+  --field-bg: #0f0f11;
+  --field-line: #303036;
 
   /* Signale wie im Werkzeug: Gruen heisst "in Ordnung" */
-  --ok: #3bd3a3;
-  --warn: #fb923c;
-  --danger: #f2706b;
+  --ok: #4fd1a5;
+  --warn: #f0a35c;
+  --danger: #f07a7a;
 
-  /* Kanten wie im Publisher Portal: kaum gerundet. Pillen bleiben Pillen. */
-  --radius-sm: 4px;
-  --radius: 6px;
-  --radius-lg: 8px;
+  /* Leicht gerundet: Felder und Knoepfe 8, Karten und Buehnen 12. Pillen
+     bleiben Pillen - Suche, "+ Share", Schlagworte. */
+  --radius-sm: 8px;
+  --radius: 10px;
+  --radius-lg: 12px;
   --radius-pill: 999px;
 
   /* KEINE SCHATTEN AUF DER SEITE. Karten, Flaechen und Knoepfe liegen flach
@@ -76,12 +81,12 @@
      Dialog, Meldung, Tooltip - traegt `--shadow`, sonst laege es ohne Kante
      auf dem Inhalt darunter. */
   --shadow-sm: 0 0 #0000;
-  --shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+  --shadow: 0 16px 48px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.06);
   --highlight: 0 0 #0000;
   --glow: 0 0 #0000;
 
-  --danger-soft: rgba(242, 112, 107, 0.12);
-  --danger-line: rgba(242, 112, 107, 0.34);
+  --danger-soft: rgba(240, 122, 122, 0.1);
+  --danger-line: rgba(240, 122, 122, 0.34);
   --scrim: rgba(0, 0, 0, 0.6);
 
   /* SCHRIFTGROESSEN. 22 verschiedene Pixelwerte standen im Stylesheet; die
@@ -92,8 +97,8 @@
   --fs-base: 15px;
   --fs-lg: 17px;
   --fs-xl: 22px;
-  --fs-2xl: 28px;
-  --fs-3xl: 32px;
+  --fs-2xl: 26px;
+  --fs-3xl: 28px;
 
   /* Bewegung: kurz, ohne Nachfedern, am Ende weich. Wer weniger Bewegung
      eingestellt hat, bekommt alles auf einen Schlag (Abschnitt "Bewegung"
@@ -110,29 +115,33 @@
   --page-wide: 1640px;
   --gutter: 40px;
 
-  /* DER RAHMEN: Balken oben und Spalte links. Beide bleiben in beiden Themen
-     dunkel und haben deshalb eigene Marken - mit `--text` und `--surface`
-     wuerden sie in Hell weiss. */
-  --top-h: 52px;
-  --side-w: 176px;
-  --topbar-bg: #000000;
-  --topbar-ink: #ffffff;
-  --topbar-dim: #a9a9a9;
-  --topbar-field: #1f1f1f;
-  --topbar-line: #3a3a3a;
-  --topbar-hover: #222222;
-  --side-bg: #2b2b2b;
-  --side-ink: #ffffff;
-  --side-dim: #c4c4c4;
-  --side-hover: rgba(255, 255, 255, 0.06);
-  --side-active: #444444;
+  /* DER RAHMEN: Balken oben und Spalte links. Seit 2026-11-22 tragen beide
+     die Farbe der Seite, wie bei YouTube - in Dunkel fast schwarz, in Hell
+     weiss. Davor waren sie in beiden Themen schwarz bzw. grau, und der helle
+     Inhalt stand in einem dunklen Rahmen wie in einem Werkzeugfenster. Die
+     Marken bleiben eigene, damit sich der Rahmen spaeter wieder absetzen
+     laesst, ohne jede Regel anzufassen. */
+  --top-h: 56px;
+  --side-w: 228px;
+  --topbar-bg: #0c0c0d;
+  --topbar-ink: #ededef;
+  --topbar-dim: #a3a3aa;
+  --topbar-field: #141416;
+  --topbar-line: #2a2a2f;
+  --topbar-hover: rgba(255, 255, 255, 0.07);
+  --side-bg: #0c0c0d;
+  --side-ink: #ededef;
+  --side-dim: #a3a3aa;
+  --side-label: #77777f;
+  --side-hover: rgba(255, 255, 255, 0.05);
+  --side-active: rgba(255, 255, 255, 0.09);
 
-  --row-hover: rgba(255, 255, 255, 0.03);
+  --row-hover: rgba(255, 255, 255, 0.025);
   /* Platzhalter beim Laden: eine flache Flaeche, ueber die ein Schimmer
      zieht - wie bei YouTube. */
-  --skeleton: #2a2a2a;
-  --skeleton-sheen: rgba(255, 255, 255, 0.05);
-  --selection-bg: rgba(94, 169, 242, 0.35);
+  --skeleton: #19191c;
+  --skeleton-sheen: rgba(255, 255, 255, 0.04);
+  --selection-bg: rgba(142, 119, 255, 0.35);
   --selection-ink: #ffffff;
 
   /* ── AUF DER BUEHNE ──────────────────────────────────────────────────
@@ -156,12 +165,12 @@
   --on-stage-ink: #eeecf3;
   --on-stage-dim: #a9a4b6;
   --on-stage-faint: #8a8497;
-  --on-stage-line: #3a3747;
-  --on-stage-accent: #5ea9f2;
-  --on-stage-accent-line: rgba(94, 169, 242, 0.42);
-  --on-stage-accent-veil: rgba(94, 169, 242, 0.14);
-  --on-stage-scrim: rgba(14, 13, 18, 0.72);
-  --on-stage-scrim-strong: rgba(14, 13, 18, 0.84);
+  --on-stage-line: rgba(255, 255, 255, 0.1);
+  --on-stage-accent: #cfc6ff;
+  --on-stage-accent-line: rgba(190, 175, 255, 0.45);
+  --on-stage-accent-veil: rgba(190, 175, 255, 0.14);
+  --on-stage-scrim: rgba(12, 12, 14, 0.7);
+  --on-stage-scrim-strong: rgba(12, 12, 14, 0.82);
   --stage-void: #0e0d12;
 
 
@@ -169,67 +178,75 @@
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   HELL - DIE VORLAGE
+   HELL
 
-   Hell ist seit 2026-11-21 das Unity Publisher Portal: weisser Inhalt mit
-   viel Luft, eine mittelgraue Spalte (#4A4A4A) und darueber der schwarze
-   Balken. Dunkel ist die passende Variante dazu.
+   Dasselbe in Weiss: weisser Grund, Balken und Spalte ebenfalls weiss (seit
+   2026-11-22 - davor blieben sie dunkel), Haarlinien in hellem Grau, der
+   Hauptknopf schwarz mit weisser Schrift, Links im Violett der Marke.
 
    Kein zweites Stylesheet und keine Kopie der Regeln: derselbe Satz
    Marken, andere Werte. Was hier NICHT noch einmal steht, gilt weiter -
-   Radien, Schriftgroessen, Bewegung, und der Balken.
+   Radien, Schriftgroessen, Bewegung.
 
    WER UMSCHALTET, STEHT IN `theme.js`. Das Attribut ist die einzige
    Weiche; eine zweite Fassung dieser Werte unter `prefers-color-scheme`
    waere dieselbe Palette an zwei Orten und liefe beim ersten Nachbessern
    auseinander.
 
-   DIE ZAHLEN SIND GEMESSEN, nicht geschaetzt. Auf Weiss: Text 16.1:1,
-   `--text-dim` 7.5:1, `--text-faint` 5.3:1, Link-Blau 5.5:1. Weiss auf dem
-   Hauptknopf 4.6:1, auf der Spalte 8.9:1, auf dem aktiven Eintrag 5.7:1.
+   DIE ZAHLEN SIND GERECHNET, nicht geschaetzt. Auf Weiss: Text 18:1,
+   `--text-dim` 7.3:1, `--text-faint` 5.1:1, Link-Violett 6.9:1. Weiss auf
+   dem schwarzen Hauptknopf 18:1.
    ══════════════════════════════════════════════════════════════════════ */
 :root[data-theme="light"] {
-  --accent: #1769c0;
-  --accent-strong: #1565c0;
-  --accent-soft: rgba(25, 118, 210, 0.09);
-  --accent-line: rgba(25, 118, 210, 0.36);
+  --accent: #5a43e6;
+  --accent-strong: #4630cc;
+  --accent-soft: rgba(90, 67, 230, 0.07);
+  --accent-line: rgba(90, 67, 230, 0.32);
   --accent-ink: #ffffff;
-  --primary: #1976d2;
-  --primary-hover: #1565c0;
+  --primary: #111113;
+  --primary-hover: #2b2b30;
   --primary-ink: #ffffff;
 
   --bg: #ffffff;
   --bg-soft: #ffffff;
   --surface: #ffffff;
-  --surface-2: #f4f4f4;
-  --surface-hover: #ebebeb;
-  --line: #e2e2e2;
-  --line-strong: #c7c7c7;
-  --text: #212121;
-  --text-dim: #555555;
-  --text-faint: #6b6b6b;
+  --surface-2: #f4f4f5;
+  --surface-hover: #ececee;
+  --line: #e8e8eb;
+  --line-strong: #d2d2d7;
+  --text: #111113;
+  --text-dim: #55555d;
+  --text-faint: #6e6e76;
   --field-bg: #ffffff;
-  --field-line: #c7c7c7;
+  --field-line: #d2d2d7;
 
   --ok: #0a7355;
   --warn: #9a5205;
   --danger: #bd302b;
-  --danger-soft: rgba(189, 48, 43, 0.10);
-  --danger-line: rgba(189, 48, 43, 0.30);
+  --danger-soft: rgba(189, 48, 43, 0.08);
+  --danger-line: rgba(189, 48, 43, 0.3);
 
-  --shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
-  --scrim: rgba(0, 0, 0, 0.35);
+  --shadow: 0 16px 40px rgba(17, 17, 19, 0.12), 0 0 0 1px rgba(17, 17, 19, 0.06);
+  --scrim: rgba(17, 17, 19, 0.35);
 
-  --side-bg: #4a4a4a;
-  --side-dim: #d9d9d9;
-  --side-hover: rgba(255, 255, 255, 0.08);
-  --side-active: #666666;
+  --topbar-bg: #ffffff;
+  --topbar-ink: #111113;
+  --topbar-dim: #55555d;
+  --topbar-field: #f6f6f7;
+  --topbar-line: #dedee3;
+  --topbar-hover: rgba(17, 17, 19, 0.05);
+  --side-bg: #ffffff;
+  --side-ink: #111113;
+  --side-dim: #55555d;
+  --side-label: #85858d;
+  --side-hover: rgba(17, 17, 19, 0.04);
+  --side-active: rgba(17, 17, 19, 0.065);
 
-  --row-hover: #f7f7f7;
-  --skeleton: #ececec;
-  --skeleton-sheen: rgba(255, 255, 255, 0.65);
-  --selection-bg: rgba(25, 118, 210, 0.2);
-  --selection-ink: #212121;
+  --row-hover: #f8f8f9;
+  --skeleton: #f0f0f2;
+  --skeleton-sheen: rgba(255, 255, 255, 0.7);
+  --selection-bg: rgba(90, 67, 230, 0.16);
+  --selection-ink: #111113;
 
   /* Die Buehne als Fotostudio: heller Himmel, der nach unten in dasselbe
      Grau laeuft wie der Boden am Horizont (`haze` in stage.js). Die Figur
@@ -241,10 +258,10 @@
   --on-stage-ink: #17151f;
   --on-stage-dim: #4f4a62;
   --on-stage-faint: #676180;
-  --on-stage-line: rgba(23, 21, 31, 0.12);
-  --on-stage-accent: #1769c0;
-  --on-stage-accent-line: rgba(25, 118, 210, 0.36);
-  --on-stage-accent-veil: rgba(25, 118, 210, 0.10);
+  --on-stage-line: rgba(23, 21, 31, 0.1);
+  --on-stage-accent: #5a43e6;
+  --on-stage-accent-line: rgba(90, 67, 230, 0.32);
+  --on-stage-accent-veil: rgba(90, 67, 230, 0.08);
   --on-stage-scrim: rgba(255, 255, 255, 0.72);
   --on-stage-scrim-strong: rgba(255, 255, 255, 0.88);
   --stage-void: #ebeaf0;
@@ -318,16 +335,18 @@ a:focus-visible, button:focus-visible, summary:focus-visible, [tabindex]:focus-v
 }
 
 /* ── Balken und Spalte ─────────────────────────────────────────────────
-   Wie im Unity Publisher Portal (seit 2026-11-21): oben ein schmaler
-   schwarzer Balken ueber die ganze Breite - Marke, Suche, Konto -, links
-   eine feste graue Spalte mit allen Orten des Portals, rechts der helle
-   Inhalt mit viel Luft.
+   Die Ordnung von YouTube (seit 2026-11-22): oben ein Balken ueber die
+   ganze Breite - links Marke, in der Mitte die Suche, rechts "+ Share",
+   Thema, Glocke und Konto -, links eine feste Spalte mit allen Orten des
+   Portals in Abschnitten, rechts der Inhalt. Balken und Spalte tragen die
+   Farbe der Seite; vom Inhalt trennt sie nur eine Haarlinie unter dem
+   Balken.
 
    Die Spalte haengt im <header> (ein Fragment fuer alle Seiten), steht aber
    `fixed` am linken Rand; Inhalt und Fuss ruecken um ihre Breite ein. Dafuer
    darf der Kopf selbst KEIN Bezugsrahmen fuer `fixed` werden - kein
    `transform`, kein `filter`, kein `backdrop-filter` an `.site-header`, sonst
-   klebt die Spalte am 52 px hohen Balken statt am Fenster.
+   klebt die Spalte am Balken statt am Fenster.
 
    Unter 901 px liegt die Spalte als Schublade links ausserhalb des Bildes;
    der Knopf mit den drei Strichen holt sie herein (Klasse `side-open` an
@@ -348,12 +367,13 @@ a:focus-visible, button:focus-visible, summary:focus-visible, [tabindex]:focus-v
    Konto und nicht der Anmeldeknopf. */
 .topbar {
   height: var(--top-h);
-  padding: 0 16px;
+  padding: 0 20px 0 24px;
   display: grid;
-  grid-template-columns: minmax(max-content, 1fr) minmax(0, 640px) minmax(max-content, 1fr);
+  grid-template-columns: minmax(max-content, 1fr) minmax(0, 600px) minmax(max-content, 1fr);
   align-items: center;
   column-gap: 24px;
   background: var(--topbar-bg);
+  border-bottom: 1px solid var(--line);
   color: var(--topbar-ink);
 }
 
@@ -366,23 +386,24 @@ a:focus-visible, button:focus-visible, summary:focus-visible, [tabindex]:focus-v
 }
 .brand:hover { text-decoration: none; }
 .brand-lockup { width: 123px; height: auto; display: block; }
+/* Auf dem weissen Balken die dunkle Fassung der Marke. */
+:root[data-theme="light"] .brand-lockup { content: url("brand/playmations-lockup-tinte.svg"); }
 
-/* Die Kacheln im Balken: Schublade, Thema, Glocke. Ohne Rahmen - auf
-   Schwarz traegt das Zeichen allein, erst unter dem Zeiger hellt der Grund
-   auf. */
+/* Die Kacheln im Balken: Schublade, Thema, Glocke. Rund und ohne Rahmen -
+   erst unter dem Zeiger hellt der Grund auf, wie bei YouTube. */
 .side-toggle,
 .theme-toggle,
 .header-icon {
   position: relative;
   flex: none;
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   min-height: 0;
   padding: 0;
   display: grid;
   place-items: center;
   border: 0;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--topbar-dim);
   cursor: pointer;
@@ -393,20 +414,20 @@ a:focus-visible, button:focus-visible, summary:focus-visible, [tabindex]:focus-v
 .header-icon:hover,
 .header-icon[aria-expanded="true"] { background: var(--topbar-hover); color: var(--topbar-ink); text-decoration: none; }
 .side-toggle svg { width: 22px; height: 22px; }
-.theme-toggle svg, .header-icon svg { width: 19px; height: 19px; }
-.topbar :focus-visible { outline-color: var(--topbar-ink); }
+.theme-toggle svg, .header-icon svg { width: 20px; height: 20px; }
+.topbar :focus-visible { outline-color: var(--accent); }
 
 /* Nur auf schmalen Fenstern da (siehe unten). */
-.side-toggle { display: none; margin-left: -6px; }
+.side-toggle { display: none; margin-left: -8px; }
 .side-toggle-dot {
   position: absolute;
-  top: 6px;
-  right: 5px;
+  top: 7px;
+  right: 6px;
   width: 8px;
   height: 8px;
   border-radius: var(--radius-pill);
   border: 2px solid var(--topbar-bg);
-  background: var(--primary);
+  background: var(--accent);
   box-sizing: content-box;
 }
 
@@ -424,9 +445,9 @@ a:focus-visible, button:focus-visible, summary:focus-visible, [tabindex]:focus-v
 :root[data-theme="light"] .theme-toggle .theme-sun { display: none; }
 
 /* ── Suche im Balken ───────────────────────────────────────────────────
-   Ein gewöhnliches GET-Formular auf den Katalog. Das `kbd` nennt die Taste,
-   die hierher springt, und verschwindet, sobald das Feld den Fokus hat -
-   dann ist die Auskunft erledigt.
+   Ein gewöhnliches GET-Formular auf den Katalog, als Pille wie bei YouTube.
+   Das `kbd` nennt die Taste, die hierher springt, und verschwindet, sobald
+   das Feld den Fokus hat - dann ist die Auskunft erledigt.
 --------------------------------------------------------------------------- */
 
 .header-search {
@@ -438,57 +459,81 @@ a:focus-visible, button:focus-visible, summary:focus-visible, [tabindex]:focus-v
 }
 .header-search svg {
   position: absolute;
-  left: 11px;
-  width: 16px;
-  height: 16px;
+  left: 15px;
+  width: 17px;
+  height: 17px;
   color: var(--topbar-dim);
   pointer-events: none;
 }
 .header-search input {
   width: 100%;
-  min-height: 34px;
-  padding: 0 36px;
+  min-height: 40px;
+  padding: 0 44px 0 42px;
   border: 1px solid var(--topbar-line);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   background: var(--topbar-field);
   color: var(--topbar-ink);
-  font-size: 14px;
+  font-size: 14.5px;
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
 }
 .header-search input::placeholder { color: var(--topbar-dim); }
-.header-search input:focus { border-color: #5ea9f2; box-shadow: 0 0 0 3px rgba(94, 169, 242, 0.28); }
+.header-search input:hover { border-color: var(--line-strong); }
+.header-search input:focus { border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-soft); }
 .header-search kbd {
   position: absolute;
-  right: 10px;
+  right: 14px;
   font: inherit;
   font-size: 12px;
   line-height: 1;
   color: var(--topbar-dim);
   border: 1px solid var(--topbar-line);
-  border-radius: 4px;
-  padding: 3px 6px;
+  border-radius: 6px;
+  padding: 3px 7px;
   pointer-events: none;
 }
 .header-search input:focus ~ kbd,
 .header-search input:not(:placeholder-shown) ~ kbd { display: none; }
 
-.header-account { display: flex; align-items: center; gap: 4px; justify-self: end; }
-.header-account > .button { min-height: 34px; padding: 0 16px; white-space: nowrap; }
+.header-account { display: flex; align-items: center; gap: 6px; justify-self: end; }
+.header-account > .button { min-height: 36px; padding: 0 16px; white-space: nowrap; }
 .header-account > .faint { color: var(--topbar-dim); }
+
+/* "+ SHARE" WIE "+ ERSTELLEN" BEI YOUTUBE (Pablo, 2026-11-22). Bis hierher
+   war "Share" der erste Eintrag der Spalte - ein Ort unter anderen. Teilen
+   ist aber eine HANDLUNG, und Handlungen stehen oben rechts, wo jeder sie
+   von jeder Seite aus findet. Eine graue Pille, kein Hauptknopf: der bleibt
+   dem Anmelden. Der Waehler ist so lang, weil er gegen `.button` und
+   `.header-account > .button` gewinnen muss. */
+.header-account > .header-share {
+  min-height: 36px;
+  padding: 0 16px 0 12px;
+  gap: 6px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--topbar-hover);
+  color: var(--topbar-ink);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.header-share svg { width: 18px; height: 18px; flex: none; }
+.header-account > .header-share:hover,
+.header-account > .header-share.active { background: color-mix(in srgb, var(--topbar-ink) 13%, transparent); }
 
 /* `position: relative` HIER und nicht an Glocke und Name: beide Kaesten
    haengen am rechten Rand des Kontoblocks. An der Glocke verankert, lief der
    breitere Nachrichtenkasten auf dem Telefon links aus dem Bild. */
-.account { position: relative; display: flex; align-items: center; gap: 4px; }
+.account { position: relative; display: flex; align-items: center; gap: 6px; }
 
-/* Der Kontoblock wie im Publisher Portal: rundes Bild, Name und Rolle in
-   zwei Zeilen, der Pfeil. */
+/* Der Kontoblock: rundes Bild, daneben Name und Rolle in zwei Zeilen, dazu
+   der Pfeil. */
 .account-name {
   display: flex;
   align-items: center;
   gap: 10px;
   max-width: 240px;
-  padding: 4px 8px 4px 6px;
-  border-radius: var(--radius-sm);
+  padding: 3px 10px 3px 3px;
+  border-radius: var(--radius-pill);
   color: var(--topbar-ink);
 }
 .account-name:hover,
@@ -514,7 +559,7 @@ a:focus-visible, button:focus-visible, summary:focus-visible, [tabindex]:focus-v
 }
 .account-name[aria-expanded="true"] .account-chevron { transform: rotate(180deg); }
 
-/* Die Zahl an Glocke und Nachrichten: blau wie der Hauptknopf. */
+/* Die Zahl an Glocke und Nachrichten: in der Farbe des Hauptknopfs. */
 .bell-count {
   position: absolute;
   top: 1px;
@@ -534,9 +579,15 @@ a:focus-visible, button:focus-visible, summary:focus-visible, [tabindex]:focus-v
 }
 
 /* ── Die Spalte ────────────────────────────────────────────────────────
-   Gruppen, die nur Abstand trennt; jeder Eintrag ein Wort. Der
-   aktive ist eine hellere, leicht gerundete Flaeche - kein Akzentstrich,
-   keine Farbe: die Spalte bleibt grau.
+   In Abschnitten wie bei YouTube, jeder mit einer kleinen Ueberschrift:
+   was es gibt (ohne Ueberschrift, ganz oben), was einem selbst gehoert
+   ("You"), die Moderation, und Hilfe. Jeder Eintrag ein Wort (Pablo,
+   2026-11-21: keine Zeichen davor). Die Worte stehen gedaempft, der
+   aktive Eintrag hell auf einer ruhigen Flaeche - keine Farbe, kein Strich.
+
+   Wer nicht angemeldet ist, sieht an der Stelle von "You" einen Satz und
+   den Weg zum Anmelden, wie bei YouTube - sonst wuesste er nicht, dass es
+   Sammlungen, Folgen und Nachrichten ueberhaupt gibt.
 --------------------------------------------------------------------------- */
 
 .site-side {
@@ -548,46 +599,71 @@ a:focus-visible, button:focus-visible, summary:focus-visible, [tabindex]:focus-v
   width: var(--side-w);
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 16px 0 28px;
+  padding: 14px 0 28px;
   background: var(--side-bg);
   color: var(--side-ink);
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+  scrollbar-color: var(--line-strong) transparent;
 }
 
-.side-group { display: flex; flex-direction: column; gap: 2px; padding: 0 8px; }
-.side-group + .side-group { margin-top: 20px; }
+/* Abschnitte trennt eine Haarlinie, die nicht bis an den Rand reicht. */
+.side-group { display: flex; flex-direction: column; gap: 1px; margin: 0 12px; }
+.side-group + .side-group { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+
+.side-label {
+  margin: 4px 12px 6px;
+  color: var(--side-label);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
 
 .side-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 36px;
+  min-height: 38px;
   padding: 0 12px;
   border-radius: var(--radius-sm);
-  color: var(--side-ink);
+  color: var(--side-dim);
   font-size: 14px;
   font-weight: 500;
   line-height: 1.2;
-  transition: background-color var(--dur-fast) var(--ease-out);
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
-.side-item:hover { background: var(--side-hover); text-decoration: none; }
-.side-item.active { background: var(--side-active); }
-.side-item:focus-visible { outline: 2px solid var(--side-ink); outline-offset: -2px; }
+.side-item:hover { background: var(--side-hover); color: var(--side-ink); text-decoration: none; }
+.side-item.active { background: var(--side-active); color: var(--side-ink); font-weight: 600; }
+.side-item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .side-item > span:not(.bell-count) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* "Fuehrt hinaus": klein am rechten Rand, wie das Zeichen an "Resources". */
-.side-external { width: 14px; height: 14px; flex: none; margin: 0 -2px 0 auto; color: var(--side-dim); }
+/* "Fuehrt hinaus": klein am rechten Rand. */
+.side-external { width: 14px; height: 14px; flex: none; margin: 0 -2px 0 auto; color: var(--side-label); }
 /* Die Zahl an "Messages" steht in der Zeile, nicht als Marke am Zeichen. */
 .side-item .bell-count { position: static; margin-left: auto; border: 0; }
+
+/* Der Satz fuer Gaeste, mit dem Weg zum Anmelden. */
+.side-signin { gap: 12px; padding-bottom: 4px; }
+.side-signin p { margin: 0 12px; color: var(--side-dim); font-size: 13px; line-height: 1.5; }
+.side-signin .button {
+  align-self: flex-start;
+  margin: 0 12px;
+  min-height: 34px;
+  padding: 0 16px;
+  border-radius: var(--radius-pill);
+  border-color: var(--line-strong);
+  background: transparent;
+  color: var(--accent);
+}
+.side-signin .button:hover { background: var(--accent-soft); border-color: var(--accent-line); }
 
 /* Der Schleier hinter der Schublade - auf breiten Fenstern gibt es keinen. */
 .side-scrim { display: none; }
 
 /* ── Seitengerüst ──────────────────────────────────────────────────────
-   Inhalt und Fuss stehen rechts neben der Spalte, buendig links wie im
-   Publisher Portal. `--page` ist die Breite des Inhalts, `--gutter` sein
-   Rand. Der Katalog setzt `--page` auf seinen eigenen Wert hoch: ein Gitter
-   darf breiter stehen als ein Absatz, den man lesen soll.
+   Inhalt und Fuss stehen rechts neben der Spalte, buendig links.
+   `--page` ist die Breite des Inhalts, `--gutter` sein Rand. Der Katalog
+   setzt `--page` auf seinen eigenen Wert hoch: ein Gitter darf breiter
+   stehen als ein Absatz, den man lesen soll.
 --------------------------------------------------------------------------- */
 
 main {
@@ -603,26 +679,26 @@ main {
    pro Reihe. */
 main.wide { max-width: calc(var(--page-wide) + 2 * var(--gutter)); }
 
-/* DER SEITENKOPF der Vorlage: grosser, schlichter Titel links, die
-   Hauptaktion als Knopf rechts. Ohne Aktion steht der Titel allein. */
+/* DER SEITENKOPF: schlichter Titel links, rechts die Hauptaktion oder - im
+   Katalog - die Sortierung. Ohne beides steht der Titel allein. */
 .page-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px 20px;
-  margin: 0 0 24px;
+  margin: 0 0 20px;
 }
 .page-head h1 { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 .page-head-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .page-head-actions:empty { display: none; }
-.page-head + .lead { margin-top: -14px; }
+.page-head + .lead { margin-top: -10px; }
 
 /* Der Fuss: blass, buendig links, die Links in einer Zeile. "Powered by"
    steht rechts daneben, der Stand darunter. */
 .site-footer {
   margin-left: var(--side-w);
-  padding: 20px var(--gutter) 26px;
+  padding: 22px var(--gutter) 28px;
   border-top: 1px solid var(--line);
   color: var(--text-faint);
   font-size: 13px;
@@ -645,7 +721,7 @@ main.wide { max-width: calc(var(--page-wide) + 2 * var(--gutter)); }
   white-space: nowrap;
 }
 .site-footer .powered-by:hover { color: var(--text-dim); text-decoration: none; }
-.powered-lockup { width: 120px; height: auto; display: block; opacity: 0.75; }
+.powered-lockup { width: 120px; height: auto; display: block; opacity: 0.7; }
 .powered-by:hover .powered-lockup { opacity: 1; }
 :root[data-theme="light"] .powered-lockup { content: url("brand/aw-lockup-tinte.svg"); }
 .powered-by small {
@@ -668,14 +744,19 @@ main.wide { max-width: calc(var(--page-wide) + 2 * var(--gutter)); }
 @media (max-width: 1080px) {
   .topbar { column-gap: 16px; }
   .account-name { max-width: 200px; }
+  .account-who { display: none; }
+  .account-name { gap: 4px; padding: 3px; }
 }
 
 @media (max-width: 900px) {
   :root { --gutter: 20px; }
   .side-toggle { display: grid; }
+  .topbar { padding: 0 14px 0 18px; }
 
   .site-side {
-    width: min(264px, 84vw);
+    width: min(272px, 84vw);
+    border-right: 1px solid var(--line);
+    box-shadow: var(--shadow);
     transform: translateX(-100%);
     visibility: hidden;
     transition: transform var(--dur) var(--ease-out), visibility 0s linear var(--dur);
@@ -701,10 +782,10 @@ main.wide { max-width: calc(var(--page-wide) + 2 * var(--gutter)); }
 }
 
 /* Auf einem Telefon passt die Suche nicht neben Marke und Konto - sie
-   bekommt eine zweite Zeile im Balken, ueber die ganze Breite. Name und
-   Rolle weichen dem Bild. */
+   bekommt eine zweite Zeile im Balken, ueber die ganze Breite. "+ Share"
+   wird zum Plus allein. */
 @media (max-width: 620px) {
-  :root { --top-h: 96px; }
+  :root { --top-h: 104px; }
   .topbar {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas: "start end" "search search";
@@ -713,12 +794,20 @@ main.wide { max-width: calc(var(--page-wide) + 2 * var(--gutter)); }
     padding: 0 10px 0 14px;
   }
   .topbar-start { grid-area: start; }
-  .header-account { grid-area: end; }
+  .header-account { grid-area: end; gap: 2px; }
   .header-search { grid-area: search; }
   .header-search kbd { display: none; }
-  .account-who { display: none; }
-  .account-name { gap: 4px; padding: 3px 4px; }
   .header-account > .button { padding: 0 14px; font-size: 14px; }
+  .header-account > .header-share { width: 36px; padding: 0; }
+  .header-share span { display: none; }
+}
+
+/* Auf einem schmalen Telefon reicht der Platz neben Plus, Thema und
+   Anmelden nicht fuer den ganzen Schriftzug - dann steht das Zeichen allein,
+   wie das Logo bei YouTube in der App. */
+@media (max-width: 440px) {
+  .brand-lockup { width: 30px; height: 30px; content: url("brand/playmations-mark-dark.svg"); }
+  :root[data-theme="light"] .brand-lockup { content: url("brand/playmations-mark-tinte.svg"); }
 }
 
 /* ── Die Kaesten unter Glocke und Name ─────────────────────────────── */
@@ -863,42 +952,40 @@ img.avatar { object-fit: cover; padding: 0; background: var(--surface-2); }
 
 /* ── Typografie ────────────────────────────────────────────────────────── */
 
-/* Der Seitentitel der Vorlage: gross und schlicht - kein Fettdruck bis zum
-   Anschlag, kein Akzentstrich darunter. */
+/* Der Seitentitel: schlicht und halbfett, eng gesetzt - ein Titel, kein
+   Plakat. */
 h1 {
   font-size: var(--fs-3xl);
   line-height: 1.2;
-  letter-spacing: -0.02em;
-  font-weight: 600;
+  letter-spacing: -0.025em;
+  font-weight: 650;
   margin: 0 0 10px;
 }
 
 h2 {
-  font-size: 18px;
+  font-size: 17px;
   line-height: 1.35;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
   font-weight: 650;
   margin: 34px 0 12px;
 }
 
-.lead { color: var(--text-dim); font-size: 15.5px; margin: 0 0 28px; max-width: 62ch; }
+.lead { color: var(--text-dim); font-size: 15px; margin: 0 0 28px; max-width: 62ch; }
 .muted { color: var(--text-dim); }
 .faint { color: var(--text-faint); }
 .small { font-size: var(--fs-sm); }
 
-/* Hier stand ein Akzentstrich unter der Seitenueberschrift, wie im
-   Kreativlabor. Der Publisher-Portal-Titel steht ohne. */
-
 /* ── Knöpfe ────────────────────────────────────────────────────────────── */
 
-/* Flach wie im Publisher Portal: eine Kante, kein Verlauf, kein Schatten,
-   kein Eindruecken. Der Hauptknopf ist die eine blaue Flaeche der Seite. */
+/* Flach: eine Haarlinie, kein Verlauf, kein Schatten, kein Eindruecken. Der
+   Hauptknopf ist die eine helle Flaeche der Seite - weiss auf Schwarz, im
+   hellen Thema schwarz auf Weiss. */
 .button, button {
   font: inherit;
   font-weight: 600;
   font-size: var(--fs-md);
   border: 1px solid var(--line-strong);
-  background: var(--surface);
+  background: transparent;
   box-shadow: none;
   color: var(--text);
   min-height: 36px;
@@ -942,10 +1029,11 @@ input, select, textarea {
   border-radius: var(--radius-sm);
   padding: 8px 12px;
   min-height: 38px;
+  transition: border-color var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
 }
 input:focus, select:focus, textarea:focus {
   outline: none;
-  border-color: var(--accent);
+  border-color: var(--accent-line);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 input::placeholder, textarea::placeholder { color: var(--text-faint); }
@@ -963,7 +1051,7 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
   background: var(--surface);
   border: 1px solid var(--line);
   box-shadow: var(--highlight);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   padding: 22px 24px;
 }
 
@@ -973,7 +1061,7 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
   margin: 14px 0;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-left: 3px solid var(--accent);
+  border-left: 2px solid var(--accent);
   font-size: 15px;
 }
 .notice.error { border-left-color: var(--danger); }
@@ -1004,7 +1092,7 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
   gap: 10px;
   padding: 10px 14px 10px 12px;
   border-radius: var(--radius);
-  background: var(--surface-2);
+  background: var(--bg-soft);
   border: 1px solid var(--line-strong);
   color: var(--text);
   box-shadow: var(--shadow);
@@ -1024,28 +1112,33 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
   cursor: pointer;
 }
 
+/* SCHLAGWORTE ALS CHIPS WIE BEI YOUTUBE: graue Pillen ohne Kante, das
+   gewaehlte in der Farbe des Hauptknopfs - weiss mit schwarzer Schrift
+   (im hellen Thema umgekehrt). Bis 2026-11-22 trug das gewaehlte den
+   Akzent als Schleier, und man musste hinsehen, um es zu finden. */
 .tags { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
 .tag {
   background: var(--surface-2);
-  color: var(--text-dim);
-  border-radius: var(--radius-pill);
-  padding: 4px 13px;
-  font-size: 13px;
-  border: 1px solid transparent;
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.3;
+  border: 0;
   white-space: nowrap;
+  transition: background-color var(--dur-fast) ease, color var(--dur-fast) ease;
 }
-.tag:hover { color: var(--text); background: var(--surface-hover); border-color: var(--line-strong); text-decoration: none; }
-.tag.active {
-  background: var(--accent-soft);
-  border-color: var(--accent-line);
-  color: var(--accent);
-}
+.tag:hover { background: var(--surface-hover); text-decoration: none; }
+.tag.active { background: var(--primary); color: var(--primary-ink); }
 .tag-count { color: var(--text-faint); margin-left: 7px; font-size: 12px; font-variant-numeric: tabular-nums; }
-.tag.active .tag-count { color: var(--accent); opacity: 0.7; }
+.tag.active .tag-count { color: inherit; opacity: 0.6; }
 
 /* ── Filter- und Schlagwortleiste ──────────────────────────────────────
-   Die Sortierung links, was gerade gilt rechts daneben. Das Suchfeld ist
-   hier weg - es steht im Kopf und gilt auf jeder Seite.
+   Die Schlagworte als eine Reihe Chips unter dem Titel, darunter - nur
+   wenn etwas eingrenzt - die Filter mit ihrem "x". Die Sortierung steht
+   seit 2026-11-22 rechts im Seitenkopf (`.segmented.compact`). Das
+   Suchfeld steht im Balken und gilt auf jeder Seite.
 --------------------------------------------------------------------------- */
 
 .filters {
@@ -1056,7 +1149,8 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
   margin: 0 0 14px;
 }
 .filters[hidden] { display: none; }
-.filter-state { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.filter-state { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: -8px 0 20px; }
+.filter-state:empty { display: none; }
 
 /* Was gerade einschraenkt, mit dem Weg heraus daran. Eine Einschraenkung, die
    man nicht sieht, liest sich als leerer Katalog. */
@@ -1072,16 +1166,16 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
   font-size: 13px;
   max-width: 320px;
 }
-.chip:hover { text-decoration: none; background: color-mix(in srgb, var(--accent) 26%, transparent); }
+.chip:hover { text-decoration: none; background: color-mix(in srgb, var(--accent) 22%, transparent); }
 .chip-x { color: var(--text-faint); font-size: 15px; line-height: 1; }
 .chip:hover .chip-x { color: var(--accent); }
 
-.tag-bar { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 26px; }
+.tag-bar { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 28px; }
 
-/* Reiter statt Pillen (seit 2026-11-21): Woerter auf einer Grundlinie, der
-   gewaehlte mit einem blauen Strich darunter - wie die Reiter im Publisher
-   Portal. Die Klasse heisst weiter `segmented`; Sortierung, Profil,
-   Nachrichten und Admin teilen sie. */
+/* Reiter (seit 2026-11-21): Woerter auf einer Grundlinie, der gewaehlte mit
+   einem Strich darunter - seit 2026-11-22 in der Farbe der Schrift statt in
+   Blau. Die Klasse heisst weiter `segmented`; Profil, Nachrichten, Admin und
+   Sammlungen teilen sie. */
 .segmented {
   display: inline-flex;
   gap: 4px;
@@ -1098,7 +1192,7 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
   background: transparent;
   color: var(--text-dim);
   border-radius: 0;
-  min-height: 38px;
+  min-height: 40px;
   padding: 0 12px;
   font-size: 14px;
   font-weight: 500;
@@ -1107,38 +1201,71 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
   white-space: nowrap;
 }
 .segmented a:hover, .segmented button:hover { background: transparent; color: var(--text); border-bottom-color: var(--line-strong); text-decoration: none; }
-.segmented a.active, .segmented button.active { background: transparent; color: var(--text); font-weight: 600; border-bottom-color: var(--primary); box-shadow: none; }
+.segmented a.active, .segmented button.active { background: transparent; color: var(--text); font-weight: 600; border-bottom-color: var(--text); box-shadow: none; }
+
+/* DER KLEINE UMSCHALTER - die Sortierung rechts im Seitenkopf des Katalogs:
+   drei Worte in einer gemeinsamen Mulde, das gewaehlte auf einer
+   erhabenen Flaeche. Eine Einstellung, kein Abschnitt - deshalb keine
+   Reiter mit Grundlinie. */
+.segmented.compact {
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.segmented.compact a, .segmented.compact button {
+  min-height: 30px;
+  margin: 0;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 6px;
+  font-size: 13px;
+}
+.segmented.compact a:hover, .segmented.compact button:hover { color: var(--text); background: var(--surface-2); }
+.segmented.compact a.active, .segmented.compact button.active { color: var(--text); background: var(--surface-hover); }
+:root[data-theme="light"] .segmented.compact { background: var(--surface-2); border-color: transparent; }
+:root[data-theme="light"] .segmented.compact a.active,
+:root[data-theme="light"] .segmented.compact button.active { background: #ffffff; box-shadow: 0 1px 2px rgba(17, 17, 19, 0.12); }
 
 /* ── Katalog ───────────────────────────────────────────────────────────── */
 
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(276px, 1fr));
-  gap: 20px;
+  gap: 32px 20px;
 }
 
-/* Flach: eine Kante, die unter dem Zeiger dunkler wird. Bis 2026-11-21 hob
-   sich die Karte mit einem violetten Schein. */
+/* DIE KARTE OHNE KASTEN (seit 2026-11-22), wie bei YouTube: das Bild mit
+   runden Ecken, darunter Titel und Person direkt auf dem Grund der Seite.
+   Vorher stand jede Karte in einem gerahmten Kasten - 24 Rahmen auf einer
+   Seite sind 24 Linien, die nichts sagen. Unter dem Zeiger bekommt das Bild
+   eine feine Kante; die Platzhalter beim Laden hatten diese Form schon.
+
+   Die runden Ecken traegt deshalb die BUEHNE (`.card-stage`, weiter unten
+   mit `overflow: hidden`), nicht die Karte. Die Karte selbst schneidet
+   nichts ab: der Stapel hinter einer Pack-Karte liegt als Schatten an der
+   Buehne und ragt rechts in den Abstand der Reihe. */
 .card {
   position: relative;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
+  background: transparent;
+  border: 0;
   color: var(--text);
   display: flex;
   flex-direction: column;
-  transition: border-color var(--dur) var(--ease-out);
 }
-.card:hover {
-  border-color: var(--line-strong);
-  text-decoration: none;
-}
+.card:hover { text-decoration: none; }
 
 /* Die Buehne traegt die Vorschau und was auf ihr liegt - Neu-Marke und Dauer.
    Vorher hingen beide am .card selbst, was sie an den Kartenrand band statt
    an das Bild. */
-.card-stage { position: relative; }
+.card-stage {
+  position: relative;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 0 0 1px var(--line);
+  transition: box-shadow var(--dur) var(--ease-out);
+}
+.card:hover .card-stage { box-shadow: 0 0 0 1px var(--line-strong); }
 .card canvas, .card .viewer-empty {
   width: 100%;
   height: 206px;
@@ -1147,14 +1274,14 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
 }
 .card .viewer-empty { display: flex; align-items: center; justify-content: center; color: var(--on-stage-faint); font-size: 13px; }
 
-.card-body { padding: 13px 15px 16px; display: flex; flex-direction: column; gap: 5px; flex: 1; }
+.card-body { padding: 12px 2px 0; display: flex; flex-direction: column; gap: 4px; flex: 1; }
 
 /* Der Titel ist der Link auf den Clip, und sein ::after deckt die ganze Karte
    ab - so bleibt die Flaeche anklickbar, ohne dass ein Link im Link stehen
    muss (was HTML nicht erlaubt). Der Autor daneben liegt darueber. */
 .card-title {
-  font-weight: 650;
-  font-size: 15.5px;
+  font-weight: 600;
+  font-size: 15px;
   letter-spacing: -0.01em;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1163,11 +1290,10 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
 }
 .card-title::after { content: ""; position: absolute; inset: 0; }
 .card-title:hover { text-decoration: none; }
-.card:hover .card-title { color: var(--accent-strong); }
 
 /* Ein Fokus, den man sieht: ohne ihn ist die Karte per Tastatur zwar
    erreichbar, aber nicht auffindbar. */
-.card:focus-within { border-color: var(--accent); }
+.card:focus-within .card-stage { box-shadow: 0 0 0 2px var(--accent); }
 .card-title:focus-visible, .card-author:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
@@ -1181,16 +1307,16 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
 /* Liegt ueber der Flaeche, die der Titel abdeckt - sonst waere er nicht zu
    treffen. */
 .card-author { color: var(--text-dim); font-weight: 500; position: relative; z-index: 1; }
-.card-author:hover { color: var(--accent); text-decoration: underline; }
+.card-author:hover { color: var(--text); text-decoration: none; }
 
 .card-flag, .card-duration {
   position: absolute;
-  top: 11px;
+  top: 10px;
   background: var(--on-stage-scrim-strong);
   border: 1px solid var(--on-stage-line);
   color: var(--on-stage-ink);
-  border-radius: var(--radius-pill);
-  padding: 2px 10px;
+  border-radius: 6px;
+  padding: 1px 8px;
   font-size: 12px;
   font-weight: 600;
   /* Kein backdrop-filter: die Pille liegt auf einer Leinwand, die bis zu 30-mal
@@ -1198,12 +1324,12 @@ label.check input { min-height: 0; margin-top: 4px; accent-color: var(--accent);
      jedes Mal neu weichzeichnen - bei 24 Karten 48 Mal. Bei 84 % Deckkraft
      sah man den Unterschied ohnehin kaum. */
 }
-.card-flag { left: 11px; }
+.card-flag { left: 10px; }
 /* Wie die Laufzeit auf einem Video: unten rechts, auf dem Bild. */
 .card-duration {
   top: auto;
-  bottom: 11px;
-  right: 11px;
+  bottom: 10px;
+  right: 10px;
   font-variant-numeric: tabular-nums;
   /* Bühnenmarke, nicht `--text-dim`: die Pille liegt auf dem Bild, nicht auf
      der Seite. In Hell stand hier dunkler Text auf der dunklen Pille. */
@@ -2104,20 +2230,20 @@ dialog.sheet form > p:last-of-type { margin-bottom: 20px; }
 .collection-card .card-duration { background: var(--on-stage-scrim-strong); }
 
 /* ── Packs ────────────────────────────────────────────────────────────────
-   Die Pack-Karte ist eine Clip-Karte mit einem Stapel dahinter: zwei Blaetter,
-   nach rechts unten versetzt, wie bei Mixamo. Gezeichnet als Schatten und
-   nicht als eigene Elemente, weil die Karte `overflow: hidden` traegt (runde
-   Ecken, Vorschau) - einen Schatten schneidet sie nicht ab, ein Kind schon.
-   Je Blatt zwei Schatten: die Flaeche, und einen Pixel groesser darunter der
-   Rand. Der Stapel liegt im Abstand des Rasters (20 px) und braucht 10 davon -
-   ohne eigenen Rand, damit die Karten einer Reihe gleich gross bleiben. */
-.pack-card {
-  --stack:
-    5px 5px 0 -1px var(--surface-2), 5px 5px 0 0 var(--line-strong),
-    10px 10px 0 -3px var(--surface-2), 10px 10px 0 -2px var(--line);
-  box-shadow: var(--stack), var(--shadow-sm), var(--highlight);
+   Die Pack-Karte ist eine Clip-Karte mit einem Stapel: zwei schmalere
+   Blaetter, die OBEN hinter dem Bild hervorschauen, wie eine Playlist bei
+   YouTube (seit 2026-11-22 - davor lagen sie rechts unten versetzt wie bei
+   Mixamo, an einer Karte mit Kasten). Gezeichnet als Schatten der Buehne und
+   nicht als eigene Elemente, weil die Buehne `overflow: hidden` traegt
+   (runde Ecken, Vorschau) - einen Schatten schneidet sie nicht ab, ein Kind
+   schon. Der Stapel ragt 7 px in den Abstand ueber der Reihe; die Karten
+   einer Reihe bleiben gleich gross. */
+.pack-card .card-stage {
+  --stack: 0 -8px 0 -5px var(--line-strong), 0 -17px 0 -10px var(--line);
+  box-shadow: 0 0 0 1px var(--line), var(--stack);
 }
-.pack-card:hover { box-shadow: var(--stack), var(--glow), var(--highlight); }
+.pack-card:hover .card-stage { box-shadow: 0 0 0 1px var(--line-strong), var(--stack); }
+.pack-card:focus-within .card-stage { box-shadow: 0 0 0 2px var(--accent), var(--stack); }
 
 /* Die Zahl auf dem Stapel sitzt, wo beim Clip die Dauer steht. */
 .card-count { display: inline-flex; align-items: center; gap: 5px; color: var(--on-stage-ink); }

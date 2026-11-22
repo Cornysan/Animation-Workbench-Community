@@ -23,19 +23,23 @@
   <!-- Der Seitenkopf der Vorlage (2026-11-21): der Titel sagt, wo man ist -
        auf einer Schlagwort-Seite deren Name. Von 2026-09-24 bis hierher stand
        die h1 nur fuer Screenreader da, weil der helle Reiter oben den Ort
-       nannte. KEIN Knopf rechts: "Share an animation" stand hier kurz und ist
-       auf Pablos Wunsch weg - der Weg zum Teilen ist "Share" in der Spalte. -->
+       nannte. KEIN Knopf "Share" rechts: der steht seit 2026-11-22 als
+       "+ Share" oben rechts im Balken, auf jeder Seite.
+
+       Rechts steht seit 2026-11-22 die SORTIERUNG, als kleiner Umschalter -
+       sie ist eine Einstellung der Wand, kein eigener Abschnitt. Darunter die
+       Schlagworte als Chips wie bei YouTube, darunter, nur wenn etwas
+       eingrenzt, die Filter mit ihrem "x". Kein Kopf, keine Zahlen, kein
+       Werbesatz davor: die Wand ist das Angebot (Pablo: "denkst du so eine
+       riesen Aufmache ist professionell?"). -->
   <div class="page-head">
     <h1 th:text="${catalogHeading} ?: 'Animations'">Animations</h1>
-  </div>
-
-  <div class="filters">
-    <div class="segmented" id="sort" role="group" aria-label="Sort"></div>
-    <div class="filter-state" id="state"></div>
+    <div class="segmented compact" id="sort" role="group" aria-label="Sort"></div>
   </div>
 
   <!-- Die Schlagworte, die es hier wirklich gibt - gefuellt aus /api/v1/overview. -->
   <div class="tag-bar" id="tag-bar" hidden></div>
+  <div class="filter-state" id="state"></div>
 
   <!--
     Die erste Seite der Wand steht schon im HTML (PageController.animations):
