@@ -114,15 +114,15 @@ class PreviewClipFlowTest {
         fun page(path: String) = mvc.get(path) { header("Authorization", "Bearer $token") }
             .andExpect { status { isOk() } }.andReturn().response.contentAsString
 
-        assertTrue(page("/upload.html").contains("id=\"drop\""))
-        assertTrue(page("/share.html").contains("href=\"/upload.html\""))
+        assertTrue(page("/upload").contains("id=\"drop\""))
+        assertTrue(page("/share").contains("href=\"/upload\""))
 
         settings.set(SystemSettingsService.WEB_UPLOAD_ENABLED, false)
         try {
-            val off = page("/upload.html")
+            val off = page("/upload")
             assertTrue(off.contains("not available right now"))
             assertFalse(off.contains("id=\"drop\""))
-            assertFalse(page("/share.html").contains("href=\"/upload.html\""))
+            assertFalse(page("/share").contains("href=\"/upload\""))
         } finally {
             settings.set(SystemSettingsService.WEB_UPLOAD_ENABLED, true)
         }

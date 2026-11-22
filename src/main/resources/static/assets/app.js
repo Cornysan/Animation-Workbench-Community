@@ -315,6 +315,25 @@ const AW = (() => {
   }
 
   /**
+   * Die Adressen der Seiten - dieselben Wege wie `PortalPaths` auf dem
+   * Server. Seit 2026-11-22 ohne `.html`: was eine Seite ausmacht, steht im
+   * Pfad (`/clip/<slug>`), Ansichten derselben Seite bleiben Abfrage
+   * (`/u/<handle>?tab=collections`). Die alten Adressen leiten weiter.
+   */
+  const paths = {
+    clip: (slug) => "/clip/" + encodeURIComponent(slug),
+    pack: (slug) => "/pack/" + encodeURIComponent(slug),
+    collection: (slug) => "/collection/" + encodeURIComponent(slug),
+    profile: (handle) => "/u/" + encodeURIComponent(handle),
+  };
+
+  /** Der Schluessel der Seite aus ihrem Pfad: `/clip/<slug>` -> slug. */
+  function pathKey() {
+    const part = location.pathname.split("/")[2];
+    return part ? decodeURIComponent(part) : null;
+  }
+
+  /**
    * Wohin "Sign in" fuehrt - oder null, wenn dieses Portal keine Anmeldung hat.
    *
    * Der Weg stand an fuenf Stellen fest verdrahtet auf Discord. Auf einem
@@ -355,8 +374,8 @@ const AW = (() => {
     if (document.body.dataset.signedIn !== "true") return;
 
     const code = sessionStorage.getItem("aw-link-code");
-    if (code && !location.pathname.endsWith("/link.html")) {
-      location.href = "/link.html?code=" + encodeURIComponent(code);
+    if (code && location.pathname !== "/link") {
+      location.href = "/link?code=" + encodeURIComponent(code);
     }
   }
 
@@ -1183,7 +1202,7 @@ const AW = (() => {
     const pack = item.pack && !options.inPack
       ? el("a", {
           class: "card-pack",
-          href: "/pack.html?k=" + encodeURIComponent(item.pack.slug),
+          href: paths.pack(item.pack.slug),
           "data-tip": "Part of the pack “" + item.pack.title + "”",
         }, icon("pack"), el("span", {}, item.pack.title))
       : null;
@@ -1197,7 +1216,7 @@ const AW = (() => {
       el("div", { class: "card-body" },
         el("a", {
           class: "card-title",
-          href: "/clip.html?p=" + encodeURIComponent(item.slug),
+          href: paths.clip(item.slug),
           title: item.title,
         }, item.title),
         el("div", { class: "card-meta" }, author, actions)));
@@ -1266,7 +1285,7 @@ const AW = (() => {
 
   function profileHref(item) {
     return item.authorHandle
-      ? "/u.html?u=" + encodeURIComponent(item.authorHandle)
+      ? paths.profile(item.authorHandle)
       : "/?author=" + encodeURIComponent(item.author);
   }
 
@@ -1291,7 +1310,7 @@ const AW = (() => {
     }
 
     const author = item.ownerHandle
-      ? el("a", { class: "card-author", href: "/u.html?u=" + encodeURIComponent(item.ownerHandle),
+      ? el("a", { class: "card-author", href: paths.profile(item.ownerHandle),
           "data-tip": "Profile of " + item.owner }, item.owner)
       : el("span", { class: "card-author" }, item.owner);
 
@@ -1306,7 +1325,7 @@ const AW = (() => {
       el("div", { class: "card-body" },
         el("a", {
           class: "card-title",
-          href: "/collection.html?c=" + encodeURIComponent(item.slug),
+          href: paths.collection(item.slug),
           title: item.title,
         }, item.title),
         el("div", { class: "card-meta" }, author)));
@@ -1353,7 +1372,7 @@ const AW = (() => {
       el("div", { class: "card-body" },
         el("a", {
           class: "card-title",
-          href: "/pack.html?k=" + encodeURIComponent(item.slug),
+          href: paths.pack(item.slug),
           title: item.title,
         }, item.title),
         el("div", { class: "card-meta" }, author)));
@@ -1586,7 +1605,7 @@ const AW = (() => {
   };
 
   function profileLink(handle) {
-    return "/u.html?u=" + encodeURIComponent(handle);
+    return paths.profile(handle);
   }
 
   /**
@@ -1683,7 +1702,7 @@ const AW = (() => {
     panel.replaceChildren(
       el("div", { class: "notifications-head" },
         el("strong", {}, "Notifications"),
-        el("a", { href: "/me.html#notifications" }, "See all")),
+        el("a", { href: "/account#notifications" }, "See all")),
       scroll);
 
     try {
@@ -1760,7 +1779,7 @@ const AW = (() => {
     previewObserver,
     icon, iconButton, discordButton, setIconState, popover, closePopover, signInHint, signedIn,
     likeButton, saveButton, collectionDialog, profileHref, releasePreviews,
-    toast, toastError, confirmDialog, copyLink, pulse, placeholderCards, skeletonRows, avatar,
+    toast, toastError, confirmDialog, copyLink, pulse, placeholderCards, skeletonRows, avatar, paths, pathKey,
     notificationRow, profileLink,
   };
 })();

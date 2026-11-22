@@ -25,7 +25,7 @@
   <div class="page-head">
     <h1>Your account</h1>
     <div class="page-head-actions">
-      <a class="button" th:if="${user != null and user.handle != null}" th:href="${'/u.html?u=' + user.handle}">Public profile</a>
+      <a class="button" th:if="${user != null and user.handle != null}" th:href="@{/u/{h}(h=${user.handle})}">Public profile</a>
     </div>
   </div>
   <p class="lead">Only you see this page.</p>

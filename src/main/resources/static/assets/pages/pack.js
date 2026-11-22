@@ -14,7 +14,7 @@
     packDialog, packCandidates, releasePreviews, toast, toastError, confirmDialog, copyLink,
   } = AW;
 
-  const slug = param("k");
+  const slug = AW.pathKey();
   const state = document.getElementById("state");
 
   if (!slug) {
@@ -33,7 +33,7 @@
   document.getElementById("pack").classList.remove("hidden");
 
   const profileOf = (item) => item.authorHandle
-    ? el("a", { href: "/u.html?u=" + encodeURIComponent(item.authorHandle) }, item.author)
+    ? el("a", { href: AW.paths.profile(item.authorHandle) }, item.author)
     : el("span", {}, item.author);
 
   //  Kopf und Wand getrennt, wie bei der Sammlung: eine Umbenennung baut
@@ -124,7 +124,7 @@
   actions.append(iconButton({
     name: "link",
     tip: "Copy a link to this pack",
-    onClick: () => copyLink(location.origin + "/pack.html?k=" + encodeURIComponent(pack.slug)),
+    onClick: () => copyLink(location.origin + AW.paths.pack(pack.slug)),
   }));
 
   //  Der Thread seines Schaufenster-Posts - wie auf der Clip-Seite.
@@ -177,7 +177,7 @@
         try {
           await ensureCsrf();
           await api("DELETE", "/api/v1/packs/" + encodeURIComponent(pack.slug));
-          location.href = pack.authorHandle ? "/u.html?u=" + encodeURIComponent(pack.authorHandle) : "/";
+          location.href = pack.authorHandle ? AW.paths.profile(pack.authorHandle) : "/";
         } catch (e) {
           toastError(e);
         }

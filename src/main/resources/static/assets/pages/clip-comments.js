@@ -16,7 +16,7 @@
 (async () => {
   const { api, ensureCsrf, me, el, notice, formatRelative, param, signInButton, confirmDialog, toast, toastError, avatar } = AW;
 
-  const slug = param("p");
+  const slug = AW.pathKey();
   if (!slug) return;
 
   const section = document.getElementById("comments");
@@ -95,7 +95,7 @@
     //  schreibt, soll auffindbar sein. Ohne Handle (geloeschtes Konto) bleibt
     //  er Text.
     const name = comment.authorHandle
-      ? el("a", { class: "comment-author", href: "/u.html?u=" + encodeURIComponent(comment.authorHandle) }, comment.author)
+      ? el("a", { class: "comment-author", href: AW.paths.profile(comment.authorHandle) }, comment.author)
       : el("strong", {}, comment.author);
 
     const node = el("article", { class: "comment" + (comment.mine ? " mine" : "") },

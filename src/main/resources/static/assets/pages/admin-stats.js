@@ -1,5 +1,5 @@
 /**
- * Kennzahlen fuer Admins - `/admin-stats.html`.
+ * Kennzahlen fuer Admins - `/admin/stats`.
  *
  * Eine Abfrage (`/api/v1/admin/stats`, system/AdminStats.kt), vier Teile:
  * Kacheln mit den Zahlen, nach denen man zuerst fragt; zwei Kaesten mit dem
@@ -93,7 +93,7 @@
   top.replaceChildren(...(stats.topClips.length === 0
     ? [el("tr", {}, el("td", { colspan: 5, class: "muted" }, "No public clips yet."))]
     : stats.topClips.map((clip) => el("tr", {},
-        el("td", {}, el("a", { href: "/clip.html?p=" + encodeURIComponent(clip.slug) }, clip.title)),
+        el("td", {}, el("a", { href: AW.paths.clip(clip.slug) }, clip.title)),
         el("td", { class: "muted" }, clip.author),
         numberCell(clip.views), numberCell(clip.downloads), numberCell(clip.likes)))));
 

@@ -330,7 +330,7 @@ function finished(clip, license) {
   opened = null;
   built = null;
 
-  const href = '/clip.html?p=' + encodeURIComponent(clip.slug);
+  const href = AW.paths.clip(clip.slug);
   const again = el('button', { type: 'button' }, 'Upload another');
   again.addEventListener('click', () => {
     done.hidden = true;

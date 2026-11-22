@@ -9,6 +9,7 @@ import com.playmation.motionlabsbackend.common.PortalException
 import com.playmation.motionlabsbackend.config.PortalProperties
 import com.playmation.motionlabsbackend.showcase.DiscordWebhook
 import com.playmation.motionlabsbackend.showcase.ShowcasePosted
+import com.playmation.motionlabsbackend.web.PortalPaths
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.scheduling.annotation.Scheduled
@@ -271,7 +272,7 @@ class ClipRequestService(
         description = "Nothing in the Community matches this yet. If you make one, share it from the " +
             "Animation Workbench, and everyone who searches for it finds it there.",
         authorName = asker?.displayName,
-        authorUrl = asker?.handle?.let { "$base/u.html?u=" + URLEncoder.encode(it, Charsets.UTF_8) },
+        authorUrl = asker?.handle?.let { base + PortalPaths.profile(it) },
         authorIcon = asker?.avatarPath()?.let { base + it },
     )
 }

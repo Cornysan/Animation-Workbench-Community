@@ -112,7 +112,7 @@
         : "Nothing shared yet. Yours could be the first."),
       filters.length
         ? el("a", { class: "button", href: "/" }, "Show all clips")
-        : el("a", { class: "button", href: "/share.html" }, "How sharing works")));
+        : el("a", { class: "button", href: "/share" }, "How sharing works")));
     return;
   }
 

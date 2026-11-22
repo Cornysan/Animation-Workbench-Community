@@ -80,16 +80,27 @@ niemand herankommt. Ein dritter Name waere nicht erlaubt - das ist der Punkt.
 Firefox und Safari ignorieren die Regel bisher, entwickelt wird aber in
 Chromium, und dort faellt ein neuer Einstieg sofort auf.
 
+Die Adressen stehen in `web/PortalPaths.kt` (und dieselben Wege in `AW.paths`
+in `app.js`). Seit 2026-11-22 ohne `.html`: was eine Seite ausmacht, steht im
+Pfad; Reiter, Sortierung und Suche bleiben Abfrage. Die alten Adressen
+(`/clip.html?p=<slug>`, `/u.html?u=<handle>`, `/me.html` ...) leiten dauerhaft
+weiter (`web/LegacyPageAddresses.kt`) - sie stehen in jeder ausgelieferten
+Workbench, in Discord-Posts und Takedown-Mails und duerfen nie wegfallen.
+
 | Adresse | Vorlage | |
 |---|---|---|
-| `/` | `landing.html` | Startseite: ein Clip auf der Figur, drei Schritte, die neuesten Clips. |
-| `/browse.html` | `browse.html` | Der Katalog. Lag bis zur Startseite auf `/`. |
-| `/clip.html?p=<slug>` | `clip.html` | Ein Clip. Diese Adresse steht in Discord-Vorschauen und Takedown-Mails - sie aendert sich nicht. |
-| `/u.html?u=<handle>` | `user.html` | Ein Profil: Clips, Sammlungen, Folgen, Auszeichnungen. Der Handle ist die Adresse, nicht der Anzeigename - er ueberlebt eine Umbenennung. |
-| `/characters.html` | `characters.html` | Die eigenen Figuren. Der Server liefert nur den Rahmen; der Inhalt liegt im Browser. |
-| `/collection.html?c=<slug>` | `collection.html` | Eine Sammlung. Derselbe Aufbau wie der Katalog, nur von Hand ausgesucht. |
-| `/signin.html` | `signin.html` | Die Auswahl der Anbieter und der Ort fuer Anmeldefehler. Gibt es nur einen Anbieter, fuehrt "Sign in" direkt dorthin. |
-| `/me.html` | `me.html` | Das private Fach, darin "Ways to sign in": weitere Anbieter verbinden, loesen (nie den letzten). |
+| `/` | `browse.html` | Der Katalog ist die Startseite. `?tag=` ist eine eigene Seite fuer Suchmaschinen. |
+| `/clip/<slug>` | `clip.html` | Ein Clip. |
+| `/pack/<slug>` | `pack.html` | Ein Pack: mehrere Clips als Satz. |
+| `/u/<handle>` | `user.html` | Ein Profil: Clips, Sammlungen, Folgen, Auszeichnungen. Der Handle ist die Adresse, nicht der Anzeigename - er ueberlebt eine Umbenennung. |
+| `/collections` | `collections.html` | Die eigenen Sammlungen und die der Leute, denen man folgt. |
+| `/collection/<slug>` | `collection.html` | Eine Sammlung. Derselbe Aufbau wie der Katalog, nur von Hand ausgesucht. |
+| `/characters` | `characters.html` | Die Standardfigur und die eigenen Figuren. Der Server liefert nur den Rahmen; der Inhalt liegt im Browser. |
+| `/share`, `/upload` | `share.html`, `upload.html` | Wie ein Clip hierher kommt; Hochladen aus dem Browser nur angemeldet. |
+| `/signin` | `signin.html` | Die Auswahl der Anbieter und der Ort fuer Anmeldefehler. Gibt es nur einen Anbieter, fuehrt "Sign in" direkt dorthin. |
+| `/account` | `me.html` | Das private Fach, darin "Ways to sign in": weitere Anbieter verbinden, loesen (nie den letzten). Nur angemeldet. |
+| `/messages` | `messages.html` | Direktnachrichten (`?c=<id>`, `?to=<handle>`). Nur angemeldet. |
+| `/admin`, `/admin/stats` | `admin.html`, `admin-stats.html` | Moderation und Kennzahlen. |
 
 ### Die Figur im Viewer
 
@@ -111,7 +122,7 @@ sie sich auch jetzt nicht.
 | `static/assets/vendor/three.module.js` | three.js r186 plus GLTFLoader und SkeletonUtils, gebuendelt. |
 
 **Zwei Mannequins, und jeder waehlt selbst (seit 2026-11-21).** Auf welcher
-Figur man die Clips sieht, waehlt jeder Betrachter auf `/characters.html`:
+Figur man die Clips sieht, waehlt jeder Betrachter auf `/characters`:
 Male oder Female in einem der zehn Looks, oder eine eigene Figur. Karten,
 Clip-Seite und Upload-Seite zeigen alles auf dieser Standardfigur
 (`figures.js`, `defaultCharacter`, im `localStorage` unter `aw.character`).
@@ -163,7 +174,7 @@ Der Kopf von `stage.js` erklaert es im Ganzen.
 
 ### Die eigene Figur
 
-Seit dem 21.09.2026 muss es nicht das Mannequin sein. **`/characters.html`**
+Seit dem 21.09.2026 muss es nicht das Mannequin sein. **`/characters`**
 ist seit 2026-11-21 der EINE Ort dafür: oben die Mannequins in ihren Looks,
 darunter die eigenen Figuren. Dort kommen Figuren herein (ziehen oder
 "Add a figure"), dort stehen sie als Karten mit ihrem Bild und ihren Zahlen,

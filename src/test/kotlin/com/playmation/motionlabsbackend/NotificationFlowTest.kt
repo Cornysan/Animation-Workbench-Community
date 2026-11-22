@@ -169,7 +169,7 @@ class NotificationFlowTest {
 
         val likes = inbox(creatorToken).filter { it["kind"].asString() == "like" }
         assertEquals(1, likes.size)
-        assertEquals("/clip.html?p=$slug", likes.single()["link"].asString())
+        assertEquals("/clip/$slug", likes.single()["link"].asString())
         assertEquals(liker, likes.single()["actor"]["handle"].asString())
         assertEquals("liked 'Wave'.", likes.single()["text"].asString())
 
@@ -192,7 +192,7 @@ class NotificationFlowTest {
         addItem(collectorToken, shown, slug)
         val collected = inbox(creatorToken).filter { it["kind"].asString() == "collected" }
         assertEquals(1, collected.size)
-        assertEquals("/collection.html?c=$shown", collected.single()["link"].asString())
+        assertEquals("/collection/$shown", collected.single()["link"].asString())
     }
 
     /**
@@ -212,7 +212,7 @@ class NotificationFlowTest {
 
         val creatorInbox = inbox(creatorToken).filter { it["kind"].asString() == "comment" }
         assertEquals(3, creatorInbox.size)
-        assertEquals("/clip.html?p=$slug#comments", creatorInbox.first()["link"].asString())
+        assertEquals("/clip/$slug#comments", creatorInbox.first()["link"].asString())
 
         val replies = inbox(firstToken).filter { it["kind"].asString() == "reply" }
         assertEquals(1, replies.size, "one unread reply notice per conversation is enough")

@@ -15,7 +15,7 @@ const CLIP_SCRIPT = document.currentScript ? document.currentScript.src : locati
     iconButton, likeButton, saveButton, profileHref, toast, toastError, confirmDialog, copyLink,
   } = AW;
 
-  const slug = param("p");
+  const slug = AW.pathKey();
   const state = document.getElementById("state");
   const actionState = document.getElementById("action-state");
 
@@ -127,7 +127,7 @@ const CLIP_SCRIPT = document.currentScript ? document.currentScript.src : locati
     packLine.hidden = !clip.pack;
     if (clip.pack) {
       packLine.replaceChildren(AW.icon("pack"), "Part of the pack ",
-        el("a", { href: "/pack.html?k=" + encodeURIComponent(clip.pack.slug) }, clip.pack.title));
+        el("a", { href: AW.paths.pack(clip.pack.slug) }, clip.pack.title));
     }
     //  Die Schlagworte mit #, in der Zeile ueber der Beschreibung - wie bei
     //  YouTube. Vorher standen sie als Pillen in einer eigenen Reihe.
@@ -209,7 +209,7 @@ const CLIP_SCRIPT = document.currentScript ? document.currentScript.src : locati
   const share = iconButton({
     name: "link",
     tip: "Copy a link to this clip",
-    onClick: () => copyLink(location.origin + "/clip.html?p=" + encodeURIComponent(slug)),
+    onClick: () => copyLink(location.origin + AW.paths.clip(slug)),
   });
   bar.append(share);
 
@@ -280,7 +280,7 @@ const CLIP_SCRIPT = document.currentScript ? document.currentScript.src : locati
         try {
           await ensureCsrf();
           await api("DELETE", "/api/v1/packages/" + encodeURIComponent(slug));
-          location.href = "/me.html";
+          location.href = "/account";
         } catch (e) {
           toastError(e);
         }
@@ -356,7 +356,7 @@ const CLIP_SCRIPT = document.currentScript ? document.currentScript.src : locati
         related.hidden = false;
         relatedList.replaceChildren(...others.map((item) => el("a", {
           class: "related-item",
-          href: "/clip.html?p=" + encodeURIComponent(item.slug),
+          href: AW.paths.clip(item.slug),
         },
           el("span", { class: "related-title" }, item.title),
           el("span", { class: "related-meta" },

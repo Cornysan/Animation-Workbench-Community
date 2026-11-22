@@ -43,7 +43,7 @@
     else if (key && key.to) query.set("to", key.to);
     if (box === "requests") query.set("box", "requests");
     const text = query.toString();
-    return "/messages.html" + (text ? "?" + text : "");
+    return "/messages" + (text ? "?" + text : "");
   }
 
   function remember(key, mode) {

@@ -11,7 +11,8 @@
 import { mountViewer } from '../viewer-ui.js';
 
 const box = document.getElementById('viewer');
-const slug = new URLSearchParams(location.search).get('p');
+//  Der Slug steht im Pfad: /clip/<slug> (wie AW.pathKey in app.js).
+const slug = decodeURIComponent(location.pathname.split('/')[2] || '');
 
 function message(text) {
   const div = document.createElement('div');

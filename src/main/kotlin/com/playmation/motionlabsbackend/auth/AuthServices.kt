@@ -8,6 +8,7 @@ import com.playmation.motionlabsbackend.common.PortalException
 import com.playmation.motionlabsbackend.common.RateLimiter
 import com.playmation.motionlabsbackend.config.PortalProperties
 import com.playmation.motionlabsbackend.system.AuditService
+import com.playmation.motionlabsbackend.web.PortalPaths
 import org.springframework.http.HttpStatus
 import org.springframework.security.authentication.AbstractAuthenticationToken
 import org.springframework.security.core.Authentication
@@ -167,7 +168,7 @@ class EditorLinkService(
 
         links.save(EditorLink(userCode = code, pollSecretHash = Crypto.sha256Hex(secret), createdAt = now, expiresAt = now.plus(Duration.ofMinutes(minutes))))
 
-        return Started(code, "${properties.publicBaseUrl.trimEnd('/')}/link.html?code=$code", secret, minutes * 60, 3)
+        return Started(code, properties.publicBaseUrl.trimEnd('/') + PortalPaths.LINK + "?code=$code", secret, minutes * 60, 3)
     }
 
     @Transactional

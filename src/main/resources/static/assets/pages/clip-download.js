@@ -41,7 +41,8 @@ const glbExport = () => import('../glb-export.js');
 const fbxExport = () => import('../fbx-export.js');
 
 const box = document.getElementById('downloads');
-const slug = new URLSearchParams(location.search).get('p');
+//  Der Slug steht im Pfad: /clip/<slug> (wie AW.pathKey in app.js).
+const slug = decodeURIComponent(location.pathname.split('/')[2] || '');
 
 /** Dateinamen duerfen nicht alles, und ein Clip heisst, wie jemand will. */
 function safeName(title) {

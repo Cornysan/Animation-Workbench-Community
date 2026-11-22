@@ -155,7 +155,7 @@ class ShowcaseFlowTest {
         showcase.runOnce(later())
         val post = postsTitled(title).single()
         assertEquals("$title by $name", post.threadName)
-        assertTrue(post.url.contains("/clip.html?p="))
+        assertTrue(post.url.contains("/clip/"))
         assertEquals("#sneak #walk  ·  2.50 s", post.footer)
         assertFalse(post.description.contains("evil.example"), "the clip's own description is never posted")
         assertEquals(name, post.authorName)
@@ -221,7 +221,7 @@ class ShowcaseFlowTest {
         showcase.runOnce(later())
         val post = postsTitled(title).single()
         assertEquals("$title (2 clips) by $name", post.threadName)
-        assertTrue(post.url.contains("/pack.html?k="))
+        assertTrue(post.url.contains("/pack/"))
         assertTrue(post.footer.startsWith("2 clips"))
         assertTrue(channel.posted.none { it.title.startsWith("Bow Draw $word") }, "the clips do not post on their own")
 

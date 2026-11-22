@@ -79,7 +79,7 @@
       <!-- Der Pack, zu dem der Clip gehoert - der Weg zu seinen Geschwistern. -->
       <p id="clip-pack" class="clip-pack" th:attr="hidden=${clipPage == null or clipPage.packSlug == null} ? 'hidden'"><th:block
          th:if="${clipPage != null and clipPage.packSlug != null}">Part of the pack <a
-         th:href="@{/pack.html(k=${clipPage.packSlug})}" th:text="${clipPage.packTitle}">Pack</a></th:block></p>
+         th:href="@{/pack/{k}(k=${clipPage.packSlug})}" th:text="${clipPage.packTitle}">Pack</a></th:block></p>
       <!-- Nur bei Starter-Clips: woher der Clip stammt (clip.js). -->
       <p id="clip-source" class="clip-source" th:attr="hidden=${clipPage == null or clipPage.sourceCredit == null} ? 'hidden'"><th:block
          th:if="${clipPage != null and clipPage.sourceCredit != null}">Original: <a th:if="${clipPage.sourceUrl != null}"

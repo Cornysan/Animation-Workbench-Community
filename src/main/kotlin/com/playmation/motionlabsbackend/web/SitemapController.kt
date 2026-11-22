@@ -80,12 +80,12 @@ class SitemapController(
             xml.append("</url>\n")
         }
 
-        //  Der Katalog und die Seiten im Fuss. "/collections.html" nicht mehr:
+        //  Der Katalog und die Seiten im Fuss. "/collections" nicht mehr:
         //  seit dort nur noch die eigenen und die gefolgten Sammlungen stehen
         //  (2026-09-25), sieht ein Suchroboter nur den Weg zur Anmeldung. Die
         //  Sammlungen selbst stehen weiter unten einzeln.
-        for (path in listOf("/", "/share.html", "/licenses.html", "/rules.html", "/terms.html",
-                "/privacy.html", "/impressum.html"))
+        for (path in listOf(PortalPaths.HOME, PortalPaths.SHARE, PortalPaths.LICENSES, PortalPaths.RULES,
+                PortalPaths.TERMS, PortalPaths.PRIVACY, PortalPaths.IMPRESSUM))
             url(path)
 
         //  Die Schlagwortseiten ("Free walk animations") - seit 2026-09-26
@@ -104,7 +104,7 @@ class SitemapController(
         for (pkg in published.sortedByDescending { it.updatedAt }) {
             val rig = pkg.currentVersionId?.let(rigs::get) ?: continue
             if (!AwclipSchema.isAcceptedRig(rig)) continue
-            url("/clip.html?p=" + pkg.slug, pkg.updatedAt)
+            url(PortalPaths.clip(pkg.slug), pkg.updatedAt)
             owners += pkg.ownerId
         }
 
@@ -112,19 +112,19 @@ class SitemapController(
         for (collection in collections.findByStatusAndVisibilityOrderByUpdatedAtDesc(
                 CollectionStatus.PUBLISHED, CollectionVisibility.PUBLIC)) {
             if (collection.itemCount <= 0) continue
-            url("/collection.html?c=" + collection.slug, collection.updatedAt)
+            url(PortalPaths.collection(collection.slug), collection.updatedAt)
             owners += collection.ownerId
         }
 
         //  Packs: alle, in denen ein Clip zu sehen ist - dieselbe Frage wie die Wand.
         for (pack in packs.matching(null, null, null, null)) {
-            url("/pack.html?k=" + pack.slug, pack.updatedAt)
+            url(PortalPaths.pack(pack.slug), pack.updatedAt)
         }
 
         for (account in accounts.findAllById(owners)) {
             val handle = account.handle ?: continue
             if (account.status == AccountStatus.BANNED) continue
-            url("/u.html?u=" + handle)
+            url(PortalPaths.profile(handle))
         }
 
         xml.append("</urlset>\n")

@@ -2,7 +2,7 @@
  * Das Profil: Kopf, Zahlen, vier Reiter.
  *
  * Jeder Reiter holt seinen Inhalt beim ersten Oeffnen und behaelt ihn danach.
- * Welcher offen ist, steht in der ADRESSE (`?u=name&tab=collections`) - damit
+ * Welcher offen ist, steht in der ADRESSE (`/u/name?tab=collections`) - damit
  * ist ein bestimmter Reiter verlinkbar, und der Zurueck-Knopf tut das
  * Richtige. Dieselbe Regel wie im Katalog, wo jede Eingrenzung in der Adresse
  * steht.
@@ -14,7 +14,7 @@
     entryCard, packDialog, packCandidates, toast,
   } = AW;
 
-  const handle = param("u");
+  const handle = AW.pathKey();
   const state = document.getElementById("state");
   const actionState = document.getElementById("action-state");
 
@@ -145,7 +145,7 @@
     const message = iconButton({
       name: "message",
       tip: "Message " + profile.displayName,
-      href: "/messages.html?to=" + encodeURIComponent(profile.handle),
+      href: "/messages?to=" + encodeURIComponent(profile.handle),
     });
     message.addEventListener("click", (event) => {
       if (signedIn()) return;
@@ -158,7 +158,7 @@
   const share = iconButton({
     name: "link",
     tip: "Copy a link to this profile",
-    onClick: () => copyLink(location.origin + "/u.html?u=" + encodeURIComponent(profile.handle)),
+    onClick: () => copyLink(location.origin + AW.paths.profile(profile.handle)),
   });
   actions.append(share);
 
@@ -228,7 +228,7 @@
         el("span", {}, "Handle"),
         handleField),
       el("p", { class: "faint small" },
-        "Your address is /u.html?u=", el("b", {}, profile.handle),
+        "Your address is /u/", el("b", {}, profile.handle),
         ". Changing it breaks links you already shared."),
       el("label", { class: "field" }, el("span", {}, "About you"), bioField),
 
@@ -237,7 +237,7 @@
       //  Eintrag in der Navigation dieselbe Person an zwei Adressen gezeigt
       //  haette. Was dort liegt, steht dabei, sonst ist es ein Link ins Dunkle.
       el("p", { class: "faint small dialog-aside" },
-        el("a", { href: "/me.html" }, "Notifications, clip statuses and your account")),
+        el("a", { href: "/account" }, "Notifications, clip statuses and your account")),
 
       error,
       el("div", { class: "dialog-actions" },
@@ -268,7 +268,7 @@
         close();
         //  Der Handle steht in der Adresse - nach einer Umbenennung waere die
         //  alte Seite eine Seite, die es nicht mehr gibt.
-        location.href = "/u.html?u=" + encodeURIComponent(saved.handle);
+        location.href = AW.paths.profile(saved.handle);
       } catch (e) {
         notice(error, e.message, "error");
       }
@@ -326,7 +326,7 @@
     //  man wieder im Katalog ist, waere eine Falle.
     const next = new URLSearchParams(location.search);
     next.set("tab", id);
-    history.replaceState(null, "", "/u.html?" + next.toString());
+    history.replaceState(null, "", location.pathname + "?" + next.toString());
 
     drawTabs();
     show();
@@ -372,7 +372,7 @@
       return empty(profile.isMe
         ? "You have not shared a clip yet."
         : profile.displayName + " has not shared a clip yet.",
-        profile.isMe ? el("a", { class: "button", href: "/share.html" }, "How to share") : null);
+        profile.isMe ? el("a", { class: "button", href: "/share" }, "How to share") : null);
     }
 
     const make = profile.isMe && page.clips >= 2
@@ -392,7 +392,7 @@
         const made = await packDialog({ candidates });
         if (!made) return;
         toast("Pack created", { kind: "ok" });
-        location.href = "/pack.html?k=" + encodeURIComponent(made.slug);
+        location.href = AW.paths.pack(made.slug);
       });
     }
 
@@ -414,7 +414,7 @@
         const made = await collectionDialog();
         if (!made) return;
         delete loaded.collections;
-        location.href = "/collection.html?c=" + encodeURIComponent(made.slug);
+        location.href = AW.paths.collection(made.slug);
       });
     }
 
@@ -446,7 +446,7 @@
 
     return el("div", { class: "awards" }, ...list.map((person) => el("a", {
       class: "award",
-      href: "/u.html?u=" + encodeURIComponent(person.handle),
+      href: AW.paths.profile(person.handle),
     },
       person.avatarUrl
         ? el("img", { class: "profile-avatar", src: person.avatarUrl, alt: "", width: 40, height: 40,

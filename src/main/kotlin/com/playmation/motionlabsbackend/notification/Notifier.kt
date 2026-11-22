@@ -7,6 +7,7 @@ import com.playmation.motionlabsbackend.account.avatarPath
 import com.playmation.motionlabsbackend.messages.BlockService
 import com.playmation.motionlabsbackend.moderation.Notification
 import com.playmation.motionlabsbackend.moderation.NotificationRepository
+import com.playmation.motionlabsbackend.web.PortalPaths
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Clock
@@ -28,10 +29,12 @@ object NotificationKind {
 
 /** Die Ziele, auf die eine Nachricht zeigen kann - an EINER Stelle, damit sie nicht auseinanderlaufen. */
 object NotificationLinks {
-    fun clip(slug: String) = "/clip.html?p=$slug"
-    fun comments(slug: String) = "/clip.html?p=$slug#comments"
-    fun collection(slug: String) = "/collection.html?c=$slug"
-    fun pack(slug: String) = "/pack.html?k=$slug"
+    //  Gespeichert wird der Link MIT der Nachricht. Aeltere Zeilen tragen
+    //  noch `/clip.html?p=…` - die leiten weiter (LegacyPageAddresses).
+    fun clip(slug: String) = PortalPaths.clip(slug)
+    fun comments(slug: String) = PortalPaths.comments(slug)
+    fun collection(slug: String) = PortalPaths.collection(slug)
+    fun pack(slug: String) = PortalPaths.pack(slug)
 }
 
 /** Wer eine Nachricht ausgeloest hat, so wie die Seite ihn zeigt. `handle` null = kein Profil (mehr). */

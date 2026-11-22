@@ -55,7 +55,7 @@ class BrowserSignInFlowTest {
         return Workbench(UUID.fromString(body["accountId"].asString()), body["token"].asString())
     }
 
-    private fun handoff(workbench: Workbench, next: String = "/me.html"): String {
+    private fun handoff(workbench: Workbench, next: String = "/account"): String {
         val result = mvc.post("/api/v1/auth/handoff") {
             header("Authorization", "Bearer ${workbench.token}")
             contentType = MediaType.APPLICATION_JSON
@@ -75,7 +75,7 @@ class BrowserSignInFlowTest {
             header("Sec-Fetch-Site", "none")
         }.andExpect {
             status { is3xxRedirection() }
-            redirectedUrl("/me.html")
+            redirectedUrl("/account")
         }.andReturn()
         val cookie = assertNotNull(result.response.getCookie(PortalRememberMeServices.COOKIE))
         assertTrue(cookie.value.isNotBlank())
@@ -88,16 +88,16 @@ class BrowserSignInFlowTest {
         val code = handoff(workbench)
         val browser = redeem(code)
 
-        mvc.get("/me.html") { session = browser.session }.andExpect {
+        mvc.get("/account") { session = browser.session }.andExpect {
             status { isOk() }
             content { string(org.hamcrest.Matchers.containsString("Ways to sign in")) }
         }
 
         //  Ein zweites Mal gilt derselbe Code nicht mehr.
         mvc.get("/signin/handoff") { param("code", code); header("Sec-Fetch-Site", "none") }.andExpect {
-            redirectedUrl("/signin.html?error=handoff")
+            redirectedUrl("/signin?error=handoff")
         }
-        mvc.get("/signin.html") { param("error", "handoff") }.andExpect {
+        mvc.get("/signin") { param("error", "handoff") }.andExpect {
             content { string(org.hamcrest.Matchers.containsString("run out or was already used")) }
         }
     }
@@ -107,7 +107,7 @@ class BrowserSignInFlowTest {
         val code = handoff(workbench())
 
         mvc.get("/signin/handoff") { param("code", code); header("Sec-Fetch-Site", "cross-site") }.andExpect {
-            redirectedUrl("/signin.html?error=handoff")
+            redirectedUrl("/signin?error=handoff")
         }
 
         //  Nicht angefasst: aus der Workbench geoeffnet, geht es weiter.
@@ -117,7 +117,7 @@ class BrowserSignInFlowTest {
     @Test
     fun `a handoff only leads to pages of this portal`() {
         val workbench = workbench()
-        for (target in listOf("https://evil.example/", "//evil.example/x", "/me.html\" onload=\"x", "javascript:alert(1)")) {
+        for (target in listOf("https://evil.example/", "//evil.example/x", "/account\" onload=\"x", "javascript:alert(1)")) {
             mvc.post("/api/v1/auth/handoff") {
                 header("Authorization", "Bearer ${workbench.token}")
                 contentType = MediaType.APPLICATION_JSON
@@ -139,7 +139,7 @@ class BrowserSignInFlowTest {
         val browser = redeem(handoff(workbench))
 
         //  Neue Anfrage OHNE Sitzung - wie nach einem Neustart des Servers.
-        mvc.get("/me.html") { cookie(browser.cookie) }.andExpect {
+        mvc.get("/account") { cookie(browser.cookie) }.andExpect {
             status { isOk() }
             content { string(org.hamcrest.Matchers.containsString("Ways to sign in")) }
         }
@@ -148,10 +148,10 @@ class BrowserSignInFlowTest {
         account.status = AccountStatus.BANNED
         accounts.save(account)
 
-        val refused = mvc.get("/me.html") { cookie(browser.cookie) }.andExpect {
+        val refused = mvc.get("/account") { cookie(browser.cookie) }.andExpect {
             status { is3xxRedirection() }
         }.andReturn()
-        assertTrue(refused.response.redirectedUrl!!.endsWith("/signin.html"), refused.response.redirectedUrl)
+        assertTrue(refused.response.redirectedUrl!!.endsWith("/signin"), refused.response.redirectedUrl)
         assertEquals(0, refused.response.getCookie(PortalRememberMeServices.COOKIE)?.maxAge)
     }
 
@@ -167,6 +167,6 @@ class BrowserSignInFlowTest {
         assertEquals(0, out.response.getCookie(PortalRememberMeServices.COOKIE)?.maxAge)
 
         //  Auch wer den alten Wert noch hat, kommt damit nicht mehr herein.
-        mvc.get("/me.html") { cookie(browser.cookie) }.andExpect { status { is3xxRedirection() } }
+        mvc.get("/account") { cookie(browser.cookie) }.andExpect { status { is3xxRedirection() } }
     }
 }

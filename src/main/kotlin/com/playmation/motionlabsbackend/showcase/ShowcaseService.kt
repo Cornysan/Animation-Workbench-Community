@@ -12,12 +12,12 @@ import com.playmation.motionlabsbackend.config.PortalProperties
 import com.playmation.motionlabsbackend.format.AwclipSchema
 import com.playmation.motionlabsbackend.notification.NotificationLinks
 import com.playmation.motionlabsbackend.web.PreviewCards
+import com.playmation.motionlabsbackend.web.PortalPaths
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import org.springframework.stereotype.Service
 import tools.jackson.databind.json.JsonMapper
-import java.net.URLEncoder
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
@@ -254,7 +254,7 @@ class ShowcaseService(
             link = link,
             coverSlug = coverSlug,
             authorName = owner.displayName,
-            authorLink = owner.handle?.let { "$base/u.html?u=" + URLEncoder.encode(it, Charsets.UTF_8) },
+            authorLink = owner.handle?.let { base + PortalPaths.profile(it) },
             authorAvatar = owner.avatarPath()?.let { base + it },
             details = details,
             clipCount = clipCount,

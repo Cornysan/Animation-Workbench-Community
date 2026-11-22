@@ -268,7 +268,7 @@ class SignInFlowTest {
 
         val response = MockHttpServletResponse()
         SignInSuccessHandler().onAuthenticationSuccess(request, response, PortalAuthentication(principal))
-        assertEquals("/me.html?profile=google", response.redirectedUrl)
+        assertEquals("/account?profile=google", response.redirectedUrl)
     }
 
     @Test
@@ -333,12 +333,12 @@ class SignInFlowTest {
             return response.redirectedUrl!!
         }
 
-        assertEquals("/signin.html?error=cancelled", redirectFor("access_denied", false))
-        assertEquals("/signin.html?error=banned", redirectFor("forbidden", false))
-        assertEquals("/signin.html?error=failed", redirectFor("invalid_token_response", false))
-        assertEquals("/me.html?connect-error=taken", redirectFor("identity_taken", true))
-        assertEquals("/me.html?connect-error=cancelled", redirectFor("access_denied", true))
-        assertEquals("/me.html?connect-error=other-account", redirectFor("other_identity", true))
+        assertEquals("/signin?error=cancelled", redirectFor("access_denied", false))
+        assertEquals("/signin?error=banned", redirectFor("forbidden", false))
+        assertEquals("/signin?error=failed", redirectFor("invalid_token_response", false))
+        assertEquals("/account?connect-error=taken", redirectFor("identity_taken", true))
+        assertEquals("/account?connect-error=cancelled", redirectFor("access_denied", true))
+        assertEquals("/account?connect-error=other-account", redirectFor("other_identity", true))
     }
 
     // ── Seiten und Schnittstelle ──────────────────────────────────────────
@@ -355,12 +355,12 @@ class SignInFlowTest {
 
     @Test
     fun `the sign-in page explains a failure in words and never echoes the address`() {
-        mvc.get("/signin.html") { param("error", "banned") }.andExpect {
+        mvc.get("/signin") { param("error", "banned") }.andExpect {
             status { isOk() }
             content { string(org.hamcrest.Matchers.containsString("This account is banned.")) }
             content { string(org.hamcrest.Matchers.containsString("Developer sign-in")) }
         }
-        mvc.get("/signin.html") { param("error", "<b>boom</b>") }.andExpect {
+        mvc.get("/signin") { param("error", "<b>boom</b>") }.andExpect {
             content { string(org.hamcrest.Matchers.containsString("Sign-in did not work.")) }
             content { string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("boom"))) }
         }
@@ -375,9 +375,9 @@ class SignInFlowTest {
      */
     @Test
     fun `the account page sends a visitor without a session to sign in, and back`() {
-        val result = mvc.get("/me.html").andExpect { status { is3xxRedirection() } }.andReturn()
+        val result = mvc.get("/account").andExpect { status { is3xxRedirection() } }.andReturn()
         val target = result.response.redirectedUrl!!
-        assertTrue(target.endsWith("/signin.html"), target)
+        assertTrue(target.endsWith("/signin"), target)
 
         //  Die Rueckkehr vom Anbieter, in derselben Sitzung.
         val back = MockHttpServletRequest("GET", "/login/oauth2/code/github")
@@ -385,14 +385,14 @@ class SignInFlowTest {
         val response = MockHttpServletResponse()
         SignInSuccessHandler().onAuthenticationSuccess(back, response, TestingAuthenticationToken("someone", ""))
         val home = response.redirectedUrl!!
-        assertTrue("/me.html" in home, home)
+        assertTrue("/account" in home, home)
     }
 
     @Test
     fun `the account page lists the ways in, and the api guards the last one`() {
         val (session, token) = devSession("signin-" + unique())
 
-        mvc.get("/me.html") { this.session = session }.andExpect {
+        mvc.get("/account") { this.session = session }.andExpect {
             status { isOk() }
             content { string(org.hamcrest.Matchers.containsString("Ways to sign in")) }
         }

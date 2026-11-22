@@ -22,7 +22,7 @@
   <div class="page-head">
     <h1>Share your animations</h1>
     <div class="page-head-actions">
-      <a class="button primary" href="/upload.html" th:if="${webUploadEnabled}">Upload an animation</a>
+      <a class="button primary" href="/upload" th:if="${webUploadEnabled}">Upload an animation</a>
     </div>
   </div>
   <div class="prose share-page">
@@ -69,7 +69,7 @@
       <li><strong>Public</strong> clips are there for everyone to use.
         <strong>Private</strong> ones stay yours alone, on the portal and in the Workbench.</li>
     </ul>
-    <p class="muted">The <a href="/rules.html">community rules</a> say what belongs here, the
+    <p class="muted">The <a href="/rules">community rules</a> say what belongs here, the
       <a href="https://docs.playmations.com/docs/tools/community" rel="noopener">Workbench documentation</a>
       walks through the Community view step by step.</p>
 
@@ -78,7 +78,7 @@
       <p><strong>Upload an <code>.fbx</code> or <code>.glb</code></strong> straight from Blender, Maya or a motion
         capture tool. The page reads the skeleton, shows the animation on the mannequin, and the Workbench imports it
         like any other clip.</p>
-      <p><a class="button primary" href="/upload.html">Upload an animation</a></p>
+      <p><a class="button primary" href="/upload">Upload an animation</a></p>
       <p>Every clip here also downloads as <strong>FBX</strong> or <strong>GLB</strong> - on the mannequin or as a
         bare skeleton - for Blender, Maya or any other tool.</p>
     </th:block>

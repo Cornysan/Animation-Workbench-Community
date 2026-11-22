@@ -14,7 +14,7 @@
     clipCard, previewObserver, collectionDialog, releasePreviews, toast, toastError, confirmDialog, copyLink,
   } = AW;
 
-  const slug = param("c");
+  const slug = AW.pathKey();
   const state = document.getElementById("state");
   const actionState = document.getElementById("action-state");
 
@@ -42,7 +42,7 @@
     document.getElementById("title").textContent = collection.title;
 
     const owner = collection.ownerHandle
-      ? el("a", { href: "/u.html?u=" + encodeURIComponent(collection.ownerHandle) }, collection.owner)
+      ? el("a", { href: AW.paths.profile(collection.ownerHandle) }, collection.owner)
       : el("span", {}, collection.owner);
 
     //  Erst aussortieren, dann einsetzen: `replaceChildren` macht aus einem
@@ -127,7 +127,7 @@
   const share = iconButton({
     name: "link",
     tip: "Copy a link to this collection",
-    onClick: () => copyLink(location.origin + "/collection.html?c=" + encodeURIComponent(collection.slug)),
+    onClick: () => copyLink(location.origin + AW.paths.collection(collection.slug)),
   });
   actions.append(share);
 
@@ -160,7 +160,7 @@
         try {
           await ensureCsrf();
           await api("DELETE", "/api/v1/collections/" + encodeURIComponent(collection.slug));
-          location.href = collection.ownerHandle ? "/u.html?u=" + encodeURIComponent(collection.ownerHandle) + "&tab=collections" : "/collections.html";
+          location.href = collection.ownerHandle ? AW.paths.profile(collection.ownerHandle) + "?tab=collections" : "/collections";
         } catch (e) {
           toastError(e);
         }

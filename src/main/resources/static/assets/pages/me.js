@@ -83,7 +83,7 @@
       const made = await AW.packDialog({ candidates });
       if (!made) return;
       toast("Pack created", { kind: "ok" });
-      location.href = "/pack.html?k=" + encodeURIComponent(made.slug);
+      location.href = AW.paths.pack(made.slug);
     });
     const actions = document.getElementById("clip-actions");
     actions.replaceChildren(make);
@@ -96,9 +96,9 @@
     : clips.map((clip) => el("tr", {},
         //  Privat heisst "nur ich" - hier, wo nur man selbst hinsieht, steht
         //  es dabei, sonst sieht die Liste aus, als waere alles im Katalog.
-        el("td", {}, el("a", { href: "/clip.html?p=" + encodeURIComponent(clip.slug) }, clip.title),
+        el("td", {}, el("a", { href: AW.paths.clip(clip.slug) }, clip.title),
           clip.license === "ARR" ? el("span", { class: "chip", "data-tip": "Only you can see it" }, "Private") : null,
-          clip.pack ? el("a", { class: "chip", href: "/pack.html?k=" + encodeURIComponent(clip.pack.slug),
+          clip.pack ? el("a", { class: "chip", href: AW.paths.pack(clip.pack.slug),
             "data-tip": "In this pack" }, AW.icon("pack"), clip.pack.title) : null),
         el("td", {}, el("span", { class: "status " + clip.status }, clip.status)),
         el("td", {}, clip.version),

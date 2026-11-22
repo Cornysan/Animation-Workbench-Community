@@ -28,6 +28,7 @@ import com.playmation.motionlabsbackend.showcase.ShowcasePostRepository
 import com.playmation.motionlabsbackend.storage.BlobStore
 import com.playmation.motionlabsbackend.system.AuditService
 import com.playmation.motionlabsbackend.unlocks.PackageUnlockRepository
+import com.playmation.motionlabsbackend.web.PortalPaths
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -203,7 +204,7 @@ class DataExportService(
             val listed = pkg.ownerId == account.id ||
                 (pkg.status.name == "PUBLISHED" && pkg.license == AwclipSchema.LICENSE_PUBLIC)
             return ClipRef(pkg.slug, if (listed) pkg.title else null,
-                if (listed) "$baseUrl/clip.html?p=${pkg.slug}" else null)
+                if (listed) baseUrl + PortalPaths.clip(pkg.slug) else null)
         }
 
         val packSlugs = packs.findByOwnerIdOrderByCreatedAtDesc(account.id).associate { it.id to it.slug }
@@ -312,7 +313,7 @@ class DataExportService(
 
     private fun clipPart(pkg: AnimationPackage, baseUrl: String, pack: String?, versions: List<VersionPart>) = ClipPart(
         slug = pkg.slug,
-        url = "$baseUrl/clip.html?p=${pkg.slug}",
+        url = baseUrl + PortalPaths.clip(pkg.slug),
         title = pkg.title,
         description = pkg.description,
         tags = pkg.tagList(),

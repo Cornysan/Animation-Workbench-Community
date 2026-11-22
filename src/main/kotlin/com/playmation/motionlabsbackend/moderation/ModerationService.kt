@@ -23,6 +23,7 @@ import com.playmation.motionlabsbackend.messages.ConversationRepository
 import com.playmation.motionlabsbackend.messages.DirectMessageRepository
 import com.playmation.motionlabsbackend.system.AlertService
 import com.playmation.motionlabsbackend.system.AuditService
+import com.playmation.motionlabsbackend.web.PortalPaths
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -155,7 +156,7 @@ class ModerationService(
      * geprueft werden kann; bei einem Konto waere derselbe Griff die
      * Fernbedienung, mit der jeder jeden Ersteller stummschaltet. Die Meldung
      * legt einen offenen Fall an und schickt den Alarm - entschieden wird von
-     * Hand, ueber `/admin.html` und die vorhandenen Wege (Konto sperren,
+     * Hand, ueber `/admin` und die vorhandenen Wege (Konto sperren,
      * einzelne Clips entfernen, Meldung abweisen).
      */
     @Transactional
@@ -315,10 +316,13 @@ class ModerationService(
         return TakedownReceipt(request.id, hidden, unknown)
     }
 
-    /** Akzeptiert Slug, Paket-URL (`…/clip.html?p=slug`) oder API-URL. */
+    /**
+     * Akzeptiert Slug, Clip-Adresse (`…/clip/<slug>`, auch die alte
+     * `…/clip.html?p=<slug>`) oder API-URL.
+     */
     private fun slugFromReference(reference: String): String {
         Regex("[?&]p=([a-z0-9]+)").find(reference)?.let { return it.groupValues[1] }
-        return reference.trimEnd('/').substringAfterLast('/').substringBefore('?').lowercase()
+        return reference.substringBefore('#').substringBefore('?').trimEnd('/').substringAfterLast('/').lowercase()
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -657,10 +661,10 @@ class ModerationService(
 
     private val evidenceTime = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm 'UTC'").withZone(ZoneOffset.UTC)
 
-    private fun packageUrl(pkg: AnimationPackage) = "${properties.publicBaseUrl.trimEnd('/')}/clip.html?p=${pkg.slug}"
+    private fun packageUrl(pkg: AnimationPackage) = properties.publicBaseUrl.trimEnd('/') + PortalPaths.clip(pkg.slug)
 
     private fun profileUrl(account: Account) =
-        "${properties.publicBaseUrl.trimEnd('/')}/u.html?u=${account.handle ?: ""}"
+        properties.publicBaseUrl.trimEnd('/') + PortalPaths.profile(account.handle ?: "")
 
     private fun accountRef(account: Account) = AccountRef(
         account.id, account.handle, account.displayName, account.status.name, account.strikes,

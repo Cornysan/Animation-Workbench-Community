@@ -207,7 +207,7 @@ class PortalFlowTest {
     fun `web pages are served with a strict content security policy`() {
         fun csp(contains: String) = org.hamcrest.Matchers.containsString(contains)
 
-        mvc.get("/index.html").andExpect {
+        mvc.get("/").andExpect {
             status { isOk() }
             header { string("Content-Security-Policy", csp("script-src 'self'")) }
 
@@ -287,11 +287,11 @@ class PortalFlowTest {
     @Test
     fun `every page url renders`() {
         val pages = listOf(
-            //  `/me.html` fehlt mit Absicht: ohne Konto schickt sie zur
+            //  `/account` fehlt mit Absicht: ohne Konto schickt sie zur
             //  Anmeldeseite (SignInFlowTest).
-            "/", "/index.html", "/collections.html", "/clip.html", "/licenses.html", "/admin.html",
-            "/dev.html", "/link.html", "/rules.html", "/terms.html", "/privacy.html",
-            "/impressum.html", "/takedown.html", "/share.html",
+            "/", "/collections", "/characters", "/signin", "/clip/nothing", "/u/nobody",
+            "/collection/nothing", "/pack/nothing", "/licenses", "/admin", "/admin/stats",
+            "/dev", "/link", "/rules", "/terms", "/privacy", "/impressum", "/takedown", "/share",
         )
 
         for (page in pages) {
@@ -304,19 +304,19 @@ class PortalFlowTest {
 
     /**
      * Teilen geht nur aus Unity - also muss das Portal sagen, wo es das
-     * Werkzeug gibt: im Kopf ("Share"), auf /share.html mit beiden Ausgaben,
+     * Werkzeug gibt: im Kopf ("Share"), auf /share mit beiden Ausgaben,
      * im Fuss und unter jedem Download-Knopf.
      */
     @Test
     fun `the way to the unity tool is on the portal`() {
-        val share = mvc.get("/share.html").andReturn().response.contentAsString
+        val share = mvc.get("/share").andReturn().response.contentAsString
         assertTrue("animation-workbench-free-edit-pose-preview-animations-383990" in share, "free edition linked")
         assertTrue("animation-workbench-pro-edit-pose-preview-animations-347928" in share, "pro edition linked")
 
         val home = mvc.get("/").andReturn().response.contentAsString
-        assertTrue("""href="/share.html"""" in home, "the header and footer lead there")
+        assertTrue("""href="/share"""" in home, "the header and footer lead there")
 
-        val clip = mvc.get("/clip.html?p=nothing").andReturn().response.contentAsString
+        val clip = mvc.get("/clip/nothing").andReturn().response.contentAsString
         assertTrue("animation-workbench-free-edit-pose-preview-animations-383990" in clip, "under the download button")
     }
 
@@ -331,7 +331,7 @@ class PortalFlowTest {
 
         //  Der Katalog IST die Startseite (wie "Animations" bei Mixamo).
         assertTrue(anonymous.contains(">Animations</h1>"), "Katalog fehlt auf der Startseite")
-        assertTrue(anonymous.contains("/collections.html"), "Navigation fehlt im HTML")
+        assertTrue(anonymous.contains("/collections"), "Navigation fehlt im HTML")
 
         //  Die alte Adresse des Katalogs steht in Discord und als Filter-Link
         //  in Umlauf - sie leitet weiter und behaelt ihren Filter.
@@ -347,13 +347,13 @@ class PortalFlowTest {
 
         //  Weggelassen, nicht versteckt: mit einer Klasse „hidden" im Dokument
         //  waere das Aufblitzen fuer alle anderen nur eine Frage des Zeitpunkts.
-        assertFalse(anonymous.contains("/admin.html"), "Moderation darf anonym nicht im HTML stehen")
+        assertFalse(anonymous.contains("""href="/admin""""), "Moderation darf anonym nicht im HTML stehen")
 
         val admin = login("admin")
         val asAdmin = mvc.get("/") { header("Authorization", "Bearer $admin") }
             .andReturn().response.contentAsString
 
-        assertTrue(asAdmin.contains("/admin.html"), "Moderation fehlt fuer den Moderator")
+        assertTrue(asAdmin.contains("""href="/admin""""), "Moderation fehlt fuer den Moderator")
         assertTrue(asAdmin.contains("Moderator"), "Rolle fehlt im Kontoblock")
     }
 
@@ -589,7 +589,7 @@ class PortalFlowTest {
         putCard("/api/v1/packages/$public/card", owner, "not a png".toByteArray()).andExpect { status { isBadRequest() } }
         putCard("/api/v1/packages/$public/card", owner, cardPng()).andExpect { status { isNoContent() } }
 
-        val page = mvc.get("/clip.html?p=$public").andExpect { status { isOk() } }
+        val page = mvc.get("/clip/$public").andExpect { status { isOk() } }
             .andReturn().response.contentAsString
         assertTrue("""property="og:title" content="Card walk by""" in page, "the title belongs in the preview")
         assertTrue("""/clip-card/$public.png?v=""" in page, "and so does the image, with its version")
@@ -605,7 +605,7 @@ class PortalFlowTest {
 
         //  Privat: kein Bild, kein Titel, auch nicht fuer den Besitzer hochladbar.
         putCard("/api/v1/packages/$private/card", owner, cardPng()).andExpect { status { isBadRequest() } }
-        val privatePage = mvc.get("/clip.html?p=$private").andExpect { status { isOk() } }
+        val privatePage = mvc.get("/clip/$private").andExpect { status { isOk() } }
             .andReturn().response.contentAsString
         assertFalse("Card secret" in privatePage, "a private clip keeps its title out of the preview")
         assertFalse("clip-card/$private" in privatePage, "and has no card at all")
@@ -628,7 +628,7 @@ class PortalFlowTest {
         assertTrue("/site-card.png?v=" in home, "the home page has an image now")
         mvc.get("/site-card.png").andExpect { status { isOk() } }
 
-        val clipPage = mvc.get("/clip.html?p=$slug").andReturn().response.contentAsString
+        val clipPage = mvc.get("/clip/$slug").andReturn().response.contentAsString
         assertTrue("/site-card.png?v=" in clipPage, "a clip without its own image borrows the site's")
         mvc.get("/clip-card/$slug.png").andExpect {
             status { isOk() }
@@ -773,7 +773,7 @@ class PortalFlowTest {
         assertEquals(2L, clip["downloads"].asLong(), "one FBX/GLB visitor plus one .awclip take")
 
         //  Fuer Suchmaschinen stehen sie im JSON-LD der Seite.
-        val page = mvc.get("/clip.html?p=$slug").andReturn().response.contentAsString
+        val page = mvc.get("/clip/$slug").andReturn().response.contentAsString
         assertTrue("DownloadAction" in page && "ViewAction" in page, "the counts are in the structured data")
 
         //  Was man nicht sehen darf, laesst sich auch nicht zaehlen.
@@ -820,7 +820,7 @@ class PortalFlowTest {
         assertTrue(stats["accounts"]["total"].asInt() >= 2)
         assertTrue(stats["clips"]["public"].asInt() >= 1 && stats["clips"]["private"].asInt() >= 1)
 
-        val page = mvc.get("/admin-stats.html").andExpect { status { isOk() } }.andReturn().response.contentAsString
+        val page = mvc.get("/admin/stats").andExpect { status { isOk() } }.andReturn().response.contentAsString
         assertTrue("noindex" in page, "the stats page stays out of search engines")
     }
 
@@ -1004,7 +1004,7 @@ class PortalFlowTest {
         mvc.post("/api/v1/takedowns") {
             contentType = MediaType.APPLICATION_JSON
             content = """{"contactName":"Jane","contactEmail":"jane@example.com","rightsHolder":"Studio X",
-                "claimedWork":"Pack Y","packages":"https://community.example/clip.html?p=$slug unknown-thing",
+                "claimedWork":"Pack Y","packages":"https://community.example/clip/$slug#comments unknown-thing",
                 "goodFaith":true,"accurate":true}"""
             with(csrf())
         }.andExpect {

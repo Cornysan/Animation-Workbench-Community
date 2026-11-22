@@ -7,6 +7,7 @@ import com.playmation.motionlabsbackend.account.SignIn
 import com.playmation.motionlabsbackend.common.PortalException
 import com.playmation.motionlabsbackend.common.clientIp
 import com.playmation.motionlabsbackend.system.AuditService
+import com.playmation.motionlabsbackend.web.PortalPaths
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.slf4j.LoggerFactory
@@ -333,7 +334,7 @@ class SignInSuccessHandler : SavedRequestAwareAuthenticationSuccessHandler() {
         }
         clearAuthenticationAttributes(request)
         redirectStrategy.sendRedirect(request, response,
-            if (profile != null) "/me.html?profile=$profile" else "/me.html?connected=$connected")
+            if (profile != null) "${PortalPaths.ACCOUNT}?profile=$profile" else "${PortalPaths.ACCOUNT}?connected=$connected")
     }
 }
 
@@ -372,6 +373,6 @@ class SignInFailureHandler : AuthenticationFailureHandler {
         //  Protokoll stehen, nicht nur als "hat nicht geklappt" im Browser.
         if (reason == "failed") log.warn("Sign-in failed ({}): {}", code, exception.message)
 
-        response.sendRedirect(if (connecting) "/me.html?connect-error=$reason" else "/signin.html?error=$reason")
+        response.sendRedirect(if (connecting) "${PortalPaths.ACCOUNT}?connect-error=$reason" else "${PortalPaths.SIGN_IN}?error=$reason")
     }
 }

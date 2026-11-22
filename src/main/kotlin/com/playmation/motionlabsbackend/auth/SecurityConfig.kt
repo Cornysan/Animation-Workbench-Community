@@ -3,6 +3,7 @@ package com.playmation.motionlabsbackend.auth
 import com.playmation.motionlabsbackend.common.ApiError
 import com.playmation.motionlabsbackend.common.ApiErrorResponse
 import com.playmation.motionlabsbackend.system.SystemSettingsService
+import com.playmation.motionlabsbackend.web.PortalPaths
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -166,12 +167,15 @@ class SecurityConfig {
                 //  nicht auf die Startseite. So kommt auch an, wer in der
                 //  Workbench "Your account on the portal" waehlt und im Browser
                 //  keine Sitzung mehr hat.
-                authorize(HttpMethod.GET, "/me.html", authenticated)
+                //
                 //  Dasselbe fuer die Nachrichten: ohne Konto gibt es dort nichts.
-                authorize(HttpMethod.GET, "/messages.html", authenticated)
                 //  Und fuers Hochladen aus dem Browser: eine Datei durchrechnen,
                 //  nur um am Ende "Sign in" zu lesen, waere die schlechtere Reihenfolge.
-                authorize(HttpMethod.GET, "/upload.html", authenticated)
+                //
+                //  Die alten Adressen (`/me.html` usw.) bleiben offen: sie
+                //  leiten nur weiter (LegacyPageAddresses), und die Sperre
+                //  greift dann an der neuen.
+                for (page in PortalPaths.SIGNED_IN_PAGES) authorize(HttpMethod.GET, page, authenticated)
 
                 authorize(anyRequest, permitAll)
             }
@@ -179,7 +183,7 @@ class SecurityConfig {
                 //  Mit mehr als einem Anbieter baute Spring sonst seine eigene
                 //  Auswahlseite unter /login - und schickte jeden Fehler dorthin,
                 //  auch "dieses Konto ist gesperrt".
-                loginPage = "/signin.html"
+                loginPage = PortalPaths.SIGN_IN
                 userInfoEndpoint { userService = portalUserService }
                 authenticationSuccessHandler = SignInSuccessHandler()
                 authenticationFailureHandler = SignInFailureHandler()
@@ -199,7 +203,7 @@ class SecurityConfig {
             }
             exceptionHandling {
                 defaultAuthenticationEntryPointFor(HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED), RequestMatcher { it.requestURI.startsWith("/api/") })
-                //  Eine SEITE geht zur Anmeldeseite (bisher nur /me.html).
+                //  Eine SEITE geht zur Anmeldeseite (PortalPaths.SIGNED_IN_PAGES).
                 //  Ausdruecklich, nicht ueber `loginPage` allein: dessen
                 //  Einstiegspunkt greift nur, wenn die Anfrage `text/html`
                 //  verlangt, und sonst kam ein nacktes 401 - im Test sofort,
@@ -207,8 +211,8 @@ class SecurityConfig {
                 //  Nur Seiten: der gesperrte Actuator soll weiter 401 sagen und
                 //  nicht auf eine Anmeldung verweisen, die ihn nie oeffnet.
                 defaultAuthenticationEntryPointFor(
-                    LoginUrlAuthenticationEntryPoint("/signin.html"),
-                    RequestMatcher { it.method == "GET" && it.requestURI.endsWith(".html") },
+                    LoginUrlAuthenticationEntryPoint(PortalPaths.SIGN_IN),
+                    RequestMatcher { it.method == "GET" && it.requestURI in PortalPaths.SIGNED_IN_PAGES },
                 )
             }
             headers {
@@ -279,7 +283,7 @@ class SecurityConfig {
                 //  ist sie falsch, und zwar wegen einer Eigenschaft dieses
                 //  Portals: ein privater Clip ist "nicht gelistet, nur ueber
                 //  seinen Link erreichbar" - der Link IST das Geheimnis, und er
-                //  steht in der Adresse (/clip.html?p=<slug>). Jede Seite
+                //  steht in der Adresse (/clip/<slug>). Jede Seite
                 //  verlinkt nach draussen (creativecommons.org, Discord), und
                 //  jeder dieser Klicks haette den Slug im Referer mitgenommen.
                 referrerPolicy { policy = ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER }

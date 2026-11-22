@@ -8,6 +8,7 @@ import com.playmation.motionlabsbackend.common.RateLimiter
 import com.playmation.motionlabsbackend.common.clientIp
 import com.playmation.motionlabsbackend.config.PortalProperties
 import com.playmation.motionlabsbackend.system.AuditService
+import com.playmation.motionlabsbackend.web.PortalPaths
 import jakarta.persistence.Entity
 import jakarta.persistence.Id
 import jakarta.persistence.Table
@@ -224,7 +225,7 @@ class SignInHandoffService(
     fun create(principal: PortalPrincipal, next: String?, ip: String): String {
         rateLimiter.require("sign-in-handoff", principal.accountId.toString(), 30, Duration.ofHours(1))
 
-        val target = next?.trim()?.takeIf { it.isNotEmpty() } ?: "/me.html"
+        val target = next?.trim()?.takeIf { it.isNotEmpty() } ?: PortalPaths.ACCOUNT
         if (target.length > 200 || target.startsWith("//") || !allowedNext.matches(target))
             throw PortalException.badRequest("invalid-next", "The target has to be a page on this portal.")
 
@@ -291,9 +292,9 @@ class SignInHandoffPageController(
     @GetMapping("/signin/handoff")
     fun redeem(@RequestParam(required = false) code: String?, request: HttpServletRequest, response: HttpServletResponse): String {
         val site = request.getHeader("Sec-Fetch-Site")
-        if (code.isNullOrBlank() || site == "cross-site" || site == "same-site") return "redirect:/signin.html?error=handoff"
+        if (code.isNullOrBlank() || site == "cross-site" || site == "same-site") return "redirect:${PortalPaths.SIGN_IN}?error=handoff"
 
-        val redeemed = handoffs.redeem(code, request.clientIp()) ?: return "redirect:/signin.html?error=handoff"
+        val redeemed = handoffs.redeem(code, request.clientIp()) ?: return "redirect:${PortalPaths.SIGN_IN}?error=handoff"
 
         //  Neue Sitzungskennung, wie nach jeder Anmeldung - eine vorher
         //  untergeschobene Kennung taugt danach nichts mehr.

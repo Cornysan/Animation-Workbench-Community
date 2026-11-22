@@ -29,7 +29,7 @@
 
     <th:block th:if="${user != null}">
       <p class="signin-note">You are signed in as <strong th:text="${user.displayName}">Name</strong>.</p>
-      <div class="signin-options"><a class="button primary" href="/me.html">Your account</a></div>
+      <div class="signin-options"><a class="button primary" href="/account">Your account</a></div>
     </th:block>
 
     <th:block th:if="${user == null}">
@@ -38,7 +38,7 @@
           <th:block th:replace="~{fragments/signin :: icon(${provider.id})}"></th:block>
           <span th:text="|Continue with ${provider.label}|">Continue with Discord</span>
         </a>
-        <a class="button signin-option" href="/dev.html" th:if="${devLogin}">
+        <a class="button signin-option" href="/dev" th:if="${devLogin}">
           <th:block th:replace="~{fragments/signin :: icon('dev')}"></th:block>
           <span>Developer sign-in</span>
         </a>
@@ -49,8 +49,8 @@
         The portal never asks for your email address. Been here before? Use the same one as last time.
       </p>
       <p class="signin-note faint">
-        By signing in you accept the <a href="/terms.html">terms</a>.
-        What is stored: see <a href="/privacy.html">privacy</a>.
+        By signing in you accept the <a href="/terms">terms</a>.
+        What is stored: see <a href="/privacy">privacy</a>.
       </p>
     </th:block>
   </div>

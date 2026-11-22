@@ -16,7 +16,7 @@ import java.time.OffsetDateTime
 import java.util.UUID
 
 /**
- * Kennzahlen fuer die Admin-Seite "Stats" (`/admin-stats.html`, seit 2026-09-27).
+ * Kennzahlen fuer die Admin-Seite "Stats" (`/admin/stats`, seit 2026-09-27).
  *
  * NUR AUS DEM, WAS OHNEHIN GESPEICHERT IST. Diese Seite fuehrt nichts Neues
  * ein - kein Besuchsprotokoll, keine Zeitreihe -, sie zaehlt die Tabellen aus,

@@ -38,7 +38,7 @@ class SearchIndexingTest {
     /** Wie in Produktion: ohne Entwickler-Login gibt es weder die Schnittstelle noch die Seite dazu. */
     @Test
     fun `without developer sign-in its page is gone too`() {
-        mvc.get("/dev.html").andExpect { status { isNotFound() } }
+        mvc.get("/dev").andExpect { status { isNotFound() } }
         mvc.get("/api/v1/dev/login").andExpect { status { isNotFound() } }
     }
 
@@ -47,9 +47,9 @@ class SearchIndexingTest {
         val sitemap = mvc.get("/sitemap.xml").andExpect { status { isOk() } }
             .andReturn().response.contentAsString
         assertTrue("<loc>https://portal.test/</loc>" in sitemap, sitemap)
-        assertFalse("<loc>https://portal.test/collections.html</loc>" in sitemap, "without an account the page only asks to sign in")
-        assertTrue("<loc>https://portal.test/impressum.html</loc>" in sitemap, sitemap)
-        assertTrue("<loc>https://portal.test/share.html</loc>" in sitemap, sitemap)
+        assertFalse("<loc>https://portal.test/collections</loc>" in sitemap, "without an account the page only asks to sign in")
+        assertTrue("<loc>https://portal.test/impressum</loc>" in sitemap, sitemap)
+        assertTrue("<loc>https://portal.test/share</loc>" in sitemap, sitemap)
     }
 
     @Test
@@ -58,8 +58,8 @@ class SearchIndexingTest {
         assertTrue("""<link rel="canonical" href="https://portal.test/">""" in page, "a sort order is a view of the same page")
         assertFalse("noindex" in page, "indexing is on")
 
-        val terms = mvc.get("/terms.html").andReturn().response.contentAsString
-        assertTrue("""<link rel="canonical" href="https://portal.test/terms.html">""" in terms,
+        val terms = mvc.get("/terms").andReturn().response.contentAsString
+        assertTrue("""<link rel="canonical" href="https://portal.test/terms">""" in terms,
             "each page its own address, not the start page")
     }
 }

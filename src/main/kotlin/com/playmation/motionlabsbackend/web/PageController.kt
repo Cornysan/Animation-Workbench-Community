@@ -23,6 +23,7 @@ import org.springframework.stereotype.Controller
 import org.springframework.ui.Model
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.ModelAttribute
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseBody
 import java.time.ZoneOffset
@@ -40,9 +41,12 @@ import java.util.Locale
  * Der Server weiss ohnehin, wer angemeldet ist. Also liefert er den Rahmen
  * gleich mit: fuer ihn bleibt kein einziger API-Aufruf mehr uebrig.
  *
- * Die Adressen bleiben, wie sie waren - `.html` und alles. Sie stehen in
- * Takedown-Mails, in Discord-Vorschauen und in der Workbench; eine schoenere
- * Adresse ist keinen toten Link wert.
+ * Die Adressen trugen bis 2026-11-22 noch die alte Endung (`/clip.html?p=…`).
+ * Seitdem stehen sie in [PortalPaths] - `/collections`, `/clip/<slug>`,
+ * `/u/<handle>` -, und die alten leiten dauerhaft weiter
+ * ([LegacyPageAddresses]): sie stehen in Takedown-Mails, Discord-Vorschauen
+ * und jeder ausgelieferten Workbench, und keine schoenere Adresse ist einen
+ * toten Link wert.
  */
 @Controller
 class PageController(
@@ -96,21 +100,15 @@ class PageController(
 
     /**
      * Die eine Adresse, unter der eine Seite gefuehrt werden soll - fuer
-     * `rel=canonical` und `og:url`. Pfad plus genau der Parameter, der die
-     * Seite ausmacht (`p`, `u`, `c`, `k`); Sortierung und Suche sind
-     * Ansichten derselben Seite. `/index.html` ist "/". Ein Schlagwort ist
-     * seit 2026-09-26 eine eigene Seite - das setzt [animations] selbst.
-     *
-     * `k` fehlte bis 2026-09-26: jede Pack-Seite nannte sich "/pack.html",
-     * und fuer eine Suchmaschine waren damit alle Packs dieselbe Seite.
+     * `rel=canonical` und `og:url`. Seit 2026-11-22 genau der Pfad: was eine
+     * Seite ausmacht (welcher Clip, wessen Profil), steht darin
+     * ([PortalPaths]); Sortierung, Suche und Reiter sind Ansichten derselben
+     * Seite und bleiben draussen. Ein Schlagwort ist seit 2026-09-26 eine
+     * eigene Seite - das setzt [animations] selbst.
      */
     @ModelAttribute("canonicalUrl")
-    fun canonicalUrl(request: HttpServletRequest): String {
-        val path = request.requestURI.takeUnless { it == "/index.html" } ?: "/"
-        val key = listOf("p", "u", "c", "k").firstOrNull { !request.getParameter(it).isNullOrBlank() }
-        val query = key?.let { "?" + it + "=" + java.net.URLEncoder.encode(request.getParameter(it).trim(), Charsets.UTF_8) } ?: ""
-        return portal.publicBaseUrl.trimEnd('/') + path + query
-    }
+    fun canonicalUrl(request: HttpServletRequest): String =
+        portal.publicBaseUrl.trimEnd('/') + request.requestURI
 
     /**
      * Die erste Station eines Crawlers. Sie sagt dasselbe wie das `robots`-Meta
@@ -125,8 +123,10 @@ class PageController(
             //  ein Crawler, der sie ausfuehrt, haelt sich beim Nachladen an
             //  diese Datei - gesperrt saehe er leere Seiten. Die Profilbilder
             //  dagegen gehoeren in keine Bildersuche.
-            "User-agent: *\nDisallow: /admin.html\nDisallow: /admin-stats.html\nDisallow: /dev.html\nDisallow: /link.html\n" +
-                "Disallow: /signin.html\nDisallow: /me.html\nDisallow: /messages.html\nDisallow: /avatar/\n\n" +
+            //  `/admin` deckt `/admin/stats` mit ab, `/signin` auch
+            //  `/signin/handoff`: robots.txt vergleicht Anfaenge.
+            "User-agent: *\nDisallow: /admin\nDisallow: /dev\nDisallow: /link\n" +
+                "Disallow: /signin\nDisallow: /account\nDisallow: /messages\nDisallow: /avatar/\n\n" +
                 "Sitemap: " + portal.publicBaseUrl.trimEnd('/') + "/sitemap.xml\n"
         else
             "User-agent: *\nDisallow: /\n"
@@ -141,7 +141,7 @@ class PageController(
      * eine eigene Startseite mit Kopf, Zahlen und zeitweise einer Figur; wer
      * herkam, wollte trotzdem zuerst die Clips sehen.
      */
-    @GetMapping("/", "/index.html")
+    @GetMapping(PortalPaths.HOME)
     fun animations(
         @RequestParam(required = false) q: String?,
         @RequestParam(required = false) tag: String?,
@@ -217,11 +217,11 @@ class PageController(
 
     private fun card(entry: CatalogEntry): WallCard? {
         entry.clip?.let { clip ->
-            return WallCard("/clip.html?p=" + clip.slug, clip.title, clip.author,
+            return WallCard(PortalPaths.clip(clip.slug), clip.title, clip.author,
                 profileHref(clip.authorHandle, clip.author), Seo.duration(clip.durationSeconds), null)
         }
         entry.pack?.let { pack ->
-            return WallCard("/pack.html?k=" + pack.slug, pack.title, pack.author,
+            return WallCard(PortalPaths.pack(pack.slug), pack.title, pack.author,
                 profileHref(pack.authorHandle, pack.author), Seo.duration(pack.durationSeconds), pack.clips)
         }
         return null
@@ -229,24 +229,14 @@ class PageController(
 
     /** Wie `profileHref` in app.js: das Profil, sonst der alte Filter nach Namen. */
     private fun profileHref(handle: String?, name: String) =
-        if (handle != null) "/u.html?u=" + java.net.URLEncoder.encode(handle, Charsets.UTF_8)
+        if (handle != null) PortalPaths.profile(handle)
         else "/?author=" + java.net.URLEncoder.encode(name, Charsets.UTF_8)
-
-    /**
-     * Die alte Adresse des Katalogs. Sie steht in Discord-Nachrichten und als
-     * `?author=`/`?tag=`-Link in Umlauf, also leitet sie weiter - samt
-     * Abfrage, damit ein Filter-Link seinen Filter behaelt. Der Pfad ist fest
-     * "/", aus der Abfrage wird also nie ein fremdes Ziel.
-     */
-    @GetMapping("/browse.html")
-    fun browse(request: HttpServletRequest): String =
-        "redirect:/" + (request.queryString?.let { "?$it" } ?: "")
 
     /**
      * Der zweite Reiter oben: die eigenen Sammlungen und die der Leute, denen
      * man folgt - ohne Anmeldung nur der Weg dorthin.
      */
-    @GetMapping("/collections.html")
+    @GetMapping(PortalPaths.COLLECTIONS)
     fun collectionsPage(model: Model) = view(model, "collections", active = "collections")
 
     /**
@@ -257,9 +247,9 @@ class PageController(
      * aus - falscher Slug, versteckter Clip -, bleibt die Vorgabe stehen und
      * die Seite sagt es dem Besucher wie bisher selbst.
      */
-    @GetMapping("/clip.html")
-    fun clip(@RequestParam(name = "p", required = false) slug: String?, model: Model): String {
-        val clip = slug?.let { runCatching { catalog.detail(it, null) }.getOrNull() }
+    @GetMapping("/clip/{slug}")
+    fun clip(@PathVariable slug: String, model: Model): String {
+        val clip = runCatching { catalog.detail(slug, null) }.getOrNull()
 
         //  Das Rig gleich mit in die Seite: die Vorschau entscheidet daran, ob
         //  die Figur auftritt, und sie soll dafuer nicht erst einen zweiten
@@ -274,7 +264,7 @@ class PageController(
         model.addAttribute("clipFigure", clip?.figure ?: FigureLooks.DEFAULT_FIGURE)
         model.addAttribute("clipLook", clip?.look ?: FigureLooks.DEFAULT_LOOK)
 
-        //  Fuer die Vorab-Anfrage der Vorschau im Kopf der Seite (clip.html):
+        //  Fuer die Vorab-Anfrage der Vorschau im Kopf der Seite (clip.html, die Vorlage):
         //  nur wenn der Clip hier auch sichtbar ist, sonst holte sie eine 404.
         clip?.let { model.addAttribute("clipSlug", it.slug) }
 
@@ -297,7 +287,7 @@ class PageController(
         //  Pruefung bleibt trotzdem stehen: sie ist billig, und eine Karte,
         //  die seine Bewegung in jeden Kanal traegt, hat niemand bestellt.
         if (clip != null && clip.license == AwclipSchema.LICENSE_PUBLIC) {
-            val url = portal.publicBaseUrl.trimEnd('/') + "/clip.html?p=" + clip.slug
+            val url = base + PortalPaths.clip(clip.slug)
             model.addAttribute("meta", ShellModel.PageMeta(
                 title = clip.title + " by " + clip.author,
                 //  Der eigene Satz des Clips zuerst, dann was man hier bekommt -
@@ -321,19 +311,23 @@ class PageController(
      * neuesten Clips. Wer noch keinen geteilt hat, bekommt keines; ein
      * Buchstabe im Kreis waere als Vorschaubild schlechter als gar keines.
      */
-    @GetMapping("/u.html")
-    fun user(@RequestParam(name = "u", required = false) handle: String?, model: Model): String {
-        val meta = handle?.let { runCatching { profiles.meta(it) }.getOrNull() }
+    @GetMapping("/u/{handle}")
+    fun user(@PathVariable handle: String, model: Model): String {
+        val meta = runCatching { profiles.meta(handle) }.getOrNull()
+
+        //  Fuer die Spalte links: "Profile" leuchtet nur auf dem EIGENEN
+        //  Profil (fragments/shell.html). Bis 2026-11-22 las die Vorlage das
+        //  aus `?u=`; der Handle steht jetzt im Pfad.
+        model.addAttribute("profileHandle", handle)
 
         if (meta != null) {
-            val base = portal.publicBaseUrl.trimEnd('/')
             model.addAttribute("meta", ShellModel.PageMeta(
                 title = meta.displayName + " on Playmations",
                 description = meta.bio
                     ?: "Animation clips shared by ${meta.displayName} - preview them in the browser, " +
                         "download them as FBX or GLB, or take them into Unity.",
                 image = cards.imageFor(meta.cardSlug),
-                url = "$base/u.html?u=$handle",
+                url = base + PortalPaths.profile(handle),
                 noindex = !portal.searchIndexing,
             ))
         }
@@ -349,12 +343,11 @@ class PageController(
      * Link" waehlt, hat keine Karte bestellt, die ihren Inhalt in jeden Kanal
      * traegt, in den der Link geraet.
      */
-    @GetMapping("/collection.html")
-    fun collection(@RequestParam(name = "c", required = false) slug: String?, model: Model): String {
-        val detail = slug?.let { runCatching { collections.detail(it, null) }.getOrNull() }
+    @GetMapping("/collection/{slug}")
+    fun collection(@PathVariable slug: String, model: Model): String {
+        val detail = runCatching { collections.detail(slug, null) }.getOrNull()
 
         if (detail != null && detail.visibility == CollectionVisibility.PUBLIC.name) {
-            val base = portal.publicBaseUrl.trimEnd('/')
             val cover = detail.items.firstOrNull { it.hasPreview }?.slug
 
             model.addAttribute("meta", ShellModel.PageMeta(
@@ -362,7 +355,7 @@ class PageController(
                 description = detail.description.takeIf { it.isNotBlank() }
                     ?: "A collection of ${detail.items.size} animation clips.",
                 image = cards.imageFor(cover),
-                url = "$base/collection.html?c=${detail.slug}",
+                url = base + PortalPaths.collection(detail.slug),
                 noindex = !portal.searchIndexing,
             ))
         }
@@ -375,15 +368,14 @@ class PageController(
      * Sammlung. Er steht unter "Animations": ein Pack ist Teil des Katalogs,
      * keine Auswahl von jemand anderem.
      */
-    @GetMapping("/pack.html")
-    fun pack(@RequestParam(name = "k", required = false) slug: String?, model: Model): String {
-        val detail = slug?.let { runCatching { packs.detail(it, null) }.getOrNull() }
+    @GetMapping("/pack/{slug}")
+    fun pack(@PathVariable slug: String, model: Model): String {
+        val detail = runCatching { packs.detail(slug, null) }.getOrNull()
 
         if (detail != null) {
-            val base = portal.publicBaseUrl.trimEnd('/')
             val cover = detail.items.firstOrNull { it.hasPreview }?.slug
 
-            val url = "$base/pack.html?k=${detail.slug}"
+            val url = base + PortalPaths.pack(detail.slug)
             model.addAttribute("meta", ShellModel.PageMeta(
                 title = detail.title + " by " + detail.author,
                 description = detail.description.takeIf { it.isNotBlank() }
@@ -402,10 +394,10 @@ class PageController(
                     "url" to url,
                     "license" to Seo.CC0,
                     "isAccessibleForFree" to true,
-                    "author" to Seo.person(detail.author, detail.authorHandle?.let { "$base/u.html?u=$it" }),
+                    "author" to Seo.person(detail.author, detail.authorHandle?.let { base + PortalPaths.profile(it) }),
                     "image" to cover?.let { cards.ownImage(it) },
                     "hasPart" to detail.items.map { item ->
-                        Seo.obj("@type" to "CreativeWork", "name" to item.title, "url" to "$base/clip.html?p=${item.slug}")
+                        Seo.obj("@type" to "CreativeWork", "name" to item.title, "url" to base + PortalPaths.clip(item.slug))
                     },
                 ),
                 Seo.breadcrumbs("Animations" to "$base/", detail.title to url),
@@ -419,7 +411,7 @@ class PageController(
      * Das private Fach. Seit 2026-11-21 steht es als "Account" in der Spalte
      * links (fragments/shell.html) und wird dort hervorgehoben.
      */
-    @GetMapping("/me.html")
+    @GetMapping(PortalPaths.ACCOUNT)
     fun me(model: Model, authentication: Authentication?): String {
         //  Die Anmeldungen kommen gleich mit der Seite: die Zeichen der
         //  Anbieter stehen als Vorlage da (fragments/signin.html), und ein
@@ -437,7 +429,7 @@ class PageController(
      * einer Person (auch ein noch nicht begonnenes) - so kommt man vom Profil
      * hierher. Seit 2026-11-21 steht sie als "Messages" in der Spalte links.
      */
-    @GetMapping("/messages.html")
+    @GetMapping(PortalPaths.MESSAGES)
     fun messages(model: Model): String {
         model.addAttribute("meta", ShellModel.PageMeta("Messages", "Your direct messages.", noindex = true))
         return view(model, "messages", active = "messages")
@@ -449,7 +441,7 @@ class PageController(
      * Liste (`SignInFailureHandler`); was nicht darin steht, bekommt den
      * allgemeinen Satz, nie den Text aus der Adresse.
      */
-    @GetMapping("/signin.html")
+    @GetMapping(PortalPaths.SIGN_IN)
     fun signIn(
         @RequestParam(name = "error", required = false) error: String?,
         model: Model,
@@ -463,8 +455,8 @@ class PageController(
         val saved = HttpSessionRequestCache().getRequest(request, response)?.redirectUrl
         model.addAttribute("signInContinue", when {
             saved == null -> null
-            "/me.html" in saved -> "to open your account"
-            "/messages.html" in saved -> "to read your messages"
+            saved.substringBefore('?').endsWith(PortalPaths.ACCOUNT) -> "to open your account"
+            saved.substringBefore('?').endsWith(PortalPaths.MESSAGES) -> "to read your messages"
             else -> "to continue where you were"
         })
 
@@ -496,7 +488,7 @@ class PageController(
      * statt der Ablage einen kurzen Absatz - und sagt vor allem, dass die
      * abgelegten Figuren weiterhin im Browser liegen.
      */
-    @GetMapping("/characters.html")
+    @GetMapping(PortalPaths.CHARACTERS)
     fun characters(model: Model) = view(model, "characters", active = "characters")
 
     /**
@@ -504,7 +496,7 @@ class PageController(
      * Seite hinter dem Reiter "Share" - und das Ziel jeder leeren Stelle, an
      * der sonst "noch nichts geteilt" ohne Weg weiter stuende.
      */
-    @GetMapping("/share.html")
+    @GetMapping(PortalPaths.SHARE)
     fun share(model: Model): String {
         model.addAttribute("pageTitle", "Share Your Animations - Animation Workbench for Unity | ${Seo.SITE}")
         model.addAttribute("meta", shell.defaultMeta().copy(
@@ -522,16 +514,16 @@ class PageController(
      * [com.playmation.motionlabsbackend.format.AwclipSchema.FORMAT_VERSION_PREVIEW].
      * Nur angemeldet (SecurityConfig), und kein Fall fuer den Suchindex.
      */
-    @GetMapping("/upload.html")
+    @GetMapping(PortalPaths.UPLOAD)
     fun upload(model: Model): String {
         model.addAttribute("meta", shell.defaultMeta().copy(title = "Upload an animation", noindex = true))
         return view(model, "upload", active = "share")
     }
 
-    @GetMapping("/licenses.html")
+    @GetMapping(PortalPaths.LICENSES)
     fun licenses(model: Model) = view(model, "licenses", active = "licenses")
 
-    @GetMapping("/admin.html")
+    @GetMapping(PortalPaths.ADMIN)
     fun admin(model: Model) = view(model, "admin", active = "admin")
 
     /**
@@ -539,7 +531,7 @@ class PageController(
      * leerer Rahmen - ihr Inhalt kommt aus `/api/v1/admin/stats`, und das
      * verlangt die Rolle. Im Index hat sie trotzdem nichts zu suchen.
      */
-    @GetMapping("/admin-stats.html")
+    @GetMapping(PortalPaths.ADMIN_STATS)
     fun adminStats(model: Model): String {
         model.addAttribute("meta", ShellModel.PageMeta("Stats", "Portal statistics for administrators.", noindex = true))
         return view(model, "admin-stats", active = "admin")
@@ -550,7 +542,7 @@ class PageController(
      * antwortet die Schnittstelle dahinter ohnehin mit 404; die Seite soll
      * dann nicht trotzdem ein Formular zeigen, das nichts tut.
      */
-    @GetMapping("/dev.html")
+    @GetMapping(PortalPaths.DEV_SIGN_IN)
     fun dev(model: Model, response: HttpServletResponse): String {
         if (!portal.devLogin) {
             response.status = HttpServletResponse.SC_NOT_FOUND
@@ -559,22 +551,22 @@ class PageController(
         return view(model, "dev")
     }
 
-    @GetMapping("/link.html")
+    @GetMapping(PortalPaths.LINK)
     fun link(model: Model) = view(model, "link")
 
-    @GetMapping("/rules.html")
+    @GetMapping(PortalPaths.RULES)
     fun rules(model: Model) = view(model, "rules")
 
-    @GetMapping("/terms.html")
+    @GetMapping(PortalPaths.TERMS)
     fun terms(model: Model) = view(model, "terms")
 
-    @GetMapping("/privacy.html")
+    @GetMapping(PortalPaths.PRIVACY)
     fun privacy(model: Model) = view(model, "privacy")
 
-    @GetMapping("/impressum.html")
+    @GetMapping(PortalPaths.IMPRESSUM)
     fun impressum(model: Model) = view(model, "impressum")
 
-    @GetMapping("/takedown.html")
+    @GetMapping(PortalPaths.TAKEDOWN)
     fun takedown(model: Model) = view(model, "takedown")
 
     // ── Clip-Seite im HTML ───────────────────────────────────────────────
@@ -660,20 +652,20 @@ class PageController(
             ),
             relatedTitle = if (others.isEmpty()) null else if (byTag) "More “$firstTag”" else "Popular right now",
             related = others.map {
-                Related("/clip.html?p=" + it.slug, it.title, it.author + " · " + Seo.duration(it.durationSeconds))
+                Related(PortalPaths.clip(it.slug), it.title, it.author + " · " + Seo.duration(it.durationSeconds))
             },
         )
     }
 
     private fun clipJsonLd(clip: PackageDetail): String {
-        val url = "$base/clip.html?p=${clip.slug}"
+        val url = base + PortalPaths.clip(clip.slug)
         //  Nur das EIGENE Bild des Clips - das Ersatzbild der Seite zeigt eine
         //  andere Bewegung und haette in der Bildersuche nichts verloren.
         val image = cards.ownImage(clip.slug)
         //  Ein Starter-Clip ist nicht von der Person, deren Konto ihn traegt,
         //  sondern aus einer Sammlung mit Namen - das sagt die Seite auch.
         val creator = clip.source?.let { Seo.obj("@type" to "Organization", "name" to it.credit, "url" to it.url) }
-            ?: Seo.person(clip.author, clip.authorHandle?.let { "$base/u.html?u=$it" })
+            ?: Seo.person(clip.author, clip.authorHandle?.let { base + PortalPaths.profile(it) })
         val firstTag = clip.tags.firstOrNull()
 
         val work = Seo.obj(
@@ -687,7 +679,7 @@ class PageController(
             "datePublished" to Seo.date(clip.createdAt),
             "dateModified" to Seo.date(clip.updatedAt),
             "creator" to creator,
-            "isPartOf" to clip.pack?.let { Seo.obj("@type" to "CreativeWork", "name" to it.title, "url" to "$base/pack.html?k=${it.slug}") },
+            "isPartOf" to clip.pack?.let { Seo.obj("@type" to "CreativeWork", "name" to it.title, "url" to base + PortalPaths.pack(it.slug)) },
             //  Das Bild traegt dieselbe Lizenz - Google zeigt dann in der
             //  Bildersuche, dass und wie man es verwenden darf.
             "image" to image?.let {

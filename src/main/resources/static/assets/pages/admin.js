@@ -163,7 +163,7 @@ const ADMIN_SCRIPT = document.currentScript ? document.currentScript.src : locat
 
     const packages = item.packages.map((p) =>
       el("div", {},
-        el("a", { href: "/clip.html?p=" + encodeURIComponent(p.slug), target: "_blank" }, p.title),
+        el("a", { href: AW.paths.clip(p.slug), target: "_blank" }, p.title),
         " ", el("span", { class: "status " + p.status }, p.status),
         el("span", { class: "muted small" }, " by " + p.owner + (p.ownerStrikes ? " (" + p.ownerStrikes + " strikes)" : ""))));
 
@@ -220,7 +220,7 @@ const ADMIN_SCRIPT = document.currentScript ? document.currentScript.src : locat
     //  Vorgeschichte (Strikes, Zahl der Clips).
     const account = item.account
       ? el("div", {},
-          el("a", { href: "/u.html?u=" + encodeURIComponent(item.account.handle || ""), target: "_blank" },
+          el("a", { href: AW.paths.profile(item.account.handle || ""), target: "_blank" },
             item.account.displayName),
           " ", el("span", { class: "status " + item.account.status }, item.account.status),
           el("span", { class: "muted small" },
@@ -277,7 +277,7 @@ const ADMIN_SCRIPT = document.currentScript ? document.currentScript.src : locat
       try {
         const clip = await api("POST", "/api/v1/admin/starter-clips", form);
         added++;
-        row.replaceChildren("✓ ", el("a", { href: "/clip.html?p=" + encodeURIComponent(clip.slug) }, clip.title),
+        row.replaceChildren("✓ ", el("a", { href: AW.paths.clip(clip.slug) }, clip.title),
           el("span", { class: "muted" }, " ← " + file.name));
       } catch (e) {
         row.replaceChildren(el("span", { class: "danger-text" }, "✗ " + file.name + ": " + e.message));
@@ -298,7 +298,7 @@ const ADMIN_SCRIPT = document.currentScript ? document.currentScript.src : locat
     const packs = await api("GET", "/api/v1/packs?owner=starter-clips");
     packList.replaceChildren(...(packs.length
       ? packs.map((pack) => el("li", {},
-          el("a", { href: "/pack.html?k=" + encodeURIComponent(pack.slug) }, pack.title),
+          el("a", { href: AW.paths.pack(pack.slug) }, pack.title),
           el("span", { class: "muted" }, " \u00b7 " + (pack.clips === 1 ? "1 clip" : pack.clips + " clips"))))
       : [el("li", { class: "muted" }, "No starter pack yet.")]));
   }
@@ -312,7 +312,7 @@ const ADMIN_SCRIPT = document.currentScript ? document.currentScript.src : locat
       return;
     }
     const made = await packDialog({ candidates, starter: true });
-    if (made) location.href = "/pack.html?k=" + encodeURIComponent(made.slug);
+    if (made) location.href = AW.paths.pack(made.slug);
   });
 
   loadPacks().catch((e) => notice(state, e.message, "error"));

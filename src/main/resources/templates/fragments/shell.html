@@ -91,8 +91,8 @@
   <meta property="og:site_name" content="Playmations">
   <meta property="og:title" th:attr="content=${meta.title}">
   <meta property="og:description" th:attr="content=${meta.description}">
-  <!-- Die Adresse, unter der diese Seite gefuehrt wird: `?tag=`, `?sort=` und
-       `/index.html` sind Ansichten derselben Seite (PageController.canonicalUrl). -->
+  <!-- Die Adresse, unter der diese Seite gefuehrt wird: `?sort=`, `?q=` und
+       Reiter sind Ansichten derselben Seite (PageController.canonicalUrl). -->
   <link rel="canonical" th:href="${canonicalUrl}" th:if="${canonicalUrl != null and !meta.noindex}">
   <meta property="og:url" th:attr="content=${meta.url != null ? meta.url : canonicalUrl}"
         th:if="${meta.url != null or canonicalUrl != null}">
@@ -220,7 +220,7 @@
         Kontoseite, der Name aufs Profil.
       -->
       <div class="account" th:if="${user != null}">
-        <a class="header-icon bell" id="bell-button" href="/me.html#notifications"
+        <a class="header-icon bell" id="bell-button" href="/account#notifications"
            aria-haspopup="true" aria-expanded="false" aria-controls="bell-panel"
            th:aria-label="${user.unread > 0} ? ${'Notifications, ' + user.unreadLabel} : 'Notifications'"
            th:title="${user.unread > 0} ? ${'Notifications (' + user.unread + ' new)'} : 'Notifications'">
@@ -234,7 +234,7 @@
         <div class="header-panel notifications-panel" id="bell-panel" hidden></div>
 
         <a class="account-name" id="account-button"
-           th:href="${user.handle != null} ? ${'/u.html?u=' + user.handle} : '/me.html'"
+           th:href="${user.handle != null} ? @{/u/{h}(h=${user.handle})} : '/account'"
            aria-haspopup="true" aria-expanded="false" aria-controls="account-panel" title="Your account">
           <img class="avatar" th:if="${user.avatar != null}" th:src="${user.avatar}"
                th:attr="data-initial=${user.initial}" alt="" width="30" height="30">
@@ -260,14 +260,14 @@
               <span class="faint small" th:if="${user.admin}">Moderator</span>
             </span>
           </div>
-          <a class="menu-row" th:if="${user.handle != null}" th:href="${'/u.html?u=' + user.handle}">
+          <a class="menu-row" th:if="${user.handle != null}" th:href="@{/u/{h}(h=${user.handle})}">
             <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
                  stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
               <circle cx="12" cy="8.5" r="3.6"></circle><path d="M5 20c0-3.8 3.1-6 7-6s7 2.2 7 6"></path>
             </svg>
             <span class="menu-text"><strong>Your profile</strong><small>What everyone sees: clips, collections, followers</small></span>
           </a>
-          <a class="menu-row" href="/me.html">
+          <a class="menu-row" href="/account">
             <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
                  stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
               <path d="M4 7h9"></path><path d="M18 7h2"></path><path d="M4 17h3"></path><path d="M11 17h9"></path>
@@ -293,8 +293,8 @@
       -->
       <th:block th:if="${user == null}">
         <a class="button primary" th:href="${signInUrl}"
-           th:if="${!#strings.isEmpty(signInUrl) and signInUrl != '/dev.html'}">Sign in</a>
-        <a class="button" href="/dev.html" th:if="${signInUrl == '/dev.html'}">Developer sign-in</a>
+           th:if="${!#strings.isEmpty(signInUrl) and signInUrl != '/dev'}">Sign in</a>
+        <a class="button" href="/dev" th:if="${signInUrl == '/dev'}">Developer sign-in</a>
         <span class="faint small" th:if="${#strings.isEmpty(signInUrl)}">Sign-in is not set up</span>
       </th:block>
     </div>
@@ -318,7 +318,7 @@
       Werkzeug gibt. Bis 2026-09-26 stand das nirgends auf dem Portal.
     -->
     <div class="side-group">
-      <a href="/share.html" class="side-item"
+      <a href="/share" class="side-item"
          th:classappend="${active == 'share'} ? ' active'" th:attr="aria-current=${active == 'share'} ? 'page'">
         <span>Share</span>
       </a>
@@ -339,11 +339,11 @@
          th:classappend="${active == 'animations'} ? ' active'" th:attr="aria-current=${active == 'animations'} ? 'page'">
         <span>Community</span>
       </a>
-      <a href="/collections.html" class="side-item"
+      <a href="/collections" class="side-item"
          th:classappend="${active == 'collections'} ? ' active'" th:attr="aria-current=${active == 'collections'} ? 'page'">
         <span>Collections</span>
       </a>
-      <a href="/characters.html" class="side-item"
+      <a href="/characters" class="side-item"
          th:classappend="${active == 'characters'} ? ' active'" th:attr="aria-current=${active == 'characters'} ? 'page'">
         <span>Characters</span>
       </a>
@@ -357,7 +357,7 @@
       dem Abmelden zusammen, hier als Orte, die man ansteuert.
     -->
     <div class="side-group" th:if="${user != null}">
-      <a class="side-item" id="messages-button" href="/messages.html"
+      <a class="side-item" id="messages-button" href="/messages"
          th:classappend="${active == 'messages'} ? ' active'" th:attr="aria-current=${active == 'messages'} ? 'page'"
          th:aria-label="${user.unreadMessages > 0} ? ${'Messages, ' + user.unreadMessages + ' new'} : 'Messages'"
          th:title="${user.unreadMessages > 0} ? ${'Messages (' + user.unreadMessages + ' new)'} : 'Messages'">
@@ -365,12 +365,12 @@
         <span class="bell-count" th:if="${user.unreadMessages > 0}"
               th:text="${user.unreadMessages > 99} ? '99+' : ${user.unreadMessages}">1</span>
       </a>
-      <a class="side-item" th:if="${user.handle != null}" th:href="${'/u.html?u=' + user.handle}"
-         th:with="own=${active == 'profile' and param.u != null and param.u[0] == user.handle}"
+      <a class="side-item" th:if="${user.handle != null}" th:href="@{/u/{h}(h=${user.handle})}"
+         th:with="own=${active == 'profile' and profileHandle == user.handle}"
          th:classappend="${own} ? ' active'" th:attr="aria-current=${own} ? 'page'">
         <span>Profile</span>
       </a>
-      <a class="side-item" href="/me.html"
+      <a class="side-item" href="/account"
          th:classappend="${active == 'account'} ? ' active'" th:attr="aria-current=${active == 'account'} ? 'page'">
         <span>Account</span>
       </a>
@@ -384,7 +384,7 @@
       Seite; der Eintrag gilt fuer beide.
     -->
     <div class="side-group" th:if="${user != null and user.admin}">
-      <a href="/admin.html" class="side-item admin-link"
+      <a href="/admin" class="side-item admin-link"
          th:classappend="${active == 'admin'} ? ' active'" th:attr="aria-current=${active == 'admin'} ? 'page'">
         <span>Moderation</span>
       </a>
@@ -424,7 +424,7 @@
     Ausgabe: die Stufen heissen Lite und Pro.
   -->
   <div class="footer-powered">
-    <a class="powered-by" href="/share.html" title="MotionLabs Animation Workbench for Unity">
+    <a class="powered-by" href="/share" title="MotionLabs Animation Workbench for Unity">
       <span>Powered by</span>
       <img class="powered-lockup" th:src="|${@buildStamp.assets}/brand/aw-lockup-weiss.svg|"
            alt="MotionLabs Animation Workbench" width="120" height="29">
@@ -443,13 +443,13 @@
       Nutzungsbedingungen verlinken mit.
     -->
     <nav class="footer-links">
-      <a href="/share.html">MotionLabs Animation Workbench for Unity</a>
-      <a href="/rules.html">Community rules</a>
-      <a href="/licenses.html">Licenses</a>
-      <a href="/takedown.html">Report a rights violation</a>
-      <a href="/terms.html">Terms</a>
-      <a href="/privacy.html">Privacy</a>
-      <a href="/impressum.html">Legal notice</a>
+      <a href="/share">MotionLabs Animation Workbench for Unity</a>
+      <a href="/rules">Community rules</a>
+      <a href="/licenses">Licenses</a>
+      <a href="/takedown">Report a rights violation</a>
+      <a href="/terms">Terms</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/impressum">Legal notice</a>
     </nav>
     <!--
       Welcher Stand hier antwortet. Leise, aber sichtbar: nach einem Ausrollen

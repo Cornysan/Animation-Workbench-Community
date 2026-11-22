@@ -87,7 +87,7 @@ class ShellModel(
     /**
      * Wo es das Werkzeug gibt, mit dem Clips HIERHER kommen. Teilen geht nur
      * aus Unity - bis 2026-09-26 stand der Weg dorthin nirgends auf dem Portal.
-     * An einer Stelle, weil Kopf, Fuss, Clip-Seite und /share.html sie nennen.
+     * An einer Stelle, weil Kopf, Fuss, Clip-Seite und /share sie nennen.
      */
     data class StoreLinks(val free: String, val pro: String)
 
@@ -109,9 +109,9 @@ class ShellModel(
         val enabled = providers.enabled
         return when {
             enabled.size == 1 && !portal.devLogin -> enabled.single().authorizationUrl
-            enabled.isEmpty() && portal.devLogin -> "/dev.html"
+            enabled.isEmpty() && portal.devLogin -> PortalPaths.DEV_SIGN_IN
             enabled.isEmpty() -> ""
-            else -> "/signin.html"
+            else -> PortalPaths.SIGN_IN
         }
     }
 

@@ -26,7 +26,7 @@ class Account(
     var displayName: String,
 
     /**
-     * Die oeffentliche Adresse dieses Kontos: `/u.html?u=<handle>`.
+     * Die oeffentliche Adresse dieses Kontos: `/u/<handle>` (PortalPaths.profile).
      *
      * Eindeutig, klein geschrieben, aus dem Anzeigenamen abgeleitet - und
      * danach unabhaengig von ihm. Wer bei Discord seinen Namen aendert, behaelt

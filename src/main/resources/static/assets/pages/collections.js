@@ -43,7 +43,7 @@
   for (const [value, label] of choices) {
     showBox.append(el("a", {
       class: show === value ? "active" : null,
-      href: value === choices[0][0] ? "/collections.html" : "/collections.html?show=" + value,
+      href: value === choices[0][0] ? "/collections" : "/collections?show=" + value,
     }, label));
   }
 
@@ -51,7 +51,7 @@
   const make = el("button", { class: "button primary", type: "button" }, "New collection");
   make.addEventListener("click", async () => {
     const made = await collectionDialog();
-    if (made) location.href = "/collection.html?c=" + encodeURIComponent(made.slug);
+    if (made) location.href = AW.paths.collection(made.slug);
   });
   makeBox.append(make);
 

@@ -85,11 +85,11 @@ class SeoPagesTest {
         val tag = "stroll" + letters()
         val slug = upload(login(author), "Evening Stroll", tag)
 
-        val page = html("/clip.html?p=$slug")
+        val page = html("/clip/$slug")
 
         assertTrue("<title>Evening Stroll – Free Animation (FBX, GLB, Unity) | Playmations</title>" in page)
         assertTrue("""<div id="clip" class="clip-layout">""" in page, "the clip is not hidden in the delivered HTML")
-        assertTrue("""href="/u.html?u=$author"""" in page, "the author is a link")
+        assertTrue("""href="/u/$author"""" in page, "the author is a link")
         assertTrue("""href="/?tag=$tag"""" in page, "the tag leads to its page")
         assertTrue("<dt>Duration</dt>" in page, "the facts are in the HTML")
         assertTrue("A calm stroll. Free humanoid animation - download it as FBX or GLB" in page, "description with the pitch")
@@ -98,7 +98,7 @@ class SeoPagesTest {
         val work = ld[0]
         assertEquals("CreativeWork", work["@type"].asString())
         assertEquals(Seo.CC0, work["license"].asString())
-        assertEquals("https://portal.test/clip.html?p=$slug", work["url"].asString())
+        assertEquals("https://portal.test/clip/$slug", work["url"].asString())
         assertEquals("BreadcrumbList", ld[1]["@type"].asString())
         assertEquals(3, ld[1]["itemListElement"].size())
     }
@@ -108,7 +108,7 @@ class SeoPagesTest {
         val slug = upload(login("lister" + unique()), "Listed Walk", "walk")
         val page = html("/")
 
-        assertTrue("""href="/clip.html?p=$slug"""" in page, "the first page of the wall is in the HTML")
+        assertTrue("""href="/clip/$slug"""" in page, "the first page of the wall is in the HTML")
         assertTrue("<title>Free Humanoid Animations – FBX, GLB & Unity | Playmations</title>"
             .replace("&", "&amp;") in page, page.substringAfter("<title>").substringBefore("</title>"))
         assertEquals("WebSite", jsonLdOf(page)["@graph"][0]["@type"].asString())
@@ -135,8 +135,8 @@ class SeoPagesTest {
 
     @Test
     fun `a pack page is its own address`() {
-        val page = html("/pack.html?k=abcdefgh")
-        assertTrue("""<link rel="canonical" href="https://portal.test/pack.html?k=abcdefgh">""" in page,
+        val page = html("/pack/abcdefgh")
+        assertTrue("""<link rel="canonical" href="https://portal.test/pack/abcdefgh">""" in page,
             "before, every pack called itself /pack.html")
     }
 
